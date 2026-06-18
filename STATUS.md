@@ -2,7 +2,7 @@
 
 > **This is a generated dashboard.** Do not hand-edit. Regenerate via `node .planning/tasks.mjs regen` (the protocol in `CLAUDE.md` § "Status regeneration").
 
-**Last regenerated:** 2026-06-19 — Build in progress. 57/76 ops-core tasks done.
+**Last regenerated:** 2026-06-19 — Build in progress. 61/76 ops-core tasks done.
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Status | Count |
 |--------|-------|
-| done | 57 |
+| done | 61 |
 | in_progress | 0 |
 | blocked | 0 |
-| not_started | 29 |
+| not_started | 25 |
 | **Total** | **86** |
 
-> ops-core: **57/76 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
+> ops-core: **61/76 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
 
 ---
 
@@ -34,10 +34,10 @@ _(none)_
 
 1. **F11-T01** — OutboxEvent model + migration _(deps: F00-T06)_
 2. **F11-T02** — NATS connect + JetStream config (config/nats) + NATS_ENABLED guard _(deps: F00-T02)_
-3. **F10-T01** — POST /requests/:id/approve (MANAGER+): confirm held reservations → audit → emit; 409 if a hold expired _(deps: F06-T04, F09-T02)_
+3. **F12-T01** — seed 4 halls (Blue/Orange/Green/Yellow) + transitional areas with capacities + buffers _(deps: F02-T01)_
 
 
-…and 8 more eligible.
+…and 5 more eligible.
 
 ---
 
@@ -55,9 +55,9 @@ _(none)_
 | F07 quotes | Core | 5 | 0 | 5 |
 | F08 tasks | Core | 4 | 0 | 4 |
 | F09 audit | Foundation | 4 | 0 | 4 |
-| F10 approvals | Core | 0 | 4 | 4 |
+| F10 approvals | Core | 4 | 0 | 4 |
 | F11 events | Foundation | 0 | 6 | 6 |
 | F12 seed | Integration | 0 | 4 | 4 |
 | F13 contract | Integration | 0 | 5 | 5 |
-| **ops-core subtotal** | | **57** | **19** | **76** |
+| **ops-core subtotal** | | **61** | **15** | **76** |
 | A00 ai-orchestrator | AI | 0 | 10 | 10 |

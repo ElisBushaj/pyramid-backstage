@@ -1,13 +1,13 @@
 ---
 id: F10
 name: Approvals & Workflow
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F10 — Tasks
 
 ### F10-T01 — POST /requests/:id/approve (MANAGER+): confirm held reservations → audit → emit; 409 if a hold expired
-- Status: not_started
+- Status: done
 - Depends on: F06-T04, F09-T02
 - Estimate: 0.75d
 - Acceptance:
@@ -18,7 +18,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F10-T02 — POST /requests/:id/reject (MANAGER+): reason required → release reservations → audit
-- Status: not_started
+- Status: done
 - Depends on: F06-T04, F09-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -29,7 +29,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F10-T03 — role gates (MANAGER+) wired + VIEWER gets 403
-- Status: not_started
+- Status: done
 - Depends on: F01-T05
 - Estimate: 0.25d
 - Acceptance:
@@ -39,7 +39,7 @@ last_updated: 2026-06-18
   - tsc clean.
 
 ### F10-T04 — approval/reject tests + audit + outbox assertions
-- Status: not_started
+- Status: done
 - Depends on: F10-T01, F10-T02
 - Estimate: 0.5d
 - Acceptance:

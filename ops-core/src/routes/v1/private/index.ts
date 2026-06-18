@@ -8,6 +8,7 @@ import requestsRoutes from "../../../modules/requests/routes";
 import reservationsRoutes from "../../../modules/reservations/routes";
 import quotesRoutes from "../../../modules/quotes/routes";
 import { requestTaskRoutes, taskRoutes } from "../../../modules/tasks/routes";
+import approvalsRoutes from "../../../modules/approvals/routes";
 import conflictsRoutes from "../../../modules/conflicts/routes";
 import auditRoutes from "../../../modules/audit/routes";
 
@@ -24,6 +25,7 @@ router.use("/spaces", spacesRoutes);
 router.use("/assets", assetsRoutes);
 router.use("/requests", requestsRoutes);
 router.use("/requests", requestTaskRoutes); // /requests/:id/tasks
+router.use("/requests", approvalsRoutes); // /requests/:id/approve, /reject
 router.use("/tasks", taskRoutes); // PATCH /tasks/:id
 router.use("/reservations", reservationsRoutes);
 router.use("/quotes", quotesRoutes);

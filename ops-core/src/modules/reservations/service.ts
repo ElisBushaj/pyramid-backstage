@@ -20,6 +20,30 @@ class HoldConflict extends Error {
   }
 }
 
+/** Confirm a HELD reservation inside the caller's transaction (reused by F10 approve). */
+export async function confirmReservationTx(
+  tx: Prisma.TransactionClient,
+  reservation: { id: string; requestId: string; spaceId: string; status: string },
+  actor: Actor,
+) {
+  const u = await tx.reservation.update({ where: { id: reservation.id }, data: { status: "CONFIRMED", expiresAt: null }, include: { assets: true } });
+  await writeAudit(tx, { actor, action: "reservation.confirm", entityType: "Reservation", entityId: reservation.id, requestId: reservation.requestId, before: { status: reservation.status }, after: { status: "CONFIRMED" } });
+  await writeOutbox(tx, "reservation.confirmed", { reservationId: reservation.id, requestId: reservation.requestId, spaceId: reservation.spaceId });
+  return u;
+}
+
+/** Release a reservation inside the caller's transaction (reused by F10 reject). */
+export async function releaseReservationTx(
+  tx: Prisma.TransactionClient,
+  reservation: { id: string; requestId: string; spaceId: string; status: string },
+  actor: Actor,
+) {
+  const u = await tx.reservation.update({ where: { id: reservation.id }, data: { status: "RELEASED", expiresAt: null } });
+  await writeAudit(tx, { actor, action: "reservation.release", entityType: "Reservation", entityId: reservation.id, requestId: reservation.requestId, before: { status: reservation.status }, after: { status: "RELEASED" } });
+  await writeOutbox(tx, "reservation.released", { reservationId: reservation.id, requestId: reservation.requestId, spaceId: reservation.spaceId });
+  return u;
+}
+
 function isSerializationError(e: unknown): boolean {
   // Prisma surfaces serialization failures / deadlocks as P2034.
   return e instanceof Prisma.PrismaClientKnownRequestError && (e.code === "P2034" || e.code === "P2037");
@@ -81,6 +105,11 @@ class ReservationsService {
               after: { spaceId: row.spaceId, status: "HELD", expiresAt: row.expiresAt },
             });
             await writeOutbox(tx, "reservation.held", { reservationId: row.id, requestId: input.requestId, spaceId: row.spaceId });
+            // A hold means a plan now exists → move the request DRAFT → PROPOSED.
+            if (request.status === "DRAFT") {
+              await tx.eventRequest.update({ where: { id: input.requestId }, data: { status: "PROPOSED" } });
+              await writeAudit(tx, { actor, action: "request.transition", entityType: "EventRequest", entityId: input.requestId, requestId: input.requestId, before: { status: "DRAFT" }, after: { status: "PROPOSED" } });
+            }
             return row;
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
