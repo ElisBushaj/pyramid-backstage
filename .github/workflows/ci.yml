@@ -1,0 +1,154 @@
+# Pyramid Backstage CI.
+#
+# Three independent jobs:
+#   ops-core    — Node 20, install, `tsc --noEmit`, unit tests (Vitest).
+#   frontend    — Node 20, install, `tsc -b`, production build.
+#   integration — Postgres 17 + NATS 2 service containers; runs Prisma
+#                 migrations then the ops-core integration tests against a
+#                 real database (no DB mocks — see CLAUDE.md).
+#
+# Test env is hardcoded below (no secrets) — everything points at the
+# service-container ports GitHub Actions exposes on the runner's localhost.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  ops-core:
+    name: ops-core — typecheck + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ops-core/package-lock.json
+
+      - name: Install deps
+        working-directory: ops-core
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: ops-core
+        run: npx prisma generate
+
+      - name: Typecheck
+        working-directory: ops-core
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        working-directory: ops-core
+        run: npx vitest run
+
+  frontend:
+    name: frontend — typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: frontend
+        run: pnpm exec tsc -b
+
+      - name: Build
+        working-directory: frontend
+        run: pnpm build
+
+  integration:
+    name: ops-core — integration tests (real Postgres + NATS)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://pyramid:pyramid@localhost:5432/pyramid_test"
+      NATS_URL: "nats://localhost:4222"
+      REDIS_URL: "redis://localhost:6379"
+      SESSION_SECRET: "ci-session-secret"
+      FRONTEND_URL: "http://localhost:5173"
+      PORT: "4000"
+      NODE_ENV: "test"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pyramid_test
+          POSTGRES_USER: pyramid
+          POSTGRES_PASSWORD: pyramid
+          PGTZ: UTC
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pyramid -d pyramid_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      nats:
+        image: nats:2
+        ports:
+          - 4222:4222
+          - 8222:8222
+        options: >-
+          --health-cmd "wget --quiet --tries=1 --spider http://localhost:8222/healthz || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ops-core/package-lock.json
+
+      - name: Install deps
+        working-directory: ops-core
+        run: npm ci
+
+      - name: Apply Prisma migrations
+        working-directory: ops-core
+        run: npx prisma migrate deploy
+
+      - name: Generate Prisma client
+        working-directory: ops-core
+        run: npx prisma generate
+
+      - name: Run integration tests
+        working-directory: ops-core
+        env:
+          INTEGRATION: "1"
+        run: npx vitest run

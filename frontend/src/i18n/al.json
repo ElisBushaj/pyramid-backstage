@@ -1,0 +1,10 @@
+{
+  "ui": {
+    "common": {
+      "loading": "Duke u ngarkuar…",
+      "save": "Ruaj",
+      "cancel": "Anulo",
+      "retry": "Riprovo"
+    }
+  }
+}

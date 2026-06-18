@@ -1,0 +1,55 @@
+[project]
+name = "ai-orchestrator"
+version = "0.1.0"
+description = "Pyramid Backstage — AI Orchestrator (FastAPI + LangGraph + Claude + ChromaDB + Redis). SCAFFOLD ONLY — Alvin's lane."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "UNLICENSED" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Runtime deps. The HTTP client (httpx) + the FastAPI app are REAL and working.
+# LangGraph / langchain-anthropic / anthropic / chromadb / redis are wired so the
+# graph + RAG stubs import cleanly; the node BODIES are Alvin's to implement
+# (see docs/06-features/A00-ai-orchestrator).
+# ─────────────────────────────────────────────────────────────────────────────
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "httpx>=0.28",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "langgraph>=0.2.50",
+    "langchain-anthropic>=0.3",
+    "anthropic>=0.40",
+    "chromadb>=0.5",
+    "redis>=5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[project.scripts]
+ai-orchestrator = "app.main:run"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "app.graph", "app.rag"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# E/F (pyflakes+pycodestyle), I (isort), UP (pyupgrade), B (bugbear).
+select = ["E", "F", "I", "UP", "B"]
+# Stubs intentionally raise NotImplementedError and may have unused args.
+ignore = ["B006"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

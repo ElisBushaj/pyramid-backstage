@@ -1,0 +1,21 @@
+{
+  "name": "mock-ops-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stateful in-memory mock of ops-core so the AI's conflict branch is testable in isolation (Prism's static examples can't do this). Honors the contract shapes, the ServiceResponse envelope, the error contract, and the REAL buffer-aware reservation 409 conflict path.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "start": "tsx server.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

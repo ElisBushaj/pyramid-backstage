@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;700&family=Geist+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .tab-nums { font-variant-numeric: tabular-nums; }
+  @keyframes mo120 { from { transform: translateX(0); } to { transform: translateX(150%); } }
+  @keyframes mo200 { from { transform: translateX(0); } to { transform: translateX(150%); } }
+  @keyframes mo280 { from { transform: translateX(0); } to { transform: translateX(150%); } }
+</style>
+</helmet>
+
+<div style="background:#DBDEE3; min-width:100%; min-height:100vh; width:100%; box-sizing:border-box; padding:56px 48px 96px; font-family:'SF Pro Text','Geist',-apple-system,system-ui,sans-serif; color:#0B0D12; -webkit-font-smoothing:antialiased;">
+
+  <!-- canvas header -->
+  <div style="max-width:1240px; margin:0 auto 40px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#8A8F98; letter-spacing:0.04em;">§1</span>
+      <h1 style="font-size:24px; line-height:30px; font-weight:600; letter-spacing:-0.01em; margin:0;">Tokens</h1>
+    </div>
+    <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:560px;">The contract. Every component references these semantic values — never a raw hex. Calm command-center palette: monochrome by default, color only for operational meaning.</p>
+    <div style="margin-top:18px;"><a href="index.dc.html" style="font-size:13px; color:#2F6FED; text-decoration:none;">← Canvas index</a></div>
+  </div>
+
+  <!-- ================= COLOR ================= -->
+  <div style="max-width:1240px; margin:0 auto;">
+
+    <!-- 1.1 Surfaces -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.1</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Color — Surfaces</h2>
+      <span style="font-size:13px; color:#8A8F98;">paper, two elevation levels</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:24px; margin-bottom:40px;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        {{ surfaceSwatches }}
+      </div>
+    </div>
+
+    <!-- 1.2 Text -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.2</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Color — Text</h2>
+      <span style="font-size:13px; color:#8A8F98;">ink on paper</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:24px; margin-bottom:40px;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        {{ textSwatches }}
+      </div>
+    </div>
+
+    <!-- 1.3 Border -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.3</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Color — Borders</h2>
+      <span style="font-size:13px; color:#8A8F98;">hairlines</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:24px; margin-bottom:40px;">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+        {{ borderSwatches }}
+      </div>
+    </div>
+
+    <!-- 1.4 Accent -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.4</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Accent — ONE calm blue</h2>
+      <span style="font-size:13px; color:#8A8F98;">primary actions + live signals only</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:24px; margin-bottom:40px;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        {{ accentSwatches }}
+      </div>
+    </div>
+
+    <!-- 1.5 Status -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.5</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Operational status</h2>
+      <span style="font-size:13px; color:#8A8F98;">the ONLY other colors — each paired with a subtle background</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:24px; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        {{ statusSwatches }}
+      </div>
+    </div>
+    <!-- status mapping table -->
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:0; margin-bottom:40px; overflow:hidden;">
+      <div style="display:grid; grid-template-columns:1.4fr 0.8fr 2fr; padding:12px 24px; background:#F7F8FA; border-bottom:1px solid #ECEEF1; font-size:12px; font-weight:500; letter-spacing:0.03em; text-transform:uppercase; color:#8A8F98;">
+        <span>Operational state</span><span>Token</span><span>Used by</span>
+      </div>
+      {{ mappingRows }}
+    </div>
+
+    <!-- ================= TYPE ================= -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.6</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Typography</h2>
+      <span style="font-size:13px; color:#8A8F98;">SF Pro Text / Geist · one family, tight scale, weight contrast · tabular numerals</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:8px 24px; margin-bottom:40px;">
+      {{ typeRows }}
+    </div>
+
+    <!-- ================= SPACING ================= -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.7</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Spacing</h2>
+      <span style="font-size:13px; color:#8A8F98;">4-pt grid · gutters 24 mobile / 32 desktop</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:28px 24px; margin-bottom:40px;">
+      <div style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap;">
+        {{ spacingBars }}
+      </div>
+    </div>
+
+    <!-- ================= RADIUS + ELEVATION + MOTION ================= -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:40px;">
+      <div>
+        <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+          <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.8</span>
+          <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Radius</h2>
+        </div>
+        <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:28px 24px; height:calc(100% - 40px);">
+          <div style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap;">
+            {{ radiusBoxes }}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+          <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.9</span>
+          <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Elevation</h2>
+        </div>
+        <div style="background:#F7F8FA; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:36px 24px; height:calc(100% - 40px);">
+          <div style="display:flex; align-items:center; justify-content:space-around; gap:20px; flex-wrap:wrap;">
+            {{ elevationBoxes }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Motion -->
+    <div style="margin-bottom:14px; display:flex; align-items:baseline; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#8A8F98;">§1.10</span>
+      <h2 style="font-size:19px; line-height:26px; font-weight:600; margin:0;">Motion</h2>
+      <span style="font-size:13px; color:#8A8F98;">functional · ease-out · never bouncy</span>
+    </div>
+    <div style="background:#fff; border-radius:14px; box-shadow:0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06); padding:24px;">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px;">
+        {{ motionRows }}
+      </div>
+      <div style="margin-top:20px; padding-top:18px; border-top:1px solid #ECEEF1; display:flex; gap:32px; font-family:'Geist Mono',monospace; font-size:12px; color:#51555E;">
+        <span>--ease-std&nbsp;&nbsp;cubic-bezier(0.2,0,0,1)</span>
+        <span>--ease-exit&nbsp;&nbsp;cubic-bezier(0.4,0,1,1)</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  swatch(hex, name, varName, darkText, sub) {
+    const txt = darkText ? '#0B0D12' : '#FFFFFF';
+    return React.createElement('div', { key: name, style: { display:'flex', flexDirection:'column', gap:'8px' } },
+      React.createElement('div', { style: { height:'72px', borderRadius:'10px', background:hex, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.08)', display:'flex', alignItems:'flex-end', padding:'8px 10px' } },
+        sub ? React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:txt, opacity:.85 } }, sub) : null
+      ),
+      React.createElement('div', null,
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:550, color:'#0B0D12' } }, name),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98', marginTop:'2px' } }, varName),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#51555E' } }, hex)
+      )
+    );
+  }
+
+  textSwatch(hex, name, varName, bg) {
+    const isInv = bg === 'inv';
+    return React.createElement('div', { key:name, style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+      React.createElement('div', { style:{ height:'72px', borderRadius:'10px', background: isInv ? '#0B0D12' : '#FFFFFF', boxShadow:'inset 0 0 0 1px rgba(11,13,18,.08)', display:'flex', alignItems:'center', justifyContent:'center' } },
+        React.createElement('span', { style:{ fontSize:'22px', fontWeight:600, color:hex } }, 'Ag')
+      ),
+      React.createElement('div', null,
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:550 } }, name),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98', marginTop:'2px' } }, varName),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#51555E' } }, hex)
+      )
+    );
+  }
+
+  statusSwatch(s) {
+    return React.createElement('div', { key:s.name, style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+      React.createElement('div', { style:{ borderRadius:'10px', background:s.subtle, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.06)', padding:'14px', display:'flex', flexDirection:'column', gap:'10px' } },
+        React.createElement('div', { style:{ display:'inline-flex', alignItems:'center', gap:'7px', alignSelf:'flex-start', background:s.subtle, border:`1px solid ${s.fg}33`, borderRadius:'999px', padding:'3px 10px 3px 8px' } },
+          React.createElement('span', { style:{ width:'7px', height:'7px', borderRadius:'999px', background:s.fg } }),
+          React.createElement('span', { style:{ fontSize:'12px', fontWeight:600, color:s.fg } }, s.chip)
+        ),
+        React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+          React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'7px', background:s.fg } }),
+          React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'7px', background:s.subtle, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.1)' } })
+        )
+      ),
+      React.createElement('div', null,
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:550 } }, s.name),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#51555E', marginTop:'2px' } }, s.fg + ' / ' + s.subtle)
+      )
+    );
+  }
+
+  typeRow(t) {
+    return React.createElement('div', { key:t.token, style:{ display:'flex', alignItems:'baseline', gap:'24px', padding:'16px 0', borderBottom:'1px solid #ECEEF1' } },
+      React.createElement('div', { style:{ width:'150px', flexShrink:0 } },
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'13px', fontWeight:500, color:'#0B0D12' } }, t.token),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98', marginTop:'3px' } }, t.spec)
+      ),
+      React.createElement('div', { style:{ fontSize:t.size+'px', lineHeight:t.lh+'px', fontWeight:t.weight, letterSpacing:(t.tr||0)+'em', color:'#0B0D12', fontFamily:t.mono?"'Geist Mono',monospace":'inherit', fontVariantNumeric:'tabular-nums' } }, t.sample)
+    );
+  }
+
+  mapRow(r, last) {
+    return React.createElement('div', { key:r.state, style:{ display:'grid', gridTemplateColumns:'1.4fr 0.8fr 2fr', alignItems:'center', padding:'13px 24px', borderBottom: last?'none':'1px solid #ECEEF1' } },
+      React.createElement('span', { style:{ fontSize:'14px', fontWeight:550, color:'#0B0D12' } }, r.state),
+      React.createElement('span', { style:{ display:'inline-flex', alignSelf:'flex-start', alignItems:'center', gap:'6px', background:r.subtle, borderRadius:'999px', padding:'3px 10px', fontSize:'12px', fontWeight:600, color:r.fg } },
+        React.createElement('span', { style:{ width:'6px', height:'6px', borderRadius:'999px', background:r.fg } }), r.token),
+      React.createElement('span', { style:{ fontSize:'13px', color:'#51555E' } }, r.used)
+    );
+  }
+
+  spacingBar(v) {
+    return React.createElement('div', { key:v, style:{ display:'flex', flexDirection:'column', alignItems:'center', gap:'10px' } },
+      React.createElement('div', { style:{ width:v+'px', height:'48px', background:'#2F6FED', borderRadius:'3px' } }),
+      React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#51555E' } }, v)
+    );
+  }
+
+  radiusBox(r) {
+    const v = r === 999 ? '999' : r;
+    return React.createElement('div', { key:r, style:{ display:'flex', flexDirection:'column', alignItems:'center', gap:'10px' } },
+      React.createElement('div', { style:{ width:'64px', height:'64px', background:'#F1F3F5', boxShadow:'inset 0 0 0 1px #D7DBE0', borderTopLeftRadius:(r===999?32:r)+'px', borderTopRightRadius:(r===999?32:r)+'px', borderBottomRightRadius:(r===999?32:r)+'px' } }),
+      React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#51555E' } }, v)
+    );
+  }
+
+  elevBox(e) {
+    return React.createElement('div', { key:e.name, style:{ display:'flex', flexDirection:'column', alignItems:'center', gap:'12px' } },
+      React.createElement('div', { style:{ width:'120px', height:'72px', background:'#fff', borderRadius:'10px', boxShadow:e.shadow } }),
+      React.createElement('div', { style:{ textAlign:'center' } },
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:550 } }, e.name),
+        React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98', marginTop:'2px' } }, e.use)
+      )
+    );
+  }
+
+  motionRow(m) {
+    return React.createElement('div', { key:m.token, style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+      React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'13px', fontWeight:500 } }, m.token),
+      React.createElement('div', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98' } }, m.val + ' · ' + m.use),
+      React.createElement('div', { style:{ height:'4px', background:'#EEF3FE', borderRadius:'999px', overflow:'hidden' } },
+        React.createElement('div', { style:{ height:'100%', width:'40%', background:'#2F6FED', borderRadius:'999px', animation:`mo${m.ms} ${m.ms}ms cubic-bezier(0.2,0,0,1) infinite alternate` } })
+      )
+    );
+  }
+
+  renderVals() {
+    const surfaceSwatches = [
+      this.swatch('#FFFFFF','Surface','--surface',true,'page + cards'),
+      this.swatch('#F7F8FA','Subtle','--surface-subtle',true,'chrome, headers'),
+      this.swatch('#F1F3F5','Sunken','--surface-sunken',true,'wells, insets'),
+      this.swatch('#0B0D12','Inverted','--surface-inverted',false,'tooltips, palette'),
+    ];
+    const textSwatches = [
+      this.textSwatch('#0B0D12','Primary','--text-primary','light'),
+      this.textSwatch('#51555E','Secondary','--text-secondary','light'),
+      this.textSwatch('#8A8F98','Tertiary','--text-tertiary','light'),
+      this.textSwatch('#FFFFFF','Inverted','--text-inverted','inv'),
+    ];
+    const borderSwatches = [
+      this.swatch('#ECEEF1','Subtle','--border-subtle',true,'dividers, inputs'),
+      this.swatch('#D7DBE0','Strong','--border-strong',true,'hover, emphasis'),
+      this.swatch('#2F6FED','Focus','--border-focus',false,'focus ring'),
+    ];
+    const accentSwatches = [
+      this.swatch('#2F6FED','Accent','--accent',false,'default'),
+      this.swatch('#2A63D4','Hover','--accent-hover',false,'hover'),
+      this.swatch('#244FB0','Pressed','--accent-pressed',false,'pressed'),
+      this.swatch('#EEF3FE','Muted tint','--accent-muted',true,'copilot surface'),
+    ];
+    const statusDefs = [
+      { name:'Success', fg:'#1A7F4B', subtle:'#E9F6EF', chip:'CONFIRMED' },
+      { name:'Warning', fg:'#9A6B00', subtle:'#FBF3E0', chip:'HELD' },
+      { name:'Danger', fg:'#C8372D', subtle:'#FBECEA', chip:'CONFLICT' },
+      { name:'Info', fg:'#2F6FED', subtle:'#EEF3FE', chip:'SCHEDULED' },
+    ];
+    const statusSwatches = statusDefs.map(s => this.statusSwatch(s));
+    const mapDefs = [
+      { state:'Available / Confirmed / Done / Feasible', token:'success', fg:'#1A7F4B', subtle:'#E9F6EF', used:'space free, reservation CONFIRMED, task DONE, plan feasible' },
+      { state:'Held / Low inventory / Proposed', token:'warning', fg:'#9A6B00', subtle:'#FBF3E0', used:'reservation HELD + expiresAt, inventory low, request PROPOSED' },
+      { state:'Conflict / Rejected / Overdue', token:'danger', fg:'#C8372D', subtle:'#FBECEA', used:'conflict.detected, request REJECTED, task overdue' },
+      { state:'Scheduled / Informational', token:'info', fg:'#2F6FED', subtle:'#EEF3FE', used:'request SCHEDULED, neutral banners' },
+      { state:'Draft / Released / Inactive', token:'neutral', fg:'#8A8F98', subtle:'#F1F3F5', used:'request DRAFT, reservation RELEASED' },
+    ];
+    const mappingRows = mapDefs.map((r,i) => this.mapRow(r, i===mapDefs.length-1));
+    const typeDefs = [
+      { token:'display', spec:'32/38 · 600', size:32, lh:38, weight:600, tr:-0.02, sample:'134,000 ALL' },
+      { token:'h1', spec:'24/30 · 600', size:24, lh:30, weight:600, tr:-0.01, sample:'FinTech Startup Conference' },
+      { token:'h2', spec:'19/26 · 600', size:19, lh:26, weight:600, sample:'Operational Plan' },
+      { token:'h3', spec:'16/22 · 600', size:16, lh:22, weight:600, sample:'Blue Hall — Reservation' },
+      { token:'body', spec:'14/21 · 400', size:14, lh:21, weight:400, sample:'Matched space and generated quote for 180 attendees.' },
+      { token:'body-strong', spec:'14/21 · 550', size:14, lh:21, weight:550, sample:'Capacity for theater layout' },
+      { token:'small', spec:'13/18 · 400', size:13, lh:18, weight:400, sample:'Held lease expires in 12m 04s' },
+      { token:'caption', spec:'12/16 · 500', size:12, lh:16, weight:500, tr:0.01, sample:'STATUS · ATTENDEES · VALUE' },
+      { token:'mono', spec:'13/18 · 450', size:13, lh:18, weight:450, mono:true, sample:'REQ-2026-0142 · 22 Jul 2026 14:00' },
+    ];
+    const typeRows = typeDefs.map(t => this.typeRow(t));
+    const spacingBars = [4,8,12,16,24,32,48,64].map(v => this.spacingBar(v));
+    const radiusBoxes = [4,6,10,16,999].map(r => this.radiusBox(r));
+    const elevationBoxes = [
+      { name:'flat', use:'none', shadow:'none' },
+      { name:'raised', use:'cards, popovers', shadow:'0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06)' },
+      { name:'overlay', use:'modals, drawers', shadow:'0 16px 40px -12px rgba(11,13,18,.18), 0 2px 6px rgba(11,13,18,.05), 0 0 0 1px rgba(11,13,18,.06)' },
+    ].map(e => this.elevBox(e));
+    const motionRows = [
+      { token:'--dur-micro', val:'120ms', use:'hover, toggles', ms:120 },
+      { token:'--dur-std', val:'200ms', use:'popovers, tabs', ms:200 },
+      { token:'--dur-page', val:'280ms', use:'drawers, pages', ms:280 },
+    ].map(m => this.motionRow(m));
+    return { surfaceSwatches, textSwatches, borderSwatches, accentSwatches, statusSwatches, mappingRows, typeRows, spacingBars, radiusBoxes, elevationBoxes, motionRows };
+  }
+}
+</script>
+</body>
+</html>

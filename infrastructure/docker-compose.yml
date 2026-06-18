@@ -1,0 +1,237 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Pyramid Backstage — full-system dev stack.
+#
+#   docker compose up
+#       Brings up the whole system: db, nats, redis, chromadb, ops-core,
+#       ai-orchestrator, frontend. ai-orchestrator points at the REAL ops-core.
+#       This is the everyday "run everything" command.
+#
+#   docker compose --profile mock up
+#       Additionally starts `mock-ops-core` (the stateful contract mock on :4010).
+#       Point a service at it by overriding OPS_CORE_URL, e.g. for isolated AI dev:
+#           OPS_CORE_URL=http://mock-ops-core:4010/api/v1 docker compose --profile mock up
+#       Without `--profile mock`, mock-ops-core never starts (it carries a profile).
+#
+# Env: every value reads from `${VAR:-default}` so a bare `docker compose up`
+# works with zero .env file. Copy each service's .env.example to override.
+# All services share the `pyramid_net` bridge; state lives in named volumes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Postgres — deterministic system of record ───────────────────────────────
+  db:
+    image: postgres:17
+    container_name: pyramid-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pyramid}
+      POSTGRES_USER: ${POSTGRES_USER:-pyramid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pyramid}
+      PGUSER: ${POSTGRES_USER:-pyramid}
+      PGTZ: UTC
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pyramid_db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER:-pyramid} -d ${POSTGRES_DB:-pyramid}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── NATS (JetStream) — event backbone for the transactional outbox ──────────
+  nats:
+    # alpine variant, not bare `nats:2`: the default image is FROM scratch (no
+    # shell, no wget) so a CMD/CMD-SHELL healthcheck can never run — leaving the
+    # container perpetually unhealthy and blocking ops-core's `service_healthy` wait.
+    image: nats:2-alpine
+    container_name: pyramid-nats
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
+    volumes:
+      - pyramid_nats_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── Redis — AI-orchestrator working memory / cache ──────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pyramid-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - pyramid_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── ChromaDB — vector store for the AI's retrieval (Alvin's lane) ───────────
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: pyramid-chromadb
+    ports:
+      - "${CHROMA_PORT:-8001}:8000"
+    volumes:
+      - pyramid_chroma_data:/chroma/chroma
+    # The chroma image ships no wget/curl/python and the v1 heartbeat is gone in
+    # chroma 1.x, so a TCP-connect probe (bash is present) is the portable check.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── ops-core — Express 5 system of record (Elis) ────────────────────────────
+  ops-core:
+    build:
+      context: ../ops-core
+      dockerfile: Dockerfile.dev
+    container_name: pyramid-ops-core
+    depends_on:
+      db:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${OPS_CORE_PORT:-4000}:4000"
+    volumes:
+      - ../ops-core/src:/app/src
+      - ../ops-core/prisma:/app/prisma
+      - ops_core_node_modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pyramid}:${POSTGRES_PASSWORD:-pyramid}@db:5432/${POSTGRES_DB:-pyramid}
+      REDIS_URL: redis://redis:6379
+      NATS_URL: nats://nats:4222
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/ready', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── ai-orchestrator — FastAPI reasoning layer (Alvin) ───────────────────────
+  ai-orchestrator:
+    build:
+      context: ../ai-orchestrator
+      dockerfile: Dockerfile.dev
+    container_name: pyramid-ai-orchestrator
+    depends_on:
+      ops-core:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    environment:
+      OPS_CORE_URL: ${OPS_CORE_URL:-http://ops-core:4000/api/v1}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      REDIS_URL: redis://redis:6379
+      CHROMA_URL: http://chromadb:8000
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status == 200 else 1)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── mock-ops-core — stateful contract mock for isolated dev (opt-in) ────────
+  #   Only runs with `--profile mock`. Aim a service at it by overriding
+  #   OPS_CORE_URL=http://mock-ops-core:4010/api/v1 (see the header comment).
+  mock-ops-core:
+    build:
+      context: ../mock-ops-core
+      dockerfile: Dockerfile.dev
+    container_name: pyramid-mock-ops-core
+    profiles: ["mock"]
+    ports:
+      - "${MOCK_OPS_CORE_PORT:-4010}:4010"
+    environment:
+      PORT: 4010
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+  # ── frontend — Vite + React 19 command center (this chassis) ────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    container_name: pyramid-frontend
+    depends_on:
+      ops-core:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/index.html:/app/index.html
+      - ../frontend/vite.config.ts:/app/vite.config.ts
+      - ../frontend/tsconfig.json:/app/tsconfig.json
+      - ../frontend/tsconfig.app.json:/app/tsconfig.app.json
+      - ../frontend/tsconfig.node.json:/app/tsconfig.node.json
+      - ../frontend/tailwind.config.ts:/app/tailwind.config.ts
+      - ../frontend/package.json:/app/package.json
+      - frontend_node_modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+      VITE_OPS_CORE_URL: ${VITE_OPS_CORE_URL:-http://localhost:4000/api/v1}
+      VITE_AI_URL: ${VITE_AI_URL:-http://localhost:8000}
+      CHOKIDAR_USEPOLLING: "true"
+    networks:
+      - pyramid_net
+    restart: unless-stopped
+
+volumes:
+  pyramid_db_data:
+    driver: local
+  pyramid_nats_data:
+    driver: local
+  pyramid_redis_data:
+    driver: local
+  pyramid_chroma_data:
+    driver: local
+  ops_core_node_modules:
+    driver: local
+  frontend_node_modules:
+    driver: local
+
+networks:
+  pyramid_net:
+    driver: bridge

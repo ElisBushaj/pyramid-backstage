@@ -1,0 +1,22 @@
+# Frontend dev image — Vite dev server with HMR.
+FROM node:20-alpine
+
+# pnpm via Corepack so the image matches the repo's package manager.
+RUN corepack enable
+
+WORKDIR /app
+
+# Install deps first so the layer caches across source-only changes. The
+# lockfile is optional in the build context (dev compose bind-mounts source
+# on top), so fall back to a plain install if it isn't present yet.
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install
+
+# Seed the rest of the source for standalone builds; compose bind-mounts
+# the live dev tree over these paths.
+COPY . .
+
+EXPOSE 5173
+
+# --host so the dev server is reachable from outside the container.
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]

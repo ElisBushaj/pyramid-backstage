@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;700&family=Geist+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+</style>
+</helmet>
+
+<div style="background:#DBDEE3; min-height:100vh; width:100%; box-sizing:border-box; padding:56px 48px 96px; font-family:'SF Pro Text','Geist',-apple-system,system-ui,sans-serif; color:#0B0D12; -webkit-font-smoothing:antialiased;">
+  <div style="max-width:1240px; margin:0 auto;">
+
+    <div style="margin-bottom:40px;">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#8A8F98; letter-spacing:0.04em;">§L</span>
+        <h1 style="font-size:24px; line-height:30px; font-weight:600; letter-spacing:-0.01em; margin:0;">Albanian locale (Shqip)</h1>
+      </div>
+      <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:640px;">The localization layer. Albanian copy runs ~25–30% longer than English, so labels, buttons and chips must flex without truncation. This sheet gives the build a 1:1 string map, side-by-side overflow stress tests, and full screens rendered in Shqip.</p>
+      <div style="margin-top:18px;"><a href="index.dc.html" style="font-size:13px; color:#2F6FED; text-decoration:none;">← Canvas index</a></div>
+    </div>
+
+    {{ sections }}
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  icon(d, size, color) { return React.createElement('svg',{width:size||16,height:size||16,viewBox:'0 0 16 16',fill:'none'}, React.createElement('path',{d, stroke:color||'currentColor', strokeWidth:1.5, strokeLinecap:'round', strokeLinejoin:'round'})); }
+  badge(fg, sub, label, opts) { opts=opts||{}; return React.createElement('span',{key:label, style:{ display:'inline-flex', alignItems:'center', gap:'6px', background:sub, border:`1px solid ${fg}26`, borderRadius:'999px', padding:'3px 10px', fontSize:'12px', fontWeight:600, color:fg, whiteSpace:'nowrap' }}, opts.noDot?null:React.createElement('span',{style:{width:'6px', height:'6px', borderRadius:'999px', background:fg}}), label); }
+  avatar(initials, size, color) { size=size||28; return React.createElement('div',{key:initials, style:{ width:size+'px', height:size+'px', borderRadius:'999px', background:color||'#E3E7EC', color:'#51555E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:(size*0.4)+'px', fontWeight:600, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.06)', flexShrink:0 }}, initials); }
+  btn(variant, label, opts) { opts=opts||{}; let bg,color,border='1px solid transparent'; if(variant==='primary'){bg='#2F6FED';color='#fff';} else if(variant==='secondary'){bg='#fff';color='#0B0D12';border='1px solid #D7DBE0';} else if(variant==='danger'){bg='#C8372D';color='#fff';} return React.createElement('button',{ style:{ display:'inline-flex', alignItems:'center', gap:'7px', height:(opts.sm?30:36)+'px', padding:`0 ${opts.sm?12:16}px`, fontSize:'14px', fontWeight:550, fontFamily:'inherit', borderRadius:'8px', background:bg, color, border, cursor:'pointer', whiteSpace:'nowrap' }}, opts.iconLeft||null, label, opts.iconRight||null); }
+  logo(size){ size=size||28; return React.createElement('div',{style:{width:size+'px', height:size+'px', borderRadius:'8px', background:'linear-gradient(135deg,#2F6FED,#244FB0)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}, React.createElement('svg',{width:size*0.55, height:size*0.55, viewBox:'0 0 18 18', fill:'none'}, React.createElement('path',{d:'M9 1.5 16.5 16.5H1.5L9 1.5Z', stroke:'#fff', strokeWidth:1.4, strokeLinejoin:'round'}))); }
+
+  frame(num, title, sub, body, opts) {
+    opts = opts||{};
+    return React.createElement('div', { key:num, style:{ marginBottom:'44px' } },
+      React.createElement('div', { style:{ marginBottom:'14px', display:'flex', alignItems:'baseline', gap:'10px', flexWrap:'wrap' } },
+        React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98' } }, num),
+        React.createElement('h2', { style:{ fontSize:'19px', lineHeight:'26px', fontWeight:600, margin:0 } }, title),
+        sub ? React.createElement('span', { style:{ fontSize:'13px', color:'#8A8F98' } }, sub) : null),
+      React.createElement('div', { style:{ background: opts.bg||'#fff', borderRadius:'14px', boxShadow:'0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06)', padding: opts.pad||'28px' } }, body));
+  }
+
+  // glossary table
+  glossary(title, rows) {
+    return React.createElement('div',{key:title, style:{marginBottom:'8px'}},
+      React.createElement('div',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.04em', padding:'18px 0 8px'}}, title),
+      React.createElement('div',{style:{border:'1px solid #ECEEF1', borderRadius:'10px', overflow:'hidden'}},
+        React.createElement('div',{style:{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', padding:'9px 16px', background:'#F7F8FA', borderBottom:'1px solid #ECEEF1', fontSize:'11px', color:'#8A8F98', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.04em'}}, React.createElement('span',null,'English'), React.createElement('span',null,'Shqip')),
+        rows.map((r,i)=>React.createElement('div',{key:i, style:{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', padding:'10px 16px', borderTop:i?'1px solid #F1F3F5':'none', fontSize:'14px', alignItems:'center'}},
+          React.createElement('span',{style:{color:'#51555E'}}, r[0]), React.createElement('span',{style:{fontWeight:500}}, r[1])))));
+  }
+
+  // side-by-side stress comparison
+  pair(label, en, al) {
+    return React.createElement('div',{key:label, style:{display:'grid', gridTemplateColumns:'120px 1fr 1fr', gap:'18px', alignItems:'center', padding:'16px 0', borderTop:'1px solid #ECEEF1'}},
+      React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98', textTransform:'uppercase'}}, label),
+      React.createElement('div',null, React.createElement('div',{style:{fontSize:'10px', color:'#B8BDC6', marginBottom:'8px', fontWeight:600, letterSpacing:'0.04em'}}, 'EN'), en),
+      React.createElement('div',null, React.createElement('div',{style:{fontSize:'10px', color:'#2F6FED', marginBottom:'8px', fontWeight:600, letterSpacing:'0.04em'}}, 'AL'), al));
+  }
+
+  // KPI card for stress test
+  kpi(l,v,alert){ return React.createElement('div',{style:{width:'190px', border:'1px solid #ECEEF1', borderRadius:'10px', padding:'14px'}}, React.createElement('div',{style:{fontSize:'13px', color:'#51555E', marginBottom:'8px', minHeight:'34px', lineHeight:'17px'}}, l), React.createElement('div',{style:{fontSize:'26px', fontWeight:600, fontFamily:"'Geist Mono',monospace", color:alert?'#C8372D':'#0B0D12'}}, v)); }
+  natsPill(label, ok){ return React.createElement('div',{style:{display:'inline-flex', alignItems:'center', gap:'8px', height:'30px', padding:'0 12px', borderRadius:'999px', background:ok?'#E9F6EF':'#FBF3E0', border:`1px solid ${ok?'rgba(26,127,75,.2)':'rgba(154,107,0,.25)'}`}}, React.createElement('span',{style:{width:'7px', height:'7px', borderRadius:'999px', background:ok?'#1A7F4B':'#9A6B00'}}), React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:ok?'#15613A':'#7A5500'}}, label)); }
+  // nav rail snippet
+  navRail(items, active){ return React.createElement('div',{style:{width:'180px', border:'1px solid #ECEEF1', borderRadius:'10px', padding:'8px', background:'#F7F8FA'}}, items.map(it=>{const a=it[0]===active; return React.createElement('div',{key:it[0], style:{display:'flex', alignItems:'center', gap:'10px', height:'33px', padding:'0 11px', borderRadius:'7px', background:a?'#EEF3FE':'transparent', color:a?'#2F6FED':'#51555E', fontSize:'14px', fontWeight:a?550:400, marginBottom:'2px'}}, React.createElement('span',{style:{width:'7px', height:'7px', borderRadius:'2px', background:a?'#2F6FED':'#C4C8CE'}}), React.createElement('span',{style:{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}, it[0]), it[1]?React.createElement('span',{style:{marginLeft:'auto', fontSize:'11px', fontWeight:600, color:it[2]?'#C8372D':'#8A8F98', background:it[2]?'#FBECEA':'#F1F3F5', borderRadius:'999px', padding:'1px 6px', fontFamily:"'Geist Mono',monospace"}}, it[1]):null); })); }
+  seg(opts){ return React.createElement('div',{style:{display:'inline-flex', gap:'2px', padding:'3px', background:'#F1F3F5', borderRadius:'8px'}}, opts.map((t,i)=>React.createElement('span',{key:t, style:{padding:'6px 14px', fontSize:'13px', fontWeight:550, borderRadius:'6px', background:i===0?'#fff':'transparent', color:i===0?'#0B0D12':'#51555E', boxShadow:i===0?'0 1px 2px rgba(11,13,18,.08)':'none', whiteSpace:'nowrap'}}, t))); }
+
+  // ===== AL full screens =====
+  alSidebar(active) {
+    const ic = { dash:'M2.5 8 8 3l5.5 5M4 7v6h8V7', req:'M4 3h8v10H4zM6 6h4M6 9h4', cal:'M3 4h10v9H3zM3 7h10M6 2v3M10 2v3', spaces:'M2.5 13V6L8 2.5 13.5 6v7M6 13V9h4v4', inv:'M2.5 5 8 2.5 13.5 5v6L8 13.5 2.5 11zM2.5 5 8 7.5 13.5 5', tasks:'M3 5h2v2H3zM7 6h6M3 9h2v2H3zM7 10h6', conf:'M8 5v3.5M8 11v.2M8 1.5 1 13.5h14L8 1.5Z', appr:'M3 8.5 6 11l7-7', audit:'M8 4v4l3 1.5M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z', users:'M5.5 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM2.5 13c0-2 1.5-3 3-3s3 1 3 3M11 7.5a1.7 1.7 0 1 0 0-3.4M10.5 10.2c1.3.2 2.5 1 2.5 2.8' };
+    const groups = [ ['Përmbledhje',[['Paneli',ic.dash]]], ['Procesi',[['Kërkesat',ic.req,'24'],['Kalendari',ic.cal]]], ['Burimet',[['Hapësirat',ic.spaces],['Inventari',ic.inv,'2','d']]], ['Operacionet',[['Detyrat',ic.tasks],['Konfliktet',ic.conf,'1','d'],['Miratimet',ic.appr,'5']]], ['Regjistri',[['Auditimi',ic.audit]]], ['Cilësimet',[['Përdoruesit',ic.users]]] ];
+    return React.createElement('div',{style:{width:'232px', flexShrink:0, borderRight:'1px solid #ECEEF1', background:'#F7F8FA', display:'flex', flexDirection:'column'}},
+      React.createElement('div',{style:{height:'56px', display:'flex', alignItems:'center', gap:'10px', padding:'0 16px', borderBottom:'1px solid #ECEEF1'}}, this.logo(26), React.createElement('span',{style:{fontSize:'14px', fontWeight:600}}, 'Backstage')),
+      React.createElement('div',{style:{flex:1, padding:'14px 10px'}}, groups.map(g=>React.createElement('div',{key:g[0], style:{marginBottom:'14px'}},
+        React.createElement('div',{style:{fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:600, padding:'0 12px', marginBottom:'5px'}}, g[0]),
+        g[1].map(it=>{const a=it[0]===active; return React.createElement('div',{key:it[0], style:{display:'flex', alignItems:'center', gap:'11px', height:'33px', padding:'0 12px', borderRadius:'8px', background:a?'#EEF3FE':'transparent', color:a?'#2F6FED':'#51555E', fontSize:'14px', fontWeight:a?550:400, marginBottom:'2px'}}, React.createElement('span',{style:{color:a?'#2F6FED':'#8A8F98', display:'inline-flex'}}, this.icon(it[1],16)), React.createElement('span',null,it[0]), it[2]?React.createElement('span',{style:{marginLeft:'auto', fontSize:'11px', fontWeight:600, color:it[3]?'#C8372D':'#8A8F98', background:it[3]?'#FBECEA':'#F1F3F5', borderRadius:'999px', padding:'1px 7px', fontFamily:"'Geist Mono',monospace"}}, it[2]):null); })))));
+  }
+  alTopbar() {
+    return React.createElement('div',{style:{height:'56px', borderBottom:'1px solid #ECEEF1', background:'#fff', display:'flex', alignItems:'center', padding:'0 20px', gap:'14px', flexShrink:0}},
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', flex:1, maxWidth:'400px', height:'34px', padding:'0 12px', borderRadius:'8px', background:'#F7F8FA', border:'1px solid #ECEEF1', color:'#8A8F98'}}, this.icon('M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM11 11l3 3',15), React.createElement('span',{style:{fontSize:'13px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}, 'Kërko ose nis një kërkesë…'), React.createElement('span',{style:{marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:'11px', background:'#fff', border:'1px solid #D7DBE0', borderRadius:'5px', padding:'1px 6px'}}, '⌘K')),
+      React.createElement('div',{style:{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}},
+        React.createElement('div',{style:{display:'inline-flex', alignItems:'center', gap:'8px', height:'30px', padding:'0 12px', borderRadius:'999px', background:'#E9F6EF', border:'1px solid rgba(26,127,75,.2)'}}, React.createElement('span',{style:{width:'7px', height:'7px', borderRadius:'999px', background:'#1A7F4B', animation:'pulse 1.8s ease-in-out infinite'}}), React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:'#15613A'}}, 'NATS i lidhur')),
+        React.createElement('button',{style:{height:'34px', display:'inline-flex', alignItems:'center', gap:'7px', padding:'0 12px', borderRadius:'8px', background:'#EEF3FE', border:'1px solid #DCE6FB', color:'#2F6FED', fontSize:'13px', fontWeight:550, cursor:'pointer'}}, this.icon('M8 2.5 9.2 6l3.3 .2-2.6 2 1 3.3L8 9.7 5.1 11.5l1-3.3L3.5 6.2 6.8 6 8 2.5Z',14,'#2F6FED'), 'Kopiloti'),
+        React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', paddingLeft:'12px', borderLeft:'1px solid #ECEEF1'}}, this.avatar('EH',30,'#DCE6FB'), React.createElement('div',null, React.createElement('div',{style:{fontSize:'13px', fontWeight:600, lineHeight:'15px'}}, 'Elira H.'), React.createElement('div',{style:{fontSize:'11px', color:'#9A6B00', fontWeight:600}}, 'MENAXHER')))));
+  }
+  alScreen(active, body, h) {
+    return React.createElement('div',{style:{width:'1280px', height:(h||720)+'px', display:'flex', background:'#fff', overflow:'hidden'}}, this.alSidebar(active), React.createElement('div',{style:{flex:1, display:'flex', flexDirection:'column', minWidth:0}}, this.alTopbar(), React.createElement('div',{style:{flex:1, overflow:'auto'}}, body)));
+  }
+  alPageHeader(crumb, title, sub, action) {
+    return React.createElement('div',{style:{padding:'24px 32px 18px', borderBottom:'1px solid #ECEEF1'}},
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'7px', fontSize:'12px', color:'#8A8F98', marginBottom:'7px'}}, crumb.map((c,i)=>React.createElement('span',{key:i},c)).reduce((a,b,i)=> i?[...a,React.createElement('span',{key:'s'+i, style:{color:'#C4C8CE'}},'/'),b]:[b],[])),
+      React.createElement('div',{style:{display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'14px', flexWrap:'wrap'}},
+        React.createElement('div',null, React.createElement('h1',{style:{fontSize:'24px', fontWeight:600, margin:0, letterSpacing:'-0.01em'}}, title), sub?React.createElement('p',{style:{fontSize:'14px', color:'#51555E', margin:'4px 0 0'}}, sub):null), action||null));
+  }
+  alDashboard() {
+    const kpi=(l,v,trend,up,alert,sub)=>React.createElement('div',{key:l, style:{border:'1px solid #ECEEF1', borderRadius:'10px', padding:'16px'}}, React.createElement('div',{style:{fontSize:'13px', color:'#51555E', marginBottom:'10px', minHeight:'34px', lineHeight:'17px'}}, l), React.createElement('div',{style:{display:'flex', alignItems:'baseline', gap:'8px'}}, React.createElement('span',{style:{fontSize:'28px', fontWeight:600, fontFamily:"'Geist Mono',monospace", letterSpacing:'-0.02em', color:alert?'#C8372D':'#0B0D12'}}, v), trend?React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:up?'#1A7F4B':'#C8372D'}}, (up?'▲':'▼')+trend):null), sub?React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98', marginTop:'3px'}}, sub):null);
+    const C={conf:{bg:'#E9F6EF',bd:'#1A7F4B',t:'#15613A'},sch:{bg:'#EEF3FE',bd:'#2F6FED',t:'#244FB0'},held:{bg:'#FBF3E0',bd:'#9A6B00',t:'#7A5500'},cf:{bg:'#FBECEA',bd:'#C8372D',t:'#9E2B23'}};
+    const stripBar=(label,left,width,c)=>React.createElement('div',{style:{position:'absolute', left:left+'%', width:width+'%', top:'8px', height:'26px', background:c.bg, border:`1px solid ${c.bd}`, borderRadius:'5px', display:'flex', alignItems:'center', padding:'0 8px', overflow:'hidden'}}, React.createElement('span',{style:{fontSize:'11px', fontWeight:600, color:c.t, whiteSpace:'nowrap'}}, label));
+    return React.createElement('div',{style:{padding:'24px 32px'}},
+      React.createElement('div',{style:{marginBottom:'20px'}}, React.createElement('h1',{style:{fontSize:'24px', fontWeight:600, margin:'0 0 4px', letterSpacing:'-0.01em'}}, 'Mirëmëngjes, Elira'), React.createElement('p',{style:{fontSize:'14px', color:'#51555E', margin:0}}, 'E martë, 22 korrik 2026 · 4 hapësira në përdorim')),
+      React.createElement('div',{style:{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'22px'}}, kpi('Evente këtë javë','12','3',true,false,'krahasuar me javën e kaluar'), kpi('Hapësira në përdorim','4 / 6',null,null,false,'tani'), kpi('Asete me stok të ulët','2',null,null,true,'mikrofon, skenë'), kpi('Miratime në pritje','5','2',false,false,'në pritje të menaxherit')),
+      React.createElement('div',{style:{background:'#FBECEA', border:'1px solid rgba(200,55,45,.28)', borderRadius:'10px', padding:'14px 16px', display:'flex', alignItems:'center', gap:'12px', marginBottom:'18px'}}, this.icon('M8 5v3.5M8 11v.2M8 1.5 1 13.5h14L8 1.5Z',18,'#C8372D'), React.createElement('div',{style:{flex:1}}, React.createElement('div',{style:{fontSize:'14px', fontWeight:600, color:'#9E2B23'}}, '1 konflikt aktiv'), React.createElement('div',{style:{fontSize:'13px', color:'#7A2A23'}}, 'Mbrëmja e rrjetëzimit (REQ-0151) përplaset me Sallën Blu më 22 korrik.')), this.btn('danger','Zgjidhe',{sm:true})),
+      React.createElement('div',{style:{fontSize:'13px', fontWeight:600, color:'#51555E', marginBottom:'10px', display:'flex', alignItems:'center', gap:'8px'}}, 'Orari i drejtpërdrejtë — sot', React.createElement('span',{style:{fontSize:'11px', color:'#1A7F4B', fontWeight:600, display:'inline-flex', alignItems:'center', gap:'5px'}}, React.createElement('span',{style:{width:'6px', height:'6px', borderRadius:'999px', background:'#1A7F4B', animation:'pulse 1.8s ease-in-out infinite'}}), 'drejtpërdrejt')),
+      React.createElement('div',{style:{border:'1px solid #ECEEF1', borderRadius:'10px', padding:'14px 16px'}}, ['Salla Blu','Salla Portokalli','Foajeja'].map((sp,i)=>React.createElement('div',{key:sp, style:{display:'flex', alignItems:'center', borderTop:i?'1px solid #F1F3F5':'none', padding:'4px 0'}}, React.createElement('div',{style:{width:'120px', fontSize:'13px', fontWeight:500}}, sp), React.createElement('div',{style:{flex:1, position:'relative', height:'42px'}}, i===0?stripBar('Konferenca FinTech · 180',45,30,C.conf):i===1?stripBar('Lançim produkti',8,28,C.sch):[stripBar('Galaja (mbajtur)',60,22,C.held), React.createElement('div',{key:'x'},stripBar('⚠ Mbrëmja',78,18,C.cf))])))));
+  }
+  alPlan() {
+    const narrative = React.createElement('div',{style:{background:'#F7F9FE', border:'1px solid #DCE6FB', borderRadius:'12px', padding:'18px 20px', marginBottom:'22px'}},
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'9px', marginBottom:'10px'}}, React.createElement('div',{style:{width:'24px', height:'24px', borderRadius:'7px', background:'#2F6FED', display:'flex', alignItems:'center', justifyContent:'center'}}, this.icon('M8 2.5 9.2 6l3.3 .2-2.6 2 1 3.3L8 9.7 5.1 11.5l1-3.3L3.5 6.2 6.8 6 8 2.5Z',14,'#fff')), React.createElement('span',{style:{fontSize:'13px', fontWeight:600, color:'#2F6FED'}}, 'Plani i Kopilotit')),
+      React.createElement('p',{style:{fontSize:'15px', lineHeight:'23px', margin:0}}, React.createElement('strong',null,'Po — mund ta organizojmë këtë.'), ' Salla Blu strehon 180 veta në stil teatri dhe është e lirë 14:00–18:00 më 22 korrik. Kam rezervuar skenën, 180 karrige dhe 2 mikrofona pa tel, dhe kam hartuar një ofertë prej ', React.createElement('strong',null,'154.800 ALL'), ' (përfshirë TVSH 20%). Detyrat e montimit dhe çmontimit janë caktuar.'));
+    const spaceCard = React.createElement('div',{style:{flex:1, minWidth:'260px', border:'1px solid #ECEEF1', borderRadius:'12px', padding:'18px'}},
+      React.createElement('div',{style:{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px'}}, React.createElement('div',null, React.createElement('div',{style:{fontSize:'16px', fontWeight:600}}, 'Salla Blu'), React.createElement('div',{style:{fontSize:'13px', color:'#8A8F98'}}, 'Kati kryesor')), React.createElement('span',{style:{display:'inline-flex', alignItems:'center', gap:'6px', fontSize:'12px', fontWeight:600, color:'#1A7F4B'}}, React.createElement('span',{style:{width:'8px', height:'8px', borderRadius:'999px', background:'#1A7F4B'}}), 'E lirë')),
+      React.createElement('div',{style:{display:'flex', alignItems:'baseline', gap:'8px', paddingBottom:'12px', borderBottom:'1px solid #ECEEF1', marginBottom:'12px'}}, React.createElement('span',{style:{fontSize:'30px', fontWeight:600, fontFamily:"'Geist Mono',monospace", letterSpacing:'-0.02em'}}, '180'), React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98'}}, 'teatër')),
+      React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98', marginBottom:'10px'}}, 'kapaciteti për planin e kërkuar'),
+      React.createElement('div',{style:{display:'flex', flexWrap:'wrap', gap:'6px'}}, ['Skenë','AV hibride','Pa pengesa'].map(f=>React.createElement('span',{key:f, style:{fontSize:'12px', color:'#51555E', background:'#F1F3F5', borderRadius:'999px', padding:'3px 9px'}}, f))));
+    const resCard = React.createElement('div',{style:{flex:1, minWidth:'260px', border:'1px solid rgba(154,107,0,.3)', borderRadius:'12px', overflow:'hidden'}},
+      React.createElement('div',{style:{background:'#FBF3E0', padding:'8px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid rgba(154,107,0,.2)'}}, React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:'#9A6B00'}}, 'Rezervimi skadon për'), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'15px', fontWeight:600, color:'#9A6B00', animation:'pulse 1.6s ease-in-out infinite'}}, '12:04')),
+      React.createElement('div',{style:{padding:'16px'}}, React.createElement('div',{style:{display:'flex', justifyContent:'space-between', marginBottom:'12px'}}, React.createElement('div',null, React.createElement('div',{style:{fontSize:'15px', fontWeight:600}}, 'Rezervimi'), React.createElement('div',{style:{fontSize:'13px', color:'#51555E', fontFamily:"'Geist Mono',monospace"}}, '22 korrik · 14:00–18:00')), this.badge('#9A6B00','#FBF3E0','MBAJTUR')),
+        React.createElement('div',{style:{borderTop:'1px solid #ECEEF1', paddingTop:'10px'}}, React.createElement('div',{style:{fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'8px'}}, 'Asetet e rezervuara'), [['Karrige standarde',180],['Mikrofon pa tel',2],['Skenë (6×4m)',1]].map(a=>React.createElement('div',{key:a[0], style:{display:'flex', justifyContent:'space-between', fontSize:'13px', padding:'3px 0'}}, React.createElement('span',{style:{color:'#51555E'}}, a[0]), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontWeight:600}}, '×'+a[1]))))));
+    const qItems=[['Salla Blu — tarifa e hapësirës','×1','80.000'],['Karrige standarde','×180','21.600'],['Mikrofon pa tel','×2','7.000'],['Skenë (6×4m)','×1','12.000'],['Ekipi i montimit dhe çmontimit','×6','8.400']];
+    const quote = React.createElement('div',{style:{border:'1px solid #ECEEF1', borderRadius:'12px', padding:'18px', marginBottom:'22px'}},
+      React.createElement('div',{style:{fontSize:'15px', fontWeight:600, marginBottom:'14px'}}, 'Oferta'),
+      qItems.map(it=>React.createElement('div',{key:it[0], style:{display:'grid', gridTemplateColumns:'1fr 70px 120px', gap:'12px', padding:'9px 0', borderBottom:'1px solid #ECEEF1', fontSize:'14px', alignItems:'center'}}, React.createElement('span',null,it[0]), React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", color:'#51555E'}}, it[1]), React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", fontWeight:600}}, it[2]))),
+      React.createElement('div',{style:{marginLeft:'auto', width:'280px', marginTop:'12px'}}, [['Neto','129.000'],['TVSH (20%)','25.800']].map(t=>React.createElement('div',{key:t[0], style:{display:'flex', justifyContent:'space-between', padding:'5px 0', fontSize:'14px', color:'#51555E'}}, React.createElement('span',null,t[0]), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace"}}, t[1]+' ALL'))), React.createElement('div',{style:{borderTop:'2px solid #0B0D12', marginTop:'5px', paddingTop:'10px', display:'flex', justifyContent:'space-between'}}, React.createElement('span',{style:{fontSize:'15px', fontWeight:600}}, 'Totali'), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'19px', fontWeight:700}}, '154.800 ', React.createElement('span',{style:{fontSize:'12px', color:'#8A8F98', fontWeight:400}}, 'ALL')))));
+    return React.createElement('div',null,
+      this.alPageHeader(['Procesi','REQ-2026-0142'],'Konferenca FinTech për Startup-e', '180 pjesëmarrës · Konferencë · 22 korrik 2026', React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'14px'}}, this.badge('#9A6B00','#FBF3E0','PROPOZUAR'), React.createElement('div',{style:{display:'flex', gap:'10px'}}, this.btn('primary','Mirato planin'), this.btn('secondary','Refuzo')))),
+      React.createElement('div',{style:{padding:'24px 32px'}}, narrative, React.createElement('div',{style:{display:'flex', gap:'20px', flexWrap:'wrap', marginBottom:'22px'}}, spaceCard, resCard), quote));
+  }
+  alConflict() {
+    return React.createElement('div',null, this.alPageHeader(['Operacionet','Konfliktet'],'Konfliktet','1 konflikt aktiv',null),
+      React.createElement('div',{style:{padding:'24px 32px'}},
+        React.createElement('div',{style:{background:'#FBECEA', border:'1px solid rgba(200,55,45,.28)', borderRadius:'12px', padding:'20px'}},
+          React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', marginBottom:'12px'}}, React.createElement('div',{style:{width:'26px', height:'26px', borderRadius:'7px', background:'#fff', boxShadow:'inset 0 0 0 1px rgba(200,55,45,.2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#C8372D'}}, this.icon('M8 5v3.5M8 11v.2M8 1.5 1 13.5h14L8 1.5Z',15)), React.createElement('h3',{style:{fontSize:'16px', fontWeight:600, margin:0}}, 'Salla Blu është rezervuar dyfish'), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'11px', fontWeight:600, color:'#C8372D', background:'#fff', border:'1px solid rgba(200,55,45,.25)', borderRadius:'5px', padding:'2px 7px'}}, 'SPACE_DOUBLE_BOOKED')),
+          React.createElement('p',{style:{fontSize:'14px', lineHeight:'21px', color:'#7A2A23', margin:'0 0 14px'}}, 'Salla Blu është konfirmuar tashmë për Konferencën FinTech gjatë kësaj periudhe. Dy evente nuk mund të zënë të njëjtën hapësirë.'),
+          React.createElement('div',{style:{display:'flex', gap:'28px', flexWrap:'wrap', marginBottom:'16px'}},
+            React.createElement('div',null, React.createElement('div',{style:{fontSize:'11px', color:'#A6564E', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'4px'}}, 'Periudha përplasëse'), React.createElement('div',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'13px'}}, '22 korrik 2026 · 14:00–18:00')),
+            React.createElement('div',null, React.createElement('div',{style:{fontSize:'11px', color:'#A6564E', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'4px'}}, 'Kërkesat në konflikt'), React.createElement('div',{style:{display:'flex', gap:'6px'}}, ['REQ-0142','REQ-0151'].map(id=>React.createElement('span',{key:id, style:{fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#C8372D', background:'#fff', border:'1px solid rgba(200,55,45,.25)', borderRadius:'5px', padding:'2px 7px'}}, id))))),
+          React.createElement('div',{style:{display:'flex', gap:'10px'}}, this.btn('primary','Shih alternativat',{iconRight:this.icon('M6 3.5 10.5 8 6 12.5',13,'#fff')}), this.btn('secondary','Rregullo kërkesën')))));
+  }
+  // AL login
+  alLogin() {
+    const field=(label,val,ph)=>React.createElement('div',{key:label, style:{marginBottom:'14px'}}, React.createElement('label',{style:{display:'block', fontSize:'13px', fontWeight:550, marginBottom:'6px'}}, label), React.createElement('div',{style:{height:'40px', display:'flex', alignItems:'center', padding:'0 13px', borderRadius:'8px', border:'1px solid #D7DBE0', fontSize:'14px', color:val?'#0B0D12':'#8A8F98'}}, val||ph));
+    return React.createElement('div',{style:{width:'440px', height:'560px', background:'#F7F8FA', display:'flex', alignItems:'center', justifyContent:'center', padding:'32px'}},
+      React.createElement('div',{style:{width:'360px'}},
+        React.createElement('div',{style:{display:'flex', flexDirection:'column', alignItems:'center', marginBottom:'24px'}}, this.logo(44), React.createElement('h1',{style:{fontSize:'20px', fontWeight:600, margin:'14px 0 4px'}}, 'Pyramid Backstage'), React.createElement('p',{style:{fontSize:'13px', color:'#8A8F98', margin:0}}, 'Hyrje për operacionet')),
+        React.createElement('div',{style:{background:'#fff', borderRadius:'14px', boxShadow:'0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06)', padding:'24px'}}, field('Email-i i punës','elira.hoxha@pyramid.al'), field('Fjalëkalimi',null,'••••••••'), React.createElement('button',{style:{width:'100%', height:'40px', borderRadius:'8px', background:'#2F6FED', color:'#fff', border:'none', fontSize:'14px', fontWeight:600, cursor:'pointer', marginTop:'4px'}}, 'Identifikohu'), React.createElement('div',{style:{textAlign:'center', marginTop:'14px', fontSize:'13px', color:'#2F6FED'}}, 'Harruat fjalëkalimin?')),
+        React.createElement('p',{style:{textAlign:'center', fontSize:'12px', color:'#8A8F98', marginTop:'18px', fontFamily:"'Geist Mono',monospace"}}, 'Vetëm për stafin · qasja regjistrohet')));
+  }
+  board(label, el) { return React.createElement('div',{key:label, style:{display:'flex', flexDirection:'column', gap:'10px', flex:'none'}}, React.createElement('span',{style:{fontSize:'12px', color:'#51555E', fontWeight:550}}, label), React.createElement('div',{style:{borderRadius:'4px', boxShadow:'0 1px 3px rgba(0,0,0,.1)', overflow:'hidden', width:'max-content'}}, el)); }
+
+  renderVals() {
+    const sec = [];
+
+    // §L.1 Glossary
+    const nav = [['Overview','Përmbledhje'],['Dashboard','Paneli'],['Pipeline','Procesi'],['Requests','Kërkesat'],['Calendar','Kalendari'],['Resources','Burimet'],['Spaces','Hapësirat'],['Inventory','Inventari'],['Operations','Operacionet'],['Tasks','Detyrat'],['Conflicts','Konfliktet'],['Approvals','Miratimet'],['Record','Regjistri'],['Audit','Auditimi'],['Settings','Cilësimet'],['Users & roles','Përdoruesit & rolet']];
+    const status = [['DRAFT','SKICË'],['PROPOSED','PROPOZUAR'],['APPROVED','MIRATUAR'],['SCHEDULED','PROGRAMUAR'],['COMPLETED','PËRFUNDUAR'],['REJECTED','REFUZUAR'],['HELD','MBAJTUR'],['CONFIRMED','KONFIRMUAR'],['RELEASED','LIRUAR'],['TODO','PËR T\u2019U BËRË'],['IN PROGRESS','NË PROCES'],['DONE','KRYER'],['BLOCKED','BLLOKUAR'],['OVERDUE','ME VONESË'],['CONFLICT','KONFLIKT'],['LOW STOCK','STOK I ULËT'],['OUT OF STOCK','PA STOK'],['AVAILABLE','I LIRË'],['RECOMMENDED','REKOMANDUAR'],['REQUIRES APPROVAL','KËRKON MIRATIM']];
+    const actions = [['New request','Kërkesë e re'],['Generate plan','Gjenero planin'],['Approve plan','Mirato planin'],['Reject','Refuzo'],['See alternatives','Shih alternativat'],['Adjust request','Rregullo kërkesën'],['Re-plan','Riplanifiko'],['Confirm hold','Konfirmo mbajtjen'],['Release hold','Liro mbajtjen'],['Cancel','Anulo'],['Retry','Provo përsëri'],['Export','Eksporto'],['Search or start a request…','Kërko ose nis një kërkesë…'],['Sign in','Identifikohu'],['Add user','Shto përdorues']];
+    const roles = [['MANAGER','MENAXHER'],['ADMIN','ADMINISTRATOR'],['OPS','OPERACIONE'],['VIEWER','SHIKUES']];
+    const plan = [['attendees','pjesëmarrës'],['capacity for requested layout','kapaciteti për planin e kërkuar'],['Reserved assets','Asetet e rezervuara'],['Lease expires in','Rezervimi skadon për'],['Setup','Montimi'],['Teardown','Çmontimi'],['Quote','Oferta'],['Net','Neto'],['VAT (20%)','TVSH (20%)'],['Total','Totali'],['per day','në ditë'],['Standard chair','Karrige standarde'],['Wireless microphone','Mikrofon pa tel'],['Stage deck','Skenë']];
+    const sys = [['NATS connected','NATS i lidhur'],['NATS degraded','NATS i dobësuar'],['Events this week','Evente këtë javë'],['Spaces in use','Hapësira në përdorim'],['Low-stock assets','Asete me stok të ulët'],['Pending approvals','Miratime në pritje'],['No conflicts right now','Asnjë konflikt për momentin'],['Couldn\u2019t load requests','Kërkesat nuk u ngarkuan'],['No requests yet','Ende asnjë kërkesë'],['403 — Admins only','403 — Vetëm administratorët'],['Read-only for your role','Vetëm-lexim për rolin tuaj']];
+    sec.push(this.frame('§L.1','String map — EN → Shqip','the build keys · proper nouns localized (Blue Hall → Salla Blu) · backend enums stay constant', React.createElement('div',null, this.glossary('Navigation', nav), this.glossary('Status labels', status), this.glossary('Roles', roles), this.glossary('Actions & buttons', actions), this.glossary('Plan / quote', plan), this.glossary('System & states', sys))));
+
+    // §L.2 Overflow stress tests
+    const stressBody = React.createElement('div',null,
+      this.pair('Buttons', React.createElement('div',{style:{display:'flex', gap:'10px', flexWrap:'wrap'}}, this.btn('primary','See alternatives'), this.btn('secondary','Adjust request')), React.createElement('div',{style:{display:'flex', gap:'10px', flexWrap:'wrap'}}, this.btn('primary','Shih alternativat'), this.btn('secondary','Rregullo kërkesën'))),
+      this.pair('Status chips', React.createElement('div',{style:{display:'flex', gap:'8px', flexWrap:'wrap'}}, this.badge('#9A6B00','#FBF3E0','REQUIRES APPROVAL',{noDot:true}), this.badge('#8A8F98','#F1F3F5','IN PROGRESS',{noDot:true}), this.badge('#C8372D','#FBECEA','OUT OF STOCK',{noDot:true})), React.createElement('div',{style:{display:'flex', gap:'8px', flexWrap:'wrap'}}, this.badge('#9A6B00','#FBF3E0','KËRKON MIRATIM',{noDot:true}), this.badge('#8A8F98','#F1F3F5','NË PROCES',{noDot:true}), this.badge('#C8372D','#FBECEA','PA STOK',{noDot:true}))),
+      this.pair('NATS pill', this.natsPill('NATS connected', true), this.natsPill('NATS i lidhur', true)),
+      this.pair('KPI cards', React.createElement('div',{style:{display:'flex', gap:'12px'}}, this.kpi('Low-stock assets','2',true), this.kpi('Pending approvals','5')), React.createElement('div',{style:{display:'flex', gap:'12px'}}, this.kpi('Asete me stok të ulët','2',true), this.kpi('Miratime në pritje','5'))),
+      this.pair('Nav rail', this.navRail([['Dashboard'],['Requests','24'],['Conflicts','1','d'],['Approvals','5']],'Dashboard'), this.navRail([['Paneli'],['Kërkesat','24'],['Konfliktet','1','d'],['Miratimet','5']],'Paneli')),
+      this.pair('Segmented', this.seg(['Day','Week','Month']), this.seg(['Ditë','Javë','Muaj'])),
+      this.pair('Lease countdown', React.createElement('div',{style:{display:'inline-flex', alignItems:'center', gap:'8px', background:'#FBF3E0', borderRadius:'8px', padding:'8px 12px'}}, React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:'#9A6B00'}}, 'Lease expires in'), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontWeight:600, color:'#9A6B00'}}, '12:04')), React.createElement('div',{style:{display:'inline-flex', alignItems:'center', gap:'8px', background:'#FBF3E0', borderRadius:'8px', padding:'8px 12px'}}, React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:'#9A6B00'}}, 'Rezervimi skadon për'), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontWeight:600, color:'#9A6B00'}}, '12:04'))));
+    sec.push(this.frame('§L.2','Overflow stress tests','EN vs AL side-by-side · the spots most at risk of truncation hold without clipping', stressBody, {bg:'#F7F8FA'}));
+
+    // §L.3 Full screens in Shqip
+    const screenSection = React.createElement('div',{style:{overflowX:'auto', paddingBottom:'10px'}}, React.createElement('div',{style:{display:'flex', gap:'32px', alignItems:'flex-start', width:'max-content'}},
+      this.board('Login · §1.1', this.alLogin()),
+      this.board('Dashboard · §3.1', this.alScreen('Paneli', this.alDashboard())),
+      this.board('OperationalPlanView · §4.3', this.alScreen('Kërkesat', this.alPlan(), 820)),
+      this.board('Conflicts · §6.2', this.alScreen('Konfliktet', this.alConflict()))));
+    sec.push(React.createElement('div',{key:'l3', style:{marginBottom:'44px'}}, React.createElement('div',{style:{marginBottom:'14px', display:'flex', alignItems:'baseline', gap:'10px', flexWrap:'wrap'}}, React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98'}}, '§L.3'), React.createElement('h2',{style:{fontSize:'19px', lineHeight:'26px', fontWeight:600, margin:0}}, 'Full screens in Shqip'), React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98'}}, 'whole layout flexes with the longer copy — login · dashboard · plan · conflict')), screenSection));
+
+    return { sections: sec };
+  }
+}
+</script>
+</body>
+</html>

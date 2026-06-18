@@ -1,0 +1,1039 @@
+openapi: 3.1.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pyramid Backstage — ops-core contract  (THE single source of truth)
+#
+# This file is law. ai-orchestrator treats every ops-core endpoint below as a
+# LangGraph tool. Neither service imports the other's code; the only coupling is
+# OPS_CORE_URL + the shapes in this file. Lock it Hour 0; after that, ADDITIVE
+# changes only (add a field — never rename or remove). See docs/04-api/CONTRACT.md.
+#
+# Hardening baked in (vs. the original PDF sketch):
+#   • AuditEntry is fully defined (actor, before/after, reason).
+#   • Money is ALWAYS integer minor units (Lek has no subunit in practice → factor 1).
+#   • Quote.total is SERVER-COMPUTED = net + vat; clients never send a total.
+#   • Idempotency-Key header required on all unsafe (mutating) requests.
+#   • Full error contract: 401/403/404/409 conflict/409 invalid_transition/422/429.
+#   • Reservations carry expiresAt (HELD leases expire; a reaper releases them).
+#   • Availability windows are BUFFER-AWARE (setup/teardown padding) — see Conflict.
+#   • Enums are UPPER_SNAKE; all timestamps are RFC-3339 UTC with a trailing Z.
+# ─────────────────────────────────────────────────────────────────────────────
+
+info:
+  title: Pyramid Backstage — ops-core
+  version: 1.0.0
+  description: >
+    Deterministic system of record for the Pyramid of Tirana's event operations:
+    spaces, assets, event requests, reservations, quotes, tasks, conflicts, audit.
+    No AI lives here — this service knows what is true and enforces it.
+
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local dev (docker compose)
+
+tags:
+  - name: auth
+    description: Staff authentication & session
+  - name: spaces
+  - name: assets
+  - name: requests
+  - name: reservations
+  - name: quotes
+  - name: tasks
+  - name: conflicts
+  - name: approvals
+  - name: audit
+  - name: admin
+  - name: health
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PATHS
+# ═════════════════════════════════════════════════════════════════════════════
+paths:
+
+  # ── health ─────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      security: []
+      responses:
+        "200": { description: alive }
+  /ready:
+    get:
+      tags: [health]
+      summary: Readiness probe (DB + NATS reachable)
+      security: []
+      responses:
+        "200": { description: ready }
+        "503": { description: not ready }
+
+  # ── auth ───────────────────────────────────────────────────────────────────
+  /public/auth/login:
+    post:
+      tags: [auth]
+      summary: Staff login (sets httpOnly session cookie)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /private/auth/logout:
+    post:
+      tags: [auth]
+      summary: Destroy the current session
+      responses:
+        "200": { description: Logged out }
+
+  /private/auth/me:
+    get:
+      tags: [auth]
+      summary: Current staff identity
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ── spaces ─────────────────────────────────────────────────────────────────
+  /private/spaces:
+    get:
+      tags: [spaces]
+      summary: Match + filter spaces, with availability for a window
+      description: >
+        When start & end are supplied, each Space carries `available` computed
+        with buffer-aware occupancy (the window is padded by the space's
+        setup/teardown buffers before overlap is tested).
+      parameters:
+        - { name: minCapacity, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: layout, in: query, schema: { $ref: "#/components/schemas/Layout" } }
+        - { name: start, in: query, schema: { type: string, format: date-time } }
+        - { name: end, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/SpaceWithAvailability" }
+    post:
+      tags: [spaces]
+      summary: Create a space (OPS+)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/SpaceInput" } }
+      responses:
+        "201": { $ref: "#/components/responses/SpaceCreated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /private/spaces/{id}:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    patch:
+      tags: [spaces]
+      summary: Update a space (OPS+)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/SpaceInput" } }
+      responses:
+        "200": { $ref: "#/components/responses/SpaceCreated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /private/spaces/{id}/availability:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    get:
+      tags: [spaces]
+      summary: Check one space for a window (buffer-aware)
+      parameters:
+        - { name: start, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: end, in: query, required: true, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/SpaceAvailability" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── assets ─────────────────────────────────────────────────────────────────
+  /private/assets:
+    get:
+      tags: [assets]
+      summary: Inventory availability for a window
+      description: >
+        availableQuantity = totalQuantity − Σ(quantity of every reservation whose
+        buffer-aware window overlaps [start,end] and whose status ∈ {HELD,CONFIRMED}).
+      parameters:
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/AssetType" } }
+        - { name: quantity, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: start, in: query, schema: { type: string, format: date-time } }
+        - { name: end, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/AssetWithAvailability" }
+    post:
+      tags: [assets]
+      summary: Create an asset (OPS+)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/AssetInput" } }
+      responses:
+        "201": { $ref: "#/components/responses/AssetCreated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /private/assets/{id}:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    patch:
+      tags: [assets]
+      summary: Update an asset (OPS+)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/AssetInput" } }
+      responses:
+        "200": { $ref: "#/components/responses/AssetCreated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── requests ───────────────────────────────────────────────────────────────
+  /private/requests:
+    get:
+      tags: [requests]
+      summary: List event requests
+      parameters:
+        - { name: q, in: query, description: Free-text search over title/organizer (UI search box), schema: { type: string, maxLength: 80 } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/RequestStatus" } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/EventRequest" }
+    post:
+      tags: [requests]
+      summary: Create a structured event request
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/EventRequestInput" } }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/EventRequest" } }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /private/requests/{id}:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    get:
+      tags: [requests]
+      summary: Full aggregate (request + reservation + quote + tasks + conflicts + audit)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/RequestAggregate" } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [requests]
+      summary: Edit a DRAFT request's fields (UI "Adjust request"). Only allowed while status=DRAFT.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/EventRequestInput" } }
+      responses:
+        "200": { $ref: "#/components/responses/RequestEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /private/requests/{id}/tasks:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    get:
+      tags: [tasks]
+      summary: Tasks for a request
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: "#/components/schemas/Task" } }
+    post:
+      tags: [tasks]
+      summary: Persist a setup/teardown task list (AI-generated, human-owned)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tasks]
+              properties:
+                tasks:
+                  type: array
+                  items: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /private/requests/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    post:
+      tags: [approvals]
+      summary: Approve a request (MANAGER+) → confirm held reservations → audit → emit
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      responses:
+        "200": { $ref: "#/components/responses/RequestEnvelope" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+    # NB: if a held reservation expired before approval, approve returns 409 conflict
+    #     with the offending Conflict[] so the AI can re-plan.
+
+  /private/requests/{id}/reject:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    post:
+      tags: [approvals]
+      summary: Reject a request with a reason (MANAGER+) → release reservations → audit
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties: { reason: { type: string, minLength: 3, maxLength: 500 } }
+      responses:
+        "200": { $ref: "#/components/responses/RequestEnvelope" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  # ── reservations ───────────────────────────────────────────────────────────
+  /private/reservations:
+    post:
+      tags: [reservations]
+      summary: Hold a space + assets for a request (atomic)
+      description: >
+        Re-validates availability inside a serializable transaction and decrements
+        atomically. On any conflict the whole hold fails with 409 + Conflict[] — the
+        agent's deterministic conflict branch keys off this. Idempotency-Key makes
+        retries safe (a replay returns the original Reservation, not a duplicate).
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/ReservationInput" } }
+      responses:
+        "201":
+          description: Held
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/Reservation" } }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /private/reservations/{id}/confirm:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    post:
+      tags: [reservations]
+      summary: Confirm a held reservation (idempotent)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      responses:
+        "200": { $ref: "#/components/responses/ReservationEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /private/reservations/{id}/release:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    post:
+      tags: [reservations]
+      summary: Release a reservation back to inventory
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      responses:
+        "200": { $ref: "#/components/responses/ReservationEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── quotes ─────────────────────────────────────────────────────────────────
+  /private/quotes:
+    post:
+      tags: [quotes]
+      summary: Generate a quote from a request/reservation (total is server-computed)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId]
+              properties:
+                requestId: { type: string }
+                reservationId: { type: string }
+                extraLineItems:
+                  description: Optional SERVICE line items (e.g. catering, cleaning)
+                  type: array
+                  items: { $ref: "#/components/schemas/LineItemInput" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/Quote" } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── conflicts ──────────────────────────────────────────────────────────────
+  /private/conflicts:
+    get:
+      tags: [conflicts]
+      summary: Proactive conflict check for a space + window
+      parameters:
+        - { name: spaceId, in: query, schema: { type: string } }
+        - { name: start, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: end, in: query, required: true, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: "#/components/schemas/Conflict" } }
+
+  # ── audit ──────────────────────────────────────────────────────────────────
+  /private/audit:
+    get:
+      tags: [audit]
+      summary: Decision / change history
+      parameters:
+        - { name: requestId, in: query, schema: { type: string } }
+        - { name: entityType, in: query, schema: { type: string } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+
+  # ── dashboard (read-model for the command-center KPIs) ───────────────────────
+  /private/dashboard/stats:
+    get:
+      tags: [requests]
+      summary: KPI read-model for the Dashboard (events this week, spaces in use, low-stock, pending approvals)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/DashboardStats" } }
+
+  # ── admin (RBAC management) ──────────────────────────────────────────────────
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: List staff users (ADMIN)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { type: array, items: { $ref: "#/components/schemas/User" } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Create a staff user (ADMIN)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/UserInput" } }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/User" } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/users/{id}:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    patch:
+      tags: [admin]
+      summary: Update a staff user's role / active flag (ADMIN)
+      requestBody:
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/UserInput" } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/User" } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ═════════════════════════════════════════════════════════════════════════════
+components:
+
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: pb_session
+
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID v4. Replays return the original response; a body mismatch → 409.
+      schema: { type: string, format: uuid }
+
+  # ── shared enums ─────────────────────────────────────────────────────────────
+  schemas:
+    Currency: { type: string, enum: [ALL] }
+    Layout:
+      type: string
+      enum: [THEATER, CLASSROOM, BANQUET, RECEPTION, CABARET, BOARDROOM, CUSTOM]
+    SpaceKind: { type: string, enum: [MAIN, TRANSITIONAL] }
+    AssetType:
+      type: string
+      enum: [SEATING, TABLE, MICROPHONE, SCREEN, PROJECTOR, STAGE_UNIT, LIGHTING, OTHER]
+    AssetStatus: { type: string, enum: [ACTIVE, MAINTENANCE, RETIRED] }
+    EventType:
+      type: string
+      enum: [CONFERENCE, EXHIBITION, WORKSHOP, PERFORMANCE, COMMUNITY, PRIVATE, OTHER]
+    RequestStatus:
+      type: string
+      enum: [DRAFT, PROPOSED, APPROVED, SCHEDULED, COMPLETED, REJECTED]
+    ReservationStatus: { type: string, enum: [HELD, CONFIRMED, RELEASED] }
+    QuoteStatus: { type: string, enum: [DRAFT, SENT, ACCEPTED, EXPIRED] }
+    TaskPhase: { type: string, enum: [SETUP, TEARDOWN] }
+    TaskStatus: { type: string, enum: [TODO, IN_PROGRESS, DONE, BLOCKED] }
+    LineItemKind: { type: string, enum: [SPACE, ASSET, SERVICE] }
+    ConflictType:
+      type: string
+      enum: [SPACE_DOUBLE_BOOKED, ASSET_OVERALLOCATED, SETUP_WINDOW_OVERLAP]
+    Role: { type: string, enum: [ADMIN, MANAGER, OPS, VIEWER] }
+
+    DateRange:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+
+    # ── envelopes ──────────────────────────────────────────────────────────────
+    ServiceEnvelope:
+      type: object
+      required: [status, messageKey]
+      properties:
+        status: { type: string, example: OK }
+        message: { type: string }
+        messageKey: { type: string, example: request.created.success }
+        data: {}
+
+    # ── User / auth ──────────────────────────────────────────────────────────────
+    User:
+      type: object
+      required: [id, email, name, role, isActive]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    UserInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        name: { type: string }
+        password: { type: string, minLength: 8 }
+        role: { $ref: "#/components/schemas/Role" }
+        isActive: { type: boolean }
+    UserEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/ServiceEnvelope"
+        - type: object
+          properties: { data: { $ref: "#/components/schemas/User" } }
+
+    # ── Space ──────────────────────────────────────────────────────────────────
+    Space:
+      type: object
+      required: [id, name, floor, kind, capacities, dayRateMinor, currency]
+      properties:
+        id: { type: string, example: space_blue }
+        name: { type: string, example: Blue Hall }
+        floor: { type: integer, enum: [0, -1], example: 0 }
+        kind: { $ref: "#/components/schemas/SpaceKind" }
+        capacities:
+          description: Layout → seated capacity. A space need not support every layout.
+          type: object
+          additionalProperties: { type: integer }
+          example: { THEATER: 220, CLASSROOM: 120, BANQUET: 160, RECEPTION: 300 }
+        features:
+          type: array
+          items: { type: string }
+          example: [stage, av_builtin, step_free]
+        dayRateMinor: { type: integer, description: Whole Lek, example: 80000 }
+        currency: { $ref: "#/components/schemas/Currency" }
+        setupBufferMinutes: { type: integer, default: 120, example: 240 }
+        teardownBufferMinutes: { type: integer, default: 120, example: 120 }
+        status: { type: string, enum: [ACTIVE, INACTIVE], default: ACTIVE }
+    SpaceInput:
+      type: object
+      properties:
+        name: { type: string }
+        floor: { type: integer }
+        kind: { $ref: "#/components/schemas/SpaceKind" }
+        capacities: { type: object, additionalProperties: { type: integer } }
+        features: { type: array, items: { type: string } }
+        dayRateMinor: { type: integer }
+        setupBufferMinutes: { type: integer }
+        teardownBufferMinutes: { type: integer }
+    SpaceWithAvailability:
+      allOf:
+        - $ref: "#/components/schemas/Space"
+        - type: object
+          properties:
+            available: { type: boolean, description: Present only when start&end supplied }
+    SpaceAvailability:
+      type: object
+      required: [spaceId, available, conflictingRequestIds]
+      properties:
+        spaceId: { type: string }
+        available: { type: boolean }
+        conflictingRequestIds: { type: array, items: { type: string } }
+
+    # ── Asset ──────────────────────────────────────────────────────────────────
+    Asset:
+      type: object
+      required: [id, name, type, totalQuantity, location, status]
+      properties:
+        id: { type: string, example: asset_chair_std }
+        name: { type: string, example: Standard chair }
+        type: { $ref: "#/components/schemas/AssetType" }
+        totalQuantity: { type: integer, example: 400 }
+        location: { type: string, example: Storage -1 }
+        status: { $ref: "#/components/schemas/AssetStatus" }
+    AssetInput:
+      type: object
+      properties:
+        name: { type: string }
+        type: { $ref: "#/components/schemas/AssetType" }
+        totalQuantity: { type: integer }
+        location: { type: string }
+        status: { $ref: "#/components/schemas/AssetStatus" }
+    AssetWithAvailability:
+      allOf:
+        - $ref: "#/components/schemas/Asset"
+        - type: object
+          properties:
+            availableQuantity: { type: integer, description: total − Σ overlapping holds }
+
+    # ── EventRequest ─────────────────────────────────────────────────────────────
+    Requirements:
+      type: object
+      properties:
+        layout: { $ref: "#/components/schemas/Layout" }
+        avNeeded: { type: boolean }
+        cateringNeeded: { type: boolean }
+        notes: { type: string }
+    EventRequest:
+      type: object
+      required: [id, title, organizerName, expectedAttendees, eventType, preferredDates, status]
+      properties:
+        id: { type: string, example: req_8x2 }
+        title: { type: string, example: FinTech Startup Conference }
+        organizerName: { type: string, example: Acme }
+        contactEmail: { type: string, format: email, example: x@acme.al }
+        contactPhone: { type: string }
+        expectedAttendees: { type: integer, example: 180 }
+        eventType: { $ref: "#/components/schemas/EventType" }
+        preferredDates:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/DateRange" }
+        requirements: { $ref: "#/components/schemas/Requirements" }
+        status: { $ref: "#/components/schemas/RequestStatus" }
+        rejectionReason: { type: string }
+        createdById: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EventRequestInput:
+      type: object
+      required: [title, organizerName, expectedAttendees, eventType, preferredDates]
+      properties:
+        title: { type: string }
+        organizerName: { type: string }
+        contactEmail: { type: string, format: email }
+        contactPhone: { type: string }
+        expectedAttendees: { type: integer, minimum: 1 }
+        eventType: { $ref: "#/components/schemas/EventType" }
+        preferredDates:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/DateRange" }
+        requirements: { $ref: "#/components/schemas/Requirements" }
+
+    # ── Reservation ──────────────────────────────────────────────────────────────
+    ReservedAsset:
+      type: object
+      required: [assetId, quantity]
+      properties:
+        assetId: { type: string }
+        quantity: { type: integer, minimum: 1 }
+    Reservation:
+      type: object
+      required: [id, requestId, spaceId, dateRange, assets, status]
+      properties:
+        id: { type: string, example: resv_1 }
+        requestId: { type: string, example: req_8x2 }
+        spaceId: { type: string, example: space_blue }
+        dateRange: { $ref: "#/components/schemas/DateRange" }
+        effectiveStart: { type: string, format: date-time, description: dateRange.start − setup buffer }
+        effectiveEnd: { type: string, format: date-time, description: dateRange.end + teardown buffer }
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/ReservedAsset" }
+        status: { $ref: "#/components/schemas/ReservationStatus" }
+        expiresAt:
+          type: string
+          format: date-time
+          description: When a HELD lease lapses (the reaper releases it). Null once CONFIRMED.
+        createdById: { type: string }
+        createdAt: { type: string, format: date-time }
+    ReservationInput:
+      type: object
+      required: [requestId, spaceId, dateRange]
+      properties:
+        requestId: { type: string }
+        spaceId: { type: string }
+        dateRange: { $ref: "#/components/schemas/DateRange" }
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/ReservedAsset" }
+        holdMinutes: { type: integer, default: 30, description: HELD lease length }
+
+    # ── Quote ──────────────────────────────────────────────────────────────────
+    LineItem:
+      type: object
+      required: [label, kind, qty, unitPriceMinor, subtotalMinor]
+      properties:
+        label: { type: string, example: Blue Hall (1 day) }
+        kind: { $ref: "#/components/schemas/LineItemKind" }
+        qty: { type: integer, example: 1 }
+        unitPriceMinor: { type: integer, example: 80000 }
+        subtotalMinor: { type: integer, example: 80000 }
+    LineItemInput:
+      type: object
+      required: [label, qty, unitPriceMinor]
+      properties:
+        label: { type: string }
+        qty: { type: integer, minimum: 1 }
+        unitPriceMinor: { type: integer, minimum: 0 }
+    Quote:
+      type: object
+      required: [id, requestId, currency, lineItems, netMinor, vatRate, vatMinor, totalMinor, status]
+      properties:
+        id: { type: string, example: quote_1 }
+        requestId: { type: string, example: req_8x2 }
+        currency: { $ref: "#/components/schemas/Currency" }
+        lineItems:
+          type: array
+          items: { $ref: "#/components/schemas/LineItem" }
+        netMinor: { type: integer, description: Σ subtotals, example: 111667 }
+        vatRate: { type: number, example: 0.20 }
+        vatMinor: { type: integer, description: round(net * vatRate), example: 22333 }
+        totalMinor: { type: integer, description: net + vat (SERVER-COMPUTED), example: 134000 }
+        status: { $ref: "#/components/schemas/QuoteStatus" }
+        version: { type: integer, example: 1 }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    # ── Task ──────────────────────────────────────────────────────────────────
+    Task:
+      type: object
+      required: [id, requestId, title, phase, status]
+      properties:
+        id: { type: string, example: task_1 }
+        requestId: { type: string, example: req_8x2 }
+        title: { type: string, example: Set up theater seating (180) }
+        phase: { $ref: "#/components/schemas/TaskPhase" }
+        owner: { type: string, example: ops_team }
+        assigneeId: { type: string }
+        dueOffsetHours: { type: integer, description: Relative to event start (SETUP, negative) or end (TEARDOWN, positive), example: -4 }
+        dueAt: { type: string, format: date-time, description: Computed from the reserved window }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+    TaskInput:
+      type: object
+      required: [title, phase]
+      properties:
+        title: { type: string }
+        phase: { $ref: "#/components/schemas/TaskPhase" }
+        owner: { type: string }
+        assigneeId: { type: string }
+        dueOffsetHours: { type: integer }
+
+    # ── Conflict ──────────────────────────────────────────────────────────────
+    Conflict:
+      type: object
+      required: [type, window, detail]
+      properties:
+        type: { $ref: "#/components/schemas/ConflictType" }
+        spaceId: { type: string }
+        assetId: { type: string }
+        requested: { type: integer, description: For ASSET_OVERALLOCATED }
+        available: { type: integer, description: For ASSET_OVERALLOCATED }
+        conflictingRequestIds: { type: array, items: { type: string } }
+        window: { $ref: "#/components/schemas/DateRange" }
+        detail: { type: string, example: "Blue Hall already reserved for req_5a1 in this window." }
+
+    # ── AuditEntry (fully defined — was missing in the PDF) ───────────────────────
+    AuditEntry:
+      type: object
+      required: [id, actorId, action, entityType, entityId, at]
+      properties:
+        id: { type: string }
+        actorId: { type: string }
+        actorName: { type: string }
+        action: { type: string, example: request.approve }
+        entityType: { type: string, example: EventRequest }
+        entityId: { type: string, example: req_8x2 }
+        requestId: { type: string }
+        before: { type: object, additionalProperties: true }
+        after: { type: object, additionalProperties: true }
+        reason: { type: string }
+        at: { type: string, format: date-time }
+
+    # ── Aggregate ──────────────────────────────────────────────────────────────
+    RequestAggregate:
+      type: object
+      properties:
+        request: { $ref: "#/components/schemas/EventRequest" }
+        reservation: { $ref: "#/components/schemas/Reservation" }
+        quote: { $ref: "#/components/schemas/Quote" }
+        tasks: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        conflicts: { type: array, items: { $ref: "#/components/schemas/Conflict" } }
+        audit: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+
+    # ── Dashboard read-model ──────────────────────────────────────────────────
+    DashboardKpi:
+      type: object
+      required: [value]
+      properties:
+        value: { type: integer }
+        delta: { type: integer, description: Change vs the prior period (null if N/A) }
+        hint: { type: string }
+    DashboardStats:
+      type: object
+      properties:
+        eventsThisWeek: { $ref: "#/components/schemas/DashboardKpi" }
+        spacesInUse: { type: object, properties: { inUse: { type: integer }, total: { type: integer } } }
+        lowStockAssets: { $ref: "#/components/schemas/DashboardKpi" }
+        pendingApprovals: { $ref: "#/components/schemas/DashboardKpi" }
+
+    # ── error bodies ──────────────────────────────────────────────────────────
+    Error:
+      type: object
+      required: [status, error, messageKey]
+      properties:
+        status: { type: integer }
+        error: { type: string }
+        message: { type: string }
+        messageKey: { type: string }
+    ConflictError:
+      allOf:
+        - $ref: "#/components/schemas/Error"
+        - type: object
+          required: [conflicts]
+          properties:
+            error: { type: string, example: conflict }
+            conflicts: { type: array, items: { $ref: "#/components/schemas/Conflict" } }
+    InvalidTransitionError:
+      allOf:
+        - $ref: "#/components/schemas/Error"
+        - type: object
+          properties:
+            error: { type: string, example: invalid_transition }
+            from: { type: string }
+            to: { type: string }
+    ValidationError:
+      allOf:
+        - $ref: "#/components/schemas/Error"
+        - type: object
+          properties:
+            error: { type: string, example: validation }
+            fields:
+              type: object
+              additionalProperties: { type: string }
+              example: { expectedAttendees: required }
+
+  # ── reusable responses ────────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Not authenticated
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Forbidden:
+      description: Authenticated but lacking the required role
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    NotFound:
+      description: Entity not found
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    RateLimited:
+      description: Too many attempts
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Validation:
+      description: Field validation failed
+      content: { application/json: { schema: { $ref: "#/components/schemas/ValidationError" } } }
+    Conflict:
+      description: A reservation would violate availability
+      content: { application/json: { schema: { $ref: "#/components/schemas/ConflictError" } } }
+    InvalidTransition:
+      description: Illegal state transition
+      content: { application/json: { schema: { $ref: "#/components/schemas/InvalidTransitionError" } } }
+    SpaceCreated:
+      description: Space
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ServiceEnvelope"
+              - type: object
+                properties: { data: { $ref: "#/components/schemas/Space" } }
+    AssetCreated:
+      description: Asset
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ServiceEnvelope"
+              - type: object
+                properties: { data: { $ref: "#/components/schemas/Asset" } }
+    RequestEnvelope:
+      description: EventRequest
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ServiceEnvelope"
+              - type: object
+                properties: { data: { $ref: "#/components/schemas/EventRequest" } }
+    ReservationEnvelope:
+      description: Reservation
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ServiceEnvelope"
+              - type: object
+                properties: { data: { $ref: "#/components/schemas/Reservation" } }
+
+# Applies to every path unless overridden with `security: []`
+security:
+  - sessionCookie: []

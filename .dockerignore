@@ -1,0 +1,40 @@
+# Keep build contexts lean and avoid leaking local state into images.
+# Dev compose bind-mounts source on top of the image, so build context only
+# needs package manifests + lockfiles + the seed source.
+
+**/node_modules
+**/dist
+**/build
+**/.vite
+**/*.tsbuildinfo
+
+# Python
+**/__pycache__
+**/.venv
+**/venv
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# Env / secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS / CI / docs
+.git
+.github
+**/*.md
+docs
+
+# Test / coverage artifacts
+**/coverage
+**/playwright-report
+**/test-results
+
+# Editor / OS
+**/.vscode
+**/.idea
+**/.DS_Store
+*.log

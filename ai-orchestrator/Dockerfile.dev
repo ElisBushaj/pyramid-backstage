@@ -1,0 +1,20 @@
+# ai-orchestrator — dev image (hot-reload). SCAFFOLD.
+FROM python:3.12-slim
+
+# Faster, quieter Python in containers.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Install deps first (better layer caching). pyproject.toml + the package
+# metadata are enough for an editable install of the runtime deps.
+COPY pyproject.toml README.md ./
+COPY app ./app
+RUN pip install -e .
+
+# Dev server: hot-reload, listen on all interfaces.
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;700&family=Geist+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.8); } }
+</style>
+</helmet>
+
+<div style="background:#DBDEE3; min-height:100vh; width:100%; box-sizing:border-box; padding:56px 48px 96px; font-family:'SF Pro Text','Geist',-apple-system,system-ui,sans-serif; color:#0B0D12; -webkit-font-smoothing:antialiased;">
+  <div style="max-width:1320px; margin:0 auto;">
+
+    <div style="margin-bottom:40px;">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#8A8F98; letter-spacing:0.04em;">§2</span>
+        <h1 style="font-size:24px; line-height:30px; font-weight:600; letter-spacing:-0.01em; margin:0;">Shells</h1>
+      </div>
+      <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:620px;">AppShell (sidebar groups + top bar + live NATS pill + copilot toggle + role badge) and the zero-distraction AuthShell. Mobile: sidebar collapses to a bottom-anchored drawer.</p>
+      <div style="margin-top:18px;"><a href="index.dc.html" style="font-size:13px; color:#2F6FED; text-decoration:none;">← Canvas index</a></div>
+    </div>
+
+    {{ sections }}
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  frameLabel(num, title, sub) {
+    return React.createElement('div', { style:{ marginBottom:'14px', display:'flex', alignItems:'baseline', gap:'10px', flexWrap:'wrap' } },
+      React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98' } }, num),
+      React.createElement('h2', { style:{ fontSize:'19px', lineHeight:'26px', fontWeight:600, margin:0 } }, title),
+      sub ? React.createElement('span', { style:{ fontSize:'13px', color:'#8A8F98' } }, sub) : null);
+  }
+  artboard(w, body, label) {
+    return React.createElement('div',{ style:{ display:'flex', flexDirection:'column', gap:'10px', flex:'none' } },
+      label? React.createElement('span',{style:{fontSize:'12px', color:'#51555E', fontWeight:550}}, label):null,
+      React.createElement('div',{ style:{ width:w+'px', background:'#fff', borderRadius:'4px', boxShadow:'0 1px 3px rgba(0,0,0,.1)', overflow:'hidden' } }, body));
+  }
+  icon(d, size, color) { return React.createElement('svg',{width:size||16,height:size||16,viewBox:'0 0 16 16',fill:'none'}, React.createElement('path',{d, stroke:color||'currentColor', strokeWidth:1.5, strokeLinecap:'round', strokeLinejoin:'round'})); }
+  logo(size) {
+    size = size||30;
+    return React.createElement('div',{style:{width:size+'px', height:size+'px', borderRadius:'8px', background:'linear-gradient(135deg,#2F6FED,#244FB0)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}},
+      React.createElement('svg',{width:size*0.55, height:size*0.55, viewBox:'0 0 18 18', fill:'none'}, React.createElement('path',{d:'M9 1.5 16.5 16.5H1.5L9 1.5Z', stroke:'#fff', strokeWidth:1.4, strokeLinejoin:'round'}), React.createElement('path',{d:'M9 6 12.5 13H5.5L9 6Z', fill:'#fff', fillOpacity:0.35})));
+  }
+  avatar(initials, size, color) {
+    size = size||30;
+    return React.createElement('div',{style:{width:size+'px', height:size+'px', borderRadius:'999px', background:color||'#E3E7EC', color:'#51555E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:(size*0.4)+'px', fontWeight:600, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.06)', flexShrink:0}}, initials);
+  }
+  // sidebar nav
+  navGroup(title, items, collapsed) {
+    return React.createElement('div',{key:title, style:{marginBottom:'18px'}},
+      collapsed? null : React.createElement('div',{style:{fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:600, padding:'0 12px', marginBottom:'6px'}}, title),
+      items.map(it=>this.navItem(it, collapsed)));
+  }
+  navItem(it, collapsed) {
+    const active = it.active;
+    return React.createElement('div',{key:it.label, style:{display:'flex', alignItems:'center', gap:'11px', height:'34px', padding: collapsed?'0':'0 12px', justifyContent: collapsed?'center':'flex-start', borderRadius:'8px', background: active?'#EEF3FE':'transparent', color: active?'#2F6FED':'#51555E', fontSize:'14px', fontWeight: active?550:400, marginBottom:'2px', cursor:'pointer', position:'relative'}},
+      React.createElement('span',{style:{display:'inline-flex', color: active?'#2F6FED':'#8A8F98'}}, this.icon(it.icon,16)),
+      collapsed? null : React.createElement('span',null, it.label),
+      (!collapsed && it.badge)? React.createElement('span',{style:{marginLeft:'auto', fontSize:'11px', fontWeight:600, color: it.badgeDanger?'#C8372D':'#8A8F98', background: it.badgeDanger?'#FBECEA':'#F1F3F5', borderRadius:'999px', padding:'1px 7px', fontFamily:"'Geist Mono',monospace"}}, it.badge):null);
+  }
+  navData(activeLabel) {
+    const ic = {
+      dash:'M2.5 8 8 3l5.5 5M4 7v6h8V7', req:'M4 3h8v10H4zM6 6h4M6 9h4', cal:'M3 4h10v9H3zM3 7h10M6 2v3M10 2v3',
+      spaces:'M2.5 13V6L8 2.5 13.5 6v7M6 13V9h4v4', inv:'M2.5 5 8 2.5 13.5 5v6L8 13.5 2.5 11zM2.5 5 8 7.5 13.5 5', tasks:'M3 5h2v2H3zM7 6h6M3 9h2v2H3zM7 10h6',
+      conf:'M8 5v3.5M8 11v.2M8 1.5 1 13.5h14L8 1.5Z', appr:'M3 8.5 6 11l7-7', audit:'M8 4v4l3 1.5M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z', users:'M5.5 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM2.5 13c0-2 1.5-3 3-3s3 1 3 3M11 7.5a1.7 1.7 0 1 0 0-3.4M10.5 10.2c1.3.2 2.5 1 2.5 2.8'
+    };
+    const groups = [
+      { title:'Overview', items:[{label:'Dashboard', icon:ic.dash}] },
+      { title:'Pipeline', items:[{label:'Requests', icon:ic.req, badge:'24'},{label:'Calendar', icon:ic.cal}] },
+      { title:'Resources', items:[{label:'Spaces', icon:ic.spaces},{label:'Inventory', icon:ic.inv, badge:'2', badgeDanger:true}] },
+      { title:'Operations', items:[{label:'Tasks', icon:ic.tasks},{label:'Conflicts', icon:ic.conf, badge:'1', badgeDanger:true},{label:'Approvals', icon:ic.appr, badge:'5'}] },
+      { title:'Record', items:[{label:'Audit', icon:ic.audit}] },
+      { title:'Settings', items:[{label:'Users', icon:ic.users}] },
+    ];
+    groups.forEach(g=>g.items.forEach(it=>{ if(it.label===activeLabel) it.active=true; }));
+    return groups;
+  }
+  natsPill(state) {
+    const ok = state!=='degraded';
+    return React.createElement('div',{style:{display:'inline-flex', alignItems:'center', gap:'8px', height:'30px', padding:'0 12px', borderRadius:'999px', background: ok?'#E9F6EF':'#FBF3E0', border:`1px solid ${ok?'rgba(26,127,75,.2)':'rgba(154,107,0,.25)'}`}},
+      React.createElement('span',{style:{width:'7px', height:'7px', borderRadius:'999px', background: ok?'#1A7F4B':'#9A6B00', animation: ok?'pulseDot 1.8s ease-in-out infinite':'none'}}),
+      React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color: ok?'#15613A':'#7A5500'}}, ok?'NATS connected':'NATS degraded'),
+      ok? React.createElement('span',{style:{fontSize:'11px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, 'inventory.low · 2s'):null);
+  }
+  topBar(natsState, collapsed) {
+    return React.createElement('div',{style:{height:'56px', borderBottom:'1px solid #ECEEF1', background:'#fff', display:'flex', alignItems:'center', padding:'0 20px', gap:'14px'}},
+      // request-intake launcher / search
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', flex:1, maxWidth:'420px', height:'34px', padding:'0 12px', borderRadius:'8px', background:'#F7F8FA', border:'1px solid #ECEEF1', color:'#8A8F98'}},
+        this.icon('M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM11 11l3 3',15),
+        React.createElement('span',{style:{fontSize:'13px'}}, 'Search or start a request…'),
+        React.createElement('span',{style:{marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:'11px', background:'#fff', border:'1px solid #D7DBE0', borderRadius:'5px', padding:'1px 6px'}}, '⌘K')),
+      React.createElement('div',{style:{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}},
+        this.natsPill(natsState),
+        // copilot toggle
+        React.createElement('button',{style:{height:'34px', display:'inline-flex', alignItems:'center', gap:'7px', padding:'0 12px', borderRadius:'8px', background:'#EEF3FE', border:'1px solid #DCE6FB', color:'#2F6FED', fontSize:'13px', fontWeight:550, cursor:'pointer'}}, this.icon('M8 2.5 9.2 6l3.3 .2-2.6 2 1 3.3L8 9.7 5.1 11.5l1-3.3L3.5 6.2 6.8 6 8 2.5Z',14,'#2F6FED'), 'Copilot'),
+        // user menu + role
+        React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', paddingLeft:'12px', borderLeft:'1px solid #ECEEF1'}},
+          this.avatar('EH',30,'#DCE6FB'),
+          React.createElement('div',null, React.createElement('div',{style:{fontSize:'13px', fontWeight:600, lineHeight:'15px'}}, 'Elira H.'), React.createElement('div',{style:{fontSize:'11px', color:'#9A6B00', fontWeight:600}}, 'MANAGER')))));
+  }
+  appShell(opts) {
+    opts = opts||{};
+    const collapsed = opts.collapsed;
+    const sidebarW = collapsed?64:220;
+    const sidebar = React.createElement('div',{style:{width:sidebarW+'px', flexShrink:0, borderRight:'1px solid #ECEEF1', background:'#F7F8FA', display:'flex', flexDirection:'column', height:'100%'}},
+      React.createElement('div',{style:{height:'56px', display:'flex', alignItems:'center', gap:'10px', padding: collapsed?'0':'0 16px', justifyContent: collapsed?'center':'flex-start', borderBottom:'1px solid #ECEEF1'}},
+        this.logo(28), collapsed? null : React.createElement('span',{style:{fontSize:'14px', fontWeight:600}}, 'Backstage')),
+      React.createElement('div',{style:{flex:1, overflow:'auto', padding:'16px 10px'}}, this.navData(opts.active||'Dashboard').map(g=>this.navGroup(g.title, g.items, collapsed))),
+      React.createElement('div',{style:{padding:'12px 10px', borderTop:'1px solid #ECEEF1'}}, this.navItem({label:'Collapse', icon: collapsed?'M6 3.5 10.5 8 6 12.5':'M10 3.5 5.5 8 10 12.5'}, collapsed)));
+    const content = React.createElement('div',{style:{flex:1, display:'flex', flexDirection:'column', minWidth:0}},
+      this.topBar(opts.nats),
+      React.createElement('div',{style:{flex:1, background:'#fff', padding:'28px 32px', overflow:'hidden'}},
+        React.createElement('h1',{style:{fontSize:'24px', fontWeight:600, margin:'0 0 4px', letterSpacing:'-0.01em'}}, 'Dashboard'),
+        React.createElement('p',{style:{fontSize:'14px', color:'#51555E', margin:'0 0 20px'}}, 'Tuesday, 22 July 2026 · 4 spaces in use'),
+        React.createElement('div',{style:{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px'}},
+          [['Events this week','12'],['Spaces in use','4 / 6'],['Low-stock','2'],['Pending','5']].map(k=>React.createElement('div',{key:k[0], style:{border:'1px solid #ECEEF1', borderRadius:'10px', padding:'14px'}},
+            React.createElement('div',{style:{fontSize:'12px', color:'#51555E', marginBottom:'8px'}}, k[0]),
+            React.createElement('div',{style:{fontSize:'24px', fontWeight:600, fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', color: k[0]==='Low-stock'?'#C8372D':'#0B0D12'}}, k[1]))))));
+    return React.createElement('div',{style:{height:'620px', display:'flex'}}, sidebar, content);
+  }
+  mobileDrawer() {
+    const groups = this.navData('Dashboard');
+    return React.createElement('div',{style:{position:'relative', height:'740px', background:'#fff'}},
+      // dimmed app behind
+      React.createElement('div',{style:{position:'absolute', inset:0, background:'#F7F8FA'}},
+        React.createElement('div',{style:{height:'52px', borderBottom:'1px solid #ECEEF1', background:'#fff', display:'flex', alignItems:'center', padding:'0 16px', gap:'12px'}},
+          this.icon('M2.5 4h11M2.5 8h11M2.5 12h11',18,'#0B0D12'), this.logo(26), React.createElement('span',{style:{fontSize:'15px', fontWeight:600}}, 'Backstage'))),
+      React.createElement('div',{style:{position:'absolute', inset:0, background:'rgba(11,13,18,.4)'}}),
+      // bottom drawer
+      React.createElement('div',{style:{position:'absolute', left:0, right:0, bottom:0, background:'#fff', borderRadius:'18px 18px 0 0', boxShadow:'0 -16px 40px -12px rgba(11,13,18,.25)', padding:'10px 14px 24px', maxHeight:'86%', overflow:'auto'}},
+        React.createElement('div',{style:{width:'36px', height:'4px', borderRadius:'999px', background:'#D7DBE0', margin:'4px auto 14px'}}),
+        groups.map(g=>this.navGroup(g.title, g.items, false))));
+  }
+  authShell() {
+    const field = (label, val, ph)=>React.createElement('div',{key:label, style:{marginBottom:'14px'}},
+      React.createElement('label',{style:{display:'block', fontSize:'13px', fontWeight:550, marginBottom:'6px'}}, label),
+      React.createElement('div',{style:{height:'40px', display:'flex', alignItems:'center', padding:'0 13px', borderRadius:'8px', border:'1px solid #D7DBE0', fontSize:'14px', color: val?'#0B0D12':'#8A8F98'}}, val||ph));
+    return React.createElement('div',{style:{minHeight:'620px', background:'#F7F8FA', display:'flex', alignItems:'center', justifyContent:'center', padding:'40px'}},
+      React.createElement('div',{style:{width:'380px'}},
+        React.createElement('div',{style:{display:'flex', flexDirection:'column', alignItems:'center', marginBottom:'28px'}},
+          this.logo(44),
+          React.createElement('h1',{style:{fontSize:'20px', fontWeight:600, margin:'16px 0 4px'}}, 'Pyramid Backstage'),
+          React.createElement('p',{style:{fontSize:'13px', color:'#8A8F98', margin:0}}, 'Operations sign-in')),
+        React.createElement('div',{style:{background:'#fff', borderRadius:'14px', boxShadow:'0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06)', padding:'24px'}},
+          field('Work email','elira.hoxha@pyramid.al'),
+          field('Password',null,'••••••••'),
+          React.createElement('button',{style:{width:'100%', height:'40px', borderRadius:'8px', background:'#2F6FED', color:'#fff', border:'none', fontSize:'14px', fontWeight:600, cursor:'pointer', marginTop:'4px'}}, 'Sign in'),
+          React.createElement('div',{style:{textAlign:'center', marginTop:'14px', fontSize:'13px', color:'#2F6FED'}}, 'Forgot password?')),
+        React.createElement('p',{style:{textAlign:'center', fontSize:'12px', color:'#8A8F98', marginTop:'20px', fontFamily:"'Geist Mono',monospace"}}, 'Staff only · access is audited')));
+  }
+
+  renderVals() {
+    const sec = [];
+    // 2.1 AppShell default
+    sec.push(React.createElement('div',{key:'a', style:{marginBottom:'44px'}}, this.frameLabel('§2.1','AppShell — default','sidebar groups · top bar · live NATS pill · copilot toggle · role badge'),
+      React.createElement('div',{style:{overflowX:'auto'}}, React.createElement('div',{style:{display:'flex', gap:'40px', alignItems:'flex-start', width:'max-content', paddingBottom:'8px'}},
+        this.artboard(1280, this.appShell({active:'Dashboard', nats:'ok'}), 'Desktop · 1280 · NATS connected')))));
+    // collapsed + degraded
+    sec.push(React.createElement('div',{key:'b', style:{marginBottom:'44px'}}, this.frameLabel('§2.1','AppShell — sidebar collapsed · NATS degraded',''),
+      React.createElement('div',{style:{overflowX:'auto'}}, React.createElement('div',{style:{display:'flex', gap:'40px', alignItems:'flex-start', width:'max-content', paddingBottom:'8px'}},
+        this.artboard(1120, this.appShell({active:'Requests', collapsed:true, nats:'degraded'}), 'Desktop · collapsed rail · NATS degraded')))));
+    // mobile drawer + auth
+    sec.push(React.createElement('div',{key:'c', style:{marginBottom:'44px'}}, this.frameLabel('§2.1 / §1.1','Mobile drawer · AuthShell','390px · bottom-anchored drawer · centered login'),
+      React.createElement('div',{style:{display:'flex', gap:'40px', flexWrap:'wrap', alignItems:'flex-start'}},
+        this.artboard(390, this.mobileDrawer(), 'Mobile · 390 · nav drawer'),
+        this.artboard(390, this.authShell(), 'AuthShell · §1.1'))));
+    return { sections: sec };
+  }
+}
+</script>
+</body>
+</html>

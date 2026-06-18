@@ -1,0 +1,21 @@
+# Normalize line endings to LF on checkin; let Git auto-detect text.
+* text=auto eol=lf
+
+# Scripts must stay LF even on Windows checkouts.
+*.sh text eol=lf
+
+# Lockfiles are generated — collapse them in diffs and merges.
+package-lock.json -diff linguist-generated
+pnpm-lock.yaml    -diff linguist-generated
+poetry.lock       -diff linguist-generated
+
+# Binary assets — never touch.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.svg  text
+*.pdf  binary
+*.woff  binary
+*.woff2 binary

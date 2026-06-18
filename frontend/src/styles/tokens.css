@@ -1,0 +1,108 @@
+/* ============================================================
+   Design tokens — single source of truth.
+
+   Every literal hex, length, and timing value used by the app lives
+   here, declared on :root as CSS custom properties. Everything else
+   (the Tailwind v4 @theme block in globals.css, every component) reads
+   from these vars via `var(--…)`, so the whole system stays themeable.
+
+   PYRAMID look: near-monochrome, light-first, ONE calm-blue accent.
+   Dark-capable — `[data-theme="dark"]` at the bottom overrides surfaces,
+   text, and borders without touching any component.
+   ============================================================ */
+
+:root {
+  /* ---- Surfaces --------------------------------------------- */
+  --surface:          #FFFFFF;
+  --surface-subtle:   #F7F8FA;
+  --surface-sunken:   #F1F3F5;
+  --surface-inverted: #0B0D12;
+
+  /* ---- Text ------------------------------------------------- */
+  --text-primary:   #0B0D12;
+  --text-secondary: #51555E;
+  --text-tertiary:  #8A8F98;
+  --text-inverted:  #FFFFFF;
+  --text-on-accent: #FFFFFF;
+
+  /* ---- Border ----------------------------------------------- */
+  --border-subtle: #ECEEF1;
+  --border-strong: #D7DBE0;
+  --border-focus:  #2F6FED;
+
+  /* ---- Accent (calm blue) ----------------------------------- */
+  --accent:         #2F6FED;
+  --accent-hover:   #2A63D4;
+  --accent-pressed: #244FB0;
+  --accent-muted:   #EEF3FE;
+
+  /* ---- Status (ops semantics, paired with subtle bg) -------- */
+  --success:        #1A7F4B;
+  --success-subtle: #E9F6EF;
+  --warning:        #9A6B00;
+  --warning-subtle: #FBF3E0;
+  --danger:         #C8372D;
+  --danger-subtle:  #FBECEA;
+  --info:           #2F6FED;
+  --info-subtle:    #EEF3FE;
+
+  /* ---- Radii ------------------------------------------------ */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-pill: 999px;
+
+  /* ---- Elevation -------------------------------------------- */
+  --elev-flat:    none;
+  --elev-raised:  0 1px 2px rgba(11, 13, 18, 0.04), 0 0 0 1px rgba(11, 13, 18, 0.06);
+  --elev-overlay: 0 16px 40px -12px rgba(11, 13, 18, 0.18), 0 2px 6px rgba(11, 13, 18, 0.05), 0 0 0 1px rgba(11, 13, 18, 0.06);
+
+  /* ---- Motion — durations × easings ------------------------- */
+  --dur-micro: 120ms;
+  --dur-std:   200ms;
+  --dur-page:  280ms;
+  --ease-std:  cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---- Z-index scale — discrete layers, no magic numbers ---- */
+  --z-sticky:   100;
+  --z-dropdown: 200;
+  --z-drawer:   300;
+  --z-modal:    400;
+  --z-toast:    500;
+  --z-tooltip:  600;
+
+  /* ---- Typography ------------------------------------------- */
+  --font-sans: 'SF Pro Text', 'Geist', -apple-system, system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'Geist Mono', ui-monospace, Menlo, monospace;
+}
+
+/* ============================================================
+   Dark mode — flip `[data-theme="dark"]` on <html>. Only surfaces,
+   text, and borders invert; the accent and status hues hold (they read
+   legibly on dark), with subtle status tints darkened to sit on ink.
+   ============================================================ */
+[data-theme="dark"] {
+  --surface:          #0B0D12;
+  --surface-subtle:   #12151C;
+  --surface-sunken:   #1A1E27;
+  --surface-inverted: #FFFFFF;
+
+  --text-primary:   #F2F4F7;
+  --text-secondary: #A9AEB8;
+  --text-tertiary:  #6E747E;
+  --text-inverted:  #0B0D12;
+  --text-on-accent: #FFFFFF;
+
+  --border-subtle: #232833;
+  --border-strong: #333A47;
+  --border-focus:  #4F86F2;
+
+  --accent-muted:   #16233F;
+
+  --success-subtle: #0F2A1D;
+  --warning-subtle: #2C2410;
+  --danger-subtle:  #2E1715;
+  --info-subtle:    #16233F;
+}

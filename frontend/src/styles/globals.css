@@ -1,0 +1,126 @@
+@import "./tokens.css";
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* ============================================================
+   Tailwind v4 @theme inline — alias every token to a utility.
+
+   `@theme inline` emits each utility's value as a literal var()
+   reference rather than letting Tailwind own the variable, so the
+   :root declarations in tokens.css stay the single source of truth
+   (and `[data-theme="dark"]` overrides flow through automatically).
+
+   Examples:
+     bg-surface          → background-color: var(--surface)
+     text-text-primary   → color: var(--text-primary)
+     bg-accent           → background-color: var(--accent)
+     border-border-subtle → border-color: var(--border-subtle)
+     rounded-md          → border-radius: var(--radius-md)
+     shadow-overlay      → box-shadow: var(--elev-overlay)
+     z-modal             → z-index: var(--z-modal)
+   ============================================================ */
+
+@theme inline {
+  /* Surfaces */
+  --color-surface:          var(--surface);
+  --color-surface-subtle:   var(--surface-subtle);
+  --color-surface-sunken:   var(--surface-sunken);
+  --color-surface-inverted: var(--surface-inverted);
+
+  /* Text */
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary:  var(--text-tertiary);
+  --color-text-inverted:  var(--text-inverted);
+  --color-text-on-accent: var(--text-on-accent);
+
+  /* Border */
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus:  var(--border-focus);
+
+  /* Accent */
+  --color-accent:         var(--accent);
+  --color-accent-hover:   var(--accent-hover);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-accent-muted:   var(--accent-muted);
+
+  /* Status */
+  --color-success:        var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning:        var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger:         var(--danger);
+  --color-danger-subtle:  var(--danger-subtle);
+  --color-info:           var(--info);
+  --color-info-subtle:    var(--info-subtle);
+
+  /* Font families */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Radii */
+  --radius-xs:   var(--radius-xs);
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+
+  /* Elevation */
+  --shadow-flat:    var(--elev-flat);
+  --shadow-raised:  var(--elev-raised);
+  --shadow-overlay: var(--elev-overlay);
+
+  /* Motion — durations + easings */
+  --duration-micro: var(--dur-micro);
+  --duration-std:   var(--dur-std);
+  --duration-page:  var(--dur-page);
+  --ease-std:       var(--ease-std);
+  --ease-exit:      var(--ease-exit);
+
+  /* Z-index — exposed as utilities so no magic numbers in code */
+  --z-index-sticky:   var(--z-sticky);
+  --z-index-dropdown: var(--z-dropdown);
+  --z-index-drawer:   var(--z-drawer);
+  --z-index-modal:    var(--z-modal);
+  --z-index-toast:    var(--z-toast);
+  --z-index-tooltip:  var(--z-tooltip);
+}
+
+/* ============================================================
+   Base resets — minimal. Anything heavier belongs in a component.
+   ============================================================ */
+
+html {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+}
+
+/* Default keyboard-focus ring for anything that doesn't manage its own.
+   Components can opt out with the `outline-none` utility. */
+@layer base {
+  *:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

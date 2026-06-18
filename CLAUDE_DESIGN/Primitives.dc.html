@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;700&family=Geist+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+</style>
+</helmet>
+
+<div style="background:#DBDEE3; min-height:100vh; width:100%; box-sizing:border-box; padding:56px 48px 96px; font-family:'SF Pro Text','Geist',-apple-system,system-ui,sans-serif; color:#0B0D12; -webkit-font-smoothing:antialiased;">
+  <div style="max-width:1240px; margin:0 auto;">
+
+    <div style="margin-bottom:40px;">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#8A8F98; letter-spacing:0.04em;">§2</span>
+        <h1 style="font-size:24px; line-height:30px; font-weight:600; letter-spacing:-0.01em; margin:0;">Primitives</h1>
+      </div>
+      <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:600px;">Radix-based UI components — each variant × state shown as a static specimen. Focus rings, disabled, loading and error states are all first-class.</p>
+      <div style="margin-top:18px;"><a href="index.dc.html" style="font-size:13px; color:#2F6FED; text-decoration:none;">← Canvas index</a></div>
+    </div>
+
+    {{ sections }}
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  // ---------- shared frame ----------
+  frame(num, title, sub, body, opts) {
+    opts = opts || {};
+    return React.createElement('div', { key:num, style:{ marginBottom:'40px' } },
+      React.createElement('div', { style:{ marginBottom:'14px', display:'flex', alignItems:'baseline', gap:'10px', flexWrap:'wrap' } },
+        React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98' } }, num),
+        React.createElement('h2', { style:{ fontSize:'19px', lineHeight:'26px', fontWeight:600, margin:0 } }, title),
+        sub ? React.createElement('span', { style:{ fontSize:'13px', color:'#8A8F98' } }, sub) : null
+      ),
+      React.createElement('div', { style:{ background: opts.bg||'#fff', borderRadius:'14px', boxShadow:'0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06)', padding:'28px' } }, body)
+    );
+  }
+  // column of labeled rows
+  specGrid(items, cols) {
+    return React.createElement('div', { style:{ display:'grid', gridTemplateColumns:`repeat(${cols||4}, 1fr)`, gap:'28px 24px', alignItems:'start' } }, items);
+  }
+  cell(label, el) {
+    return React.createElement('div', { key:label, style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+      React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.03em' } }, label),
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } }, el)
+    );
+  }
+  spinner(size, color) {
+    size = size || 14;
+    return React.createElement('span', { style:{ display:'inline-block', width:size+'px', height:size+'px', border:`2px solid ${color||'rgba(255,255,255,.4)'}`, borderTopColor: color?color:'#fff', borderRadius:'999px', animation:'spin 700ms linear infinite' } });
+  }
+  // ---------- button ----------
+  btn(variant, state, label, opts) {
+    opts = opts || {};
+    const sizes = { sm:{h:28,px:12,fs:13}, md:{h:34,px:14,fs:14}, lg:{h:40,px:18,fs:14} };
+    const z = sizes[opts.size||'md'];
+    let bg, color, border='1px solid transparent', shadow='none', op=1;
+    if (variant === 'primary') {
+      bg = state==='hover'?'#2A63D4':state==='pressed'?'#244FB0':'#2F6FED'; color='#fff';
+    } else if (variant === 'secondary') {
+      bg = state==='pressed'?'#F1F3F5':state==='hover'?'#F7F8FA':'#fff'; color='#0B0D12'; border=`1px solid ${state==='hover'?'#D7DBE0':'#D7DBE0'}`;
+    } else if (variant === 'ghost') {
+      bg = state==='pressed'?'#ECEEF1':state==='hover'?'#F1F3F5':'transparent'; color='#0B0D12';
+    } else if (variant === 'danger') {
+      bg = state==='hover'?'#AE2F26':state==='pressed'?'#94271F':'#C8372D'; color='#fff';
+    }
+    if (state==='disabled') { bg = variant==='ghost'||variant==='secondary'?'#fff':'#F1F3F5'; color='#B8BDC6'; border = variant==='secondary'?'1px solid #ECEEF1':'1px solid transparent'; }
+    if (state==='focus') { shadow='0 0 0 3px rgba(47,111,237,.35)'; if(variant==='secondary'||variant==='ghost') border='1px solid #2F6FED'; }
+    const children = [];
+    if (opts.iconLeft) children.push(React.createElement('span',{key:'il',style:{display:'inline-flex'}}, opts.iconLeft));
+    if (state==='loading') children.push(this.spinner(13, variant==='secondary'||variant==='ghost'?'#8A8F98':null));
+    children.push(React.createElement('span',{key:'l'}, label));
+    if (opts.iconRight) children.push(React.createElement('span',{key:'ir',style:{display:'inline-flex'}}, opts.iconRight));
+    return React.createElement('button', { disabled: state==='disabled', style:{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:'7px', height:z.h+'px', padding:`0 ${z.px}px`, fontSize:z.fs+'px', fontWeight:550, fontFamily:'inherit', borderRadius:'8px', background:bg, color, border, boxShadow:shadow, cursor: state==='disabled'?'not-allowed':'pointer', width: opts.fullWidth?'100%':'auto', whiteSpace:'nowrap' } }, children);
+  }
+  iconSvg(d, size) { return React.createElement('svg',{width:size||15,height:size||15,viewBox:'0 0 16 16',fill:'none'}, React.createElement('path',{d, stroke:'currentColor', strokeWidth:1.5, strokeLinecap:'round', strokeLinejoin:'round'})); }
+
+  // ---------- input ----------
+  input(state, opts) {
+    opts = opts || {};
+    let border='1px solid #D7DBE0', bg='#fff', shadow='none';
+    if (state==='focus') { border='1px solid #2F6FED'; shadow='0 0 0 3px rgba(47,111,237,.18)'; }
+    if (state==='error') { border='1px solid #C8372D'; }
+    if (state==='disabled') { bg='#F7F8FA'; border='1px solid #ECEEF1'; }
+    const isPlaceholder = state==='empty';
+    const wrap = React.createElement('div', { style:{ display:'flex', alignItems:'center', height:'38px', padding:'0 12px', borderRadius:'8px', border, background:bg, boxShadow:shadow, gap:'8px' } },
+      opts.prefix ? React.createElement('span',{style:{color:'#8A8F98', fontSize:'14px'}}, opts.prefix) : null,
+      React.createElement('span', { style:{ flex:1, fontSize:'14px', color: isPlaceholder?'#8A8F98': state==='disabled'?'#B8BDC6':'#0B0D12' } }, isPlaceholder ? (opts.placeholder||'Search requests…') : (opts.value||'FinTech Startup Conference')),
+      opts.suffix ? React.createElement('span',{style:{color:'#8A8F98', fontSize:'13px', fontFamily:"'Geist Mono',monospace"}}, opts.suffix) : null
+    );
+    if (state==='error') {
+      return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } }, wrap,
+        React.createElement('span', { style:{ fontSize:'13px', color:'#C8372D' } }, opts.errMsg||'Attendee count is required'));
+    }
+    return wrap;
+  }
+
+  // ---------- toggles ----------
+  checkbox(state) {
+    const checked = state==='checked'||state==='indeterminate';
+    let bg = checked?'#2F6FED':'#fff', border = checked?'1px solid #2F6FED':'1px solid #D7DBE0', shadow='none';
+    if (state==='focus') shadow='0 0 0 3px rgba(47,111,237,.3)';
+    if (state==='disabled') { bg='#F1F3F5'; border='1px solid #ECEEF1'; }
+    return React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:bg, border, boxShadow:shadow, display:'flex', alignItems:'center', justifyContent:'center' } },
+      state==='checked'? React.createElement('svg',{width:11,height:11,viewBox:'0 0 12 12',fill:'none'},React.createElement('path',{d:'M2.5 6.2 4.8 8.5 9.5 3.5', stroke:'#fff', strokeWidth:1.8, strokeLinecap:'round', strokeLinejoin:'round'})) :
+      state==='indeterminate'? React.createElement('div',{style:{width:'9px', height:'2px', background:'#fff', borderRadius:'1px'}}) : null
+    );
+  }
+  radio(state) {
+    const checked = state==='checked';
+    let border = checked?'5px solid #2F6FED':'1px solid #D7DBE0', shadow='none', bg='#fff';
+    if (state==='focus') shadow='0 0 0 3px rgba(47,111,237,.3)';
+    if (state==='disabled') { border='1px solid #ECEEF1'; bg='#F1F3F5'; }
+    return React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'999px', background:bg, border, boxShadow:shadow, boxSizing:'border-box' } });
+  }
+  toggle(state) {
+    const on = state==='checked';
+    let bg = on?'#2F6FED':'#D7DBE0', shadow='none';
+    if (state==='focus') shadow='0 0 0 3px rgba(47,111,237,.3)';
+    if (state==='disabled') bg = on?'#A8C4F5':'#ECEEF1';
+    return React.createElement('div', { style:{ width:'36px', height:'21px', borderRadius:'999px', background:bg, boxShadow:shadow, position:'relative', transition:'background 120ms cubic-bezier(0.2,0,0,1)' } },
+      React.createElement('div', { style:{ position:'absolute', top:'2px', left: on?'17px':'2px', width:'17px', height:'17px', borderRadius:'999px', background:'#fff', boxShadow:'0 1px 2px rgba(0,0,0,.2)', transition:'left 120ms cubic-bezier(0.2,0,0,1)' } })
+    );
+  }
+  toggleRow(Comp, states) {
+    return React.createElement('div', { style:{ display:'flex', gap:'28px', flexWrap:'wrap' } },
+      states.map(s => React.createElement('div', { key:s, style:{ display:'flex', flexDirection:'column', alignItems:'center', gap:'8px' } },
+        Comp(s),
+        React.createElement('span', { style:{ fontSize:'11px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace" } }, s)
+      ))
+    );
+  }
+  // status badge mini
+  badge(fg, sub, label, dot) {
+    return React.createElement('span', { key:label, style:{ display:'inline-flex', alignItems:'center', gap:'6px', background:sub, border:`1px solid ${fg}26`, borderRadius:'999px', padding:'3px 10px', fontSize:'12px', fontWeight:600, color:fg, whiteSpace:'nowrap' } },
+      dot!==false ? React.createElement('span',{style:{width:'6px', height:'6px', borderRadius:'999px', background:fg}}) : null, label);
+  }
+  avatar(initials, size, color) {
+    size = size||32;
+    return React.createElement('div', { style:{ width:size+'px', height:size+'px', borderRadius:'999px', background:color||'#E3E7EC', color:'#51555E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:(size*0.4)+'px', fontWeight:600, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.06)' } }, initials);
+  }
+
+  renderVals() {
+    const sec = [];
+
+    // §2.1 Button
+    const variants = ['primary','secondary','ghost','danger'];
+    const states = ['default','hover','pressed','focus','disabled','loading'];
+    const btnBody = React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'24px' } },
+      // matrix
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'90px repeat(6, 1fr)', gap:'16px 14px', alignItems:'center' } },
+        [React.createElement('span',{key:'h0'}), ...states.map(s=>React.createElement('span',{key:'h'+s, style:{fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98', textTransform:'uppercase'}}, s))],
+        ...variants.flatMap(v => [
+          React.createElement('span',{key:'l'+v, style:{fontSize:'13px', fontWeight:550, textTransform:'capitalize'}}, v),
+          ...states.map(s => React.createElement('div',{key:v+s}, this.btn(v, s, s==='loading'?'Saving':'Generate plan')))
+        ])
+      ),
+      // sizes + icons + fullwidth
+      React.createElement('div', { style:{ display:'flex', gap:'40px', flexWrap:'wrap', paddingTop:'20px', borderTop:'1px solid #ECEEF1' } },
+        this.cell('SIZES', [this.btn('primary','default','Small',{size:'sm'}), this.btn('primary','default','Medium',{size:'md'}), this.btn('primary','default','Large',{size:'lg'})]),
+        this.cell('ICON LEFT / RIGHT', [this.btn('secondary','default','New request',{iconLeft:this.iconSvg('M8 3.5v9M3.5 8h9')}), this.btn('primary','default','See alternatives',{iconRight:this.iconSvg('M6 3.5 10.5 8 6 12.5')})]),
+        React.createElement('div', { style:{ width:'200px' } }, this.cell('FULL WIDTH', this.btn('primary','default','Approve plan',{fullWidth:true})))
+      )
+    );
+    sec.push(this.frame('§2.1','Button','primary / secondary / ghost / danger · sm · md · lg', btnBody));
+
+    // §2.2 IconButton
+    const ibBody = React.createElement('div', { style:{ display:'flex', gap:'40px', flexWrap:'wrap', alignItems:'flex-start' } },
+      this.cell('GHOST', ['default','hover','focus','disabled'].map(s => {
+        let bg = s==='hover'?'#F1F3F5':'transparent', shadow = s==='focus'?'0 0 0 3px rgba(47,111,237,.3)':'none', border = s==='focus'?'1px solid #2F6FED':'1px solid transparent';
+        return React.createElement('div',{key:s, style:{display:'flex', flexDirection:'column', alignItems:'center', gap:'6px'}},
+          React.createElement('button',{style:{width:'34px', height:'34px', borderRadius:'8px', background:bg, border, boxShadow:shadow, color: s==='disabled'?'#B8BDC6':'#51555E', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer'}}, this.iconSvg('M8 2.5a2 2 0 0 1 2 2c0 1.5-2 2-2 4M8 11.5v.5',16)),
+          React.createElement('span',{style:{fontSize:'11px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, s));
+      })),
+      this.cell('SUBTLE', [
+        React.createElement('button',{key:'sub', style:{width:'34px', height:'34px', borderRadius:'8px', background:'#F1F3F5', border:'1px solid transparent', color:'#51555E', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer'}}, this.iconSvg('M3 8h10M3 4h10M3 12h10',16)),
+      ]),
+      this.cell('WITH TOOLTIP (hover)', [
+        React.createElement('div',{key:'tt', style:{position:'relative', display:'inline-flex', flexDirection:'column', alignItems:'center'}},
+          React.createElement('div',{style:{position:'absolute', bottom:'42px', background:'#0B0D12', color:'#fff', fontSize:'12px', padding:'5px 9px', borderRadius:'6px', whiteSpace:'nowrap', boxShadow:'0 4px 12px rgba(0,0,0,.2)'}}, 'Filter',
+            React.createElement('div',{style:{position:'absolute', bottom:'-4px', left:'50%', marginLeft:'-4px', width:'8px', height:'8px', background:'#0B0D12', transform:'rotate(45deg)'}})),
+          React.createElement('button',{style:{width:'34px', height:'34px', borderRadius:'8px', background:'#F1F3F5', border:'1px solid transparent', color:'#0B0D12', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer'}}, this.iconSvg('M2.5 4h11M5 8h6M7 12h2',16)))
+      ])
+    );
+    sec.push(this.frame('§2.2','IconButton','ghost / subtle · sm · md · tooltip on hover', ibBody));
+
+    // §2.3 Input / Textarea
+    const inputBody = React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'24px 28px', maxWidth:'820px' } },
+      this.cell('EMPTY (placeholder)', this.input('empty',{placeholder:'Search requests…'})),
+      this.cell('FOCUS', this.input('focus',{value:'FinTech Startup Conf'})),
+      this.cell('FILLED', this.input('filled')),
+      this.cell('ERROR + MESSAGE', this.input('error',{value:'', placeholder:'e.g. 180', errMsg:'Attendee count is required'})),
+      this.cell('DISABLED', this.input('disabled',{value:'Locked field'})),
+      this.cell('PREFIX / SUFFIX', this.input('filled',{value:'180', prefix:'#', suffix:'pax'})),
+      React.createElement('div',{key:'ta', style:{gridColumn:'1 / 3'}}, this.cell('TEXTAREA', React.createElement('div',{style:{width:'100%', minHeight:'80px', padding:'10px 12px', borderRadius:'8px', border:'1px solid #D7DBE0', fontSize:'14px', lineHeight:'21px', color:'#0B0D12'}}, 'Requirements: stage, podium, 2 wireless mics, hybrid streaming, coffee service for 180.'))),
+      React.createElement('div',{key:'tah', style:{gridColumn:'3 / 4'}}, this.cell('TEXTAREA · FOCUS', React.createElement('div',{style:{width:'100%', minHeight:'80px', padding:'10px 12px', borderRadius:'8px', border:'1px solid #2F6FED', boxShadow:'0 0 0 3px rgba(47,111,237,.18)', fontSize:'14px', lineHeight:'21px', color:'#8A8F98'}}, 'Add requirements…')))
+    );
+    sec.push(this.frame('§2.3','Input / Textarea','sm · md · lg · default & error', inputBody));
+
+    // §2.4 Select / Combobox
+    const optRow = (label, sel) => React.createElement('div',{key:label, style:{padding:'8px 12px', fontSize:'14px', color:sel?'#0B0D12':'#51555E', background:sel?'#EEF3FE':'transparent', borderRadius:'6px', display:'flex', alignItems:'center', justifyContent:'space-between', fontWeight: sel?550:400}}, label, sel?this.iconSvg('M2.5 6.2 4.8 8.5 9.5 3.5',14):null);
+    const selClosed = React.createElement('div',{style:{display:'flex', alignItems:'center', justifyContent:'space-between', height:'38px', padding:'0 12px', borderRadius:'8px', border:'1px solid #D7DBE0', background:'#fff', fontSize:'14px', width:'220px'}}, React.createElement('span',null,'Theater'), this.iconSvg('M4 6.5 8 10l4-3.5',14));
+    const dropdownPanel = (children, w) => React.createElement('div',{style:{width:(w||220)+'px', borderRadius:'10px', border:'1px solid #ECEEF1', background:'#fff', boxShadow:'0 16px 40px -12px rgba(11,13,18,.18), 0 0 0 1px rgba(11,13,18,.06)', padding:'6px'}}, children);
+    const selBody = React.createElement('div',{style:{display:'flex', gap:'40px', flexWrap:'wrap', alignItems:'flex-start'}},
+      this.cell('CLOSED', selClosed),
+      this.cell('OPEN (list)', dropdownPanel([optRow('Theater', true), optRow('Banquet'), optRow('Classroom'), optRow('Reception')])),
+      this.cell('COMBOBOX · SEARCH', dropdownPanel([
+        React.createElement('div',{key:'s', style:{display:'flex', alignItems:'center', gap:'8px', padding:'8px 10px', margin:'-6px -6px 6px', borderBottom:'1px solid #ECEEF1'}}, this.iconSvg('M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM11 11l3 3',14), React.createElement('span',{style:{fontSize:'14px', color:'#0B0D12'}}, 'Blue')),
+        optRow('Blue Hall', true), optRow('Blue Lounge')], 240)),
+      this.cell('EMPTY RESULTS', dropdownPanel([
+        React.createElement('div',{key:'s2', style:{display:'flex', alignItems:'center', gap:'8px', padding:'8px 10px', margin:'-6px -6px 6px', borderBottom:'1px solid #ECEEF1'}}, this.iconSvg('M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM11 11l3 3',14), React.createElement('span',{style:{fontSize:'14px', color:'#0B0D12'}}, 'Xyz')),
+        React.createElement('div',{key:'e', style:{padding:'18px 12px', textAlign:'center', fontSize:'13px', color:'#8A8F98'}}, 'No spaces match “Xyz”')], 240))
+    );
+    sec.push(this.frame('§2.4','Select / Combobox','closed · open · search · selected · empty-results', selBody));
+
+    // §2.5 Checkbox / Radio / Switch
+    const togBody = React.createElement('div',{style:{display:'flex', flexDirection:'column', gap:'26px'}},
+      React.createElement('div',null, React.createElement('div',{style:{fontSize:'13px', fontWeight:550, marginBottom:'14px'}}, 'Checkbox'), this.toggleRow(this.checkbox.bind(this), ['unchecked','checked','indeterminate','focus','disabled'])),
+      React.createElement('div',{style:{paddingTop:'22px', borderTop:'1px solid #ECEEF1'}}, React.createElement('div',{style:{fontSize:'13px', fontWeight:550, marginBottom:'14px'}}, 'Radio'), this.toggleRow(this.radio.bind(this), ['unchecked','checked','focus','disabled'])),
+      React.createElement('div',{style:{paddingTop:'22px', borderTop:'1px solid #ECEEF1'}}, React.createElement('div',{style:{fontSize:'13px', fontWeight:550, marginBottom:'14px'}}, 'Switch'), this.toggleRow(this.toggle.bind(this), ['unchecked','checked','focus','disabled']))
+    );
+    sec.push(this.frame('§2.5','Checkbox / Radio / Switch','unchecked · checked · indeterminate · focus · disabled', togBody));
+
+    // §2.6 FormField
+    const ffBody = React.createElement('div',{style:{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'28px', maxWidth:'700px'}},
+      React.createElement('div',{key:'ok', style:{display:'flex', flexDirection:'column', gap:'7px'}},
+        React.createElement('label',{style:{fontSize:'14px', fontWeight:550}}, 'Expected attendees'),
+        this.input('filled',{value:'180'}),
+        React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98'}}, 'Used to match space capacity and seating layout.')),
+      React.createElement('div',{key:'err', style:{display:'flex', flexDirection:'column', gap:'7px'}},
+        React.createElement('label',{style:{fontSize:'14px', fontWeight:550}}, 'Preferred date *'),
+        this.input('error',{value:'', placeholder:'Select date', errMsg:'Pick at least one preferred date.'}))
+    );
+    sec.push(this.frame('§2.6','FormField','label + control + hint + error wiring', ffBody));
+
+    // §2.7 Dialog
+    const dialogBody = React.createElement('div',{style:{position:'relative', borderRadius:'10px', overflow:'hidden', background:'#EBEDF0', padding:'32px', display:'flex', justifyContent:'center'}},
+      React.createElement('div',{style:{position:'absolute', inset:0, background:'rgba(11,13,18,.35)'}}),
+      React.createElement('div',{style:{position:'relative', width:'440px', background:'#fff', borderRadius:'14px', boxShadow:'0 16px 40px -12px rgba(11,13,18,.28), 0 2px 6px rgba(11,13,18,.06)', padding:'24px'}},
+        React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'12px', marginBottom:'10px'}},
+          React.createElement('div',{style:{width:'32px', height:'32px', borderRadius:'8px', background:'#FBECEA', display:'flex', alignItems:'center', justifyContent:'center', color:'#C8372D'}}, this.iconSvg('M8 5v3.5M8 11v.2M8 2 1.5 13.5h13L8 2Z',16)),
+          React.createElement('h3',{style:{fontSize:'16px', fontWeight:600, margin:0}}, 'Reject this request?')),
+        React.createElement('p',{style:{fontSize:'14px', lineHeight:'21px', color:'#51555E', margin:'0 0 20px'}}, 'The organizer will be notified and any held reservations released. This is recorded in the audit log.'),
+        React.createElement('div',{style:{display:'flex', justifyContent:'flex-end', gap:'10px'}}, this.btn('secondary','default','Cancel'), this.btn('danger','default','Reject request')))
+    );
+    sec.push(this.frame('§2.7','Dialog (modal)','overlay + content · confirm / destructive footer', dialogBody, {bg:'#fff'}));
+
+    // §2.8 Drawer
+    const drawerBody = React.createElement('div',{style:{position:'relative', height:'260px', borderRadius:'10px', overflow:'hidden', background:'#EBEDF0', display:'flex', justifyContent:'flex-end'}},
+      React.createElement('div',{style:{position:'absolute', inset:0, background:'rgba(11,13,18,.3)'}}),
+      React.createElement('div',{style:{position:'relative', width:'320px', background:'#fff', boxShadow:'-16px 0 40px -12px rgba(11,13,18,.18)', padding:'20px', display:'flex', flexDirection:'column', gap:'14px'}},
+        React.createElement('div',{style:{display:'flex', alignItems:'center', justifyContent:'space-between'}}, React.createElement('h3',{style:{fontSize:'16px', fontWeight:600, margin:0}}, 'Reservation'), React.createElement('span',{style:{color:'#8A8F98'}}, this.iconSvg('M4 4l8 8M12 4l-8 8',16))),
+        this.badge('#9A6B00','#FBF3E0','HELD · 12:04'),
+        React.createElement('div',{style:{fontSize:'14px', color:'#51555E', lineHeight:'21px'}}, 'Blue Hall · 22 Jul 2026 · 14:00–18:00'),
+        React.createElement('div',{style:{height:'1px', background:'#ECEEF1'}}),
+        React.createElement('span',{style:{fontSize:'12px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, 'right · slides in 280ms'))
+    );
+    sec.push(this.frame('§2.8','Drawer','right (desktop) · bottom (mobile)', drawerBody, {bg:'#fff'}));
+
+    // §2.9 Popover / Tooltip / DropdownMenu
+    const menuItem = (label, icon, danger) => React.createElement('div',{key:label, style:{display:'flex', alignItems:'center', gap:'10px', padding:'7px 10px', borderRadius:'6px', fontSize:'14px', color: danger?'#C8372D':'#0B0D12'}}, React.createElement('span',{style:{color: danger?'#C8372D':'#8A8F98'}}, icon), label);
+    const pop3 = React.createElement('div',{style:{display:'flex', gap:'40px', flexWrap:'wrap', alignItems:'flex-start'}},
+      this.cell('TOOLTIP', React.createElement('div',{style:{background:'#0B0D12', color:'#fff', fontSize:'12px', padding:'5px 9px', borderRadius:'6px'}}, 'Lease expires 22 Jul 14:12')),
+      this.cell('POPOVER', React.createElement('div',{style:{width:'220px', background:'#fff', borderRadius:'10px', boxShadow:'0 16px 40px -12px rgba(11,13,18,.18), 0 0 0 1px rgba(11,13,18,.06)', padding:'14px'}}, React.createElement('div',{style:{fontSize:'13px', fontWeight:600, marginBottom:'6px'}}, 'FinTech Startup Conf'), React.createElement('div',{style:{fontSize:'13px', color:'#51555E', lineHeight:'19px'}}, '180 pax · theater', React.createElement('br'), '14:00–18:00 + buffers'))),
+      this.cell('DROPDOWN MENU', React.createElement('div',{style:{width:'200px', background:'#fff', borderRadius:'10px', boxShadow:'0 16px 40px -12px rgba(11,13,18,.18), 0 0 0 1px rgba(11,13,18,.06)', padding:'6px'}}, menuItem('Duplicate', this.iconSvg('M5 5h7v7H5zM3 3h7',14)), menuItem('Edit', this.iconSvg('M3 11l8-8 2 2-8 8H3z',14)), React.createElement('div',{key:'d', style:{height:'1px', background:'#ECEEF1', margin:'5px 0'}}), menuItem('Release hold', this.iconSvg('M4 4l8 8M12 4l-8 8',14), true)))
+    );
+    sec.push(this.frame('§2.9','Popover / Tooltip / DropdownMenu','overlays · inverted tooltip · menu with destructive item', pop3));
+
+    // §2.10 Toast
+    const toast = (fg, sub, icon, title, msg) => React.createElement('div',{key:title, style:{display:'flex', gap:'12px', width:'340px', background:'#fff', borderRadius:'10px', boxShadow:'0 16px 40px -12px rgba(11,13,18,.18), 0 0 0 1px rgba(11,13,18,.06)', padding:'14px', borderLeft:`3px solid ${fg}`}},
+      React.createElement('div',{style:{width:'22px', height:'22px', borderRadius:'6px', background:sub, color:fg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}, icon),
+      React.createElement('div',{style:{flex:1}}, React.createElement('div',{style:{fontSize:'14px', fontWeight:600}}, title), React.createElement('div',{style:{fontSize:'13px', color:'#51555E', marginTop:'2px', lineHeight:'18px'}}, msg)),
+      React.createElement('span',{style:{color:'#8A8F98'}}, this.iconSvg('M4 4l8 8M12 4l-8 8',13)));
+    const toastBody = React.createElement('div',{style:{display:'flex', flexWrap:'wrap', gap:'18px'}},
+      toast('#2F6FED','#EEF3FE', this.iconSvg('M8 7v4M8 5v.2',14),'Info','Plan regenerated with updated dates.'),
+      toast('#1A7F4B','#E9F6EF', this.iconSvg('M2.5 6.2 4.8 8.5 9.5 3.5',14),'Approved','Request scheduled. Reservations confirmed.'),
+      toast('#9A6B00','#FBF3E0', this.iconSvg('M8 5v3.5M8 11v.2',14),'Hold expiring','Blue Hall lease expires in 2 minutes.'),
+      toast('#C8372D','#FBECEA', this.iconSvg('M8 5v3.5M8 11v.2',14),'Conflict detected','Blue Hall is double-booked on 22 Jul.'));
+    sec.push(this.frame('§2.10','Toast','info / success / warning / danger · enter & exit', toastBody));
+
+    // §2.11 Tabs / SegmentedControl
+    const tab = (label, active) => React.createElement('div',{key:label, style:{padding:'10px 2px', fontSize:'14px', fontWeight: active?600:400, color: active?'#0B0D12':'#8A8F98', borderBottom: active?'2px solid #0B0D12':'2px solid transparent', cursor:'pointer'}}, label);
+    const segBtn = (label, active) => React.createElement('div',{key:label, style:{padding:'6px 16px', fontSize:'13px', fontWeight:550, color: active?'#0B0D12':'#51555E', background: active?'#fff':'transparent', borderRadius:'6px', boxShadow: active?'0 1px 2px rgba(11,13,18,.08)':'none', cursor:'pointer'}}, label);
+    const tabsBody = React.createElement('div',{style:{display:'flex', flexDirection:'column', gap:'28px'}},
+      this.cell('TABS', React.createElement('div',{style:{display:'flex', gap:'24px', borderBottom:'1px solid #ECEEF1', width:'100%'}}, tab('Overview', true), tab('Quote'), tab('Tasks'), tab('Audit'))),
+      this.cell('SEGMENTED CONTROL', React.createElement('div',{style:{display:'inline-flex', gap:'2px', padding:'3px', background:'#F1F3F5', borderRadius:'8px'}}, segBtn('Day', true), segBtn('Week'), segBtn('Month'))));
+    sec.push(this.frame('§2.11','Tabs / SegmentedControl','active underline · segmented pill', tabsBody));
+
+    // §2.12 Badge
+    const badgeBody = React.createElement('div',{style:{display:'flex', flexWrap:'wrap', gap:'10px'}},
+      this.badge('#8A8F98','#F1F3F5','DRAFT'), this.badge('#9A6B00','#FBF3E0','PROPOSED'), this.badge('#1A7F4B','#E9F6EF','APPROVED'), this.badge('#2F6FED','#EEF3FE','SCHEDULED'), this.badge('#1A7F4B','#E9F6EF','CONFIRMED'), this.badge('#9A6B00','#FBF3E0','HELD'), this.badge('#8A8F98','#F1F3F5','RELEASED'), this.badge('#C8372D','#FBECEA','REJECTED'), this.badge('#C8372D','#FBECEA','CONFLICT'));
+    sec.push(this.frame('§2.12','Badge / StatusBadge','neutral / success / warning / danger / info · dot + label', badgeBody));
+
+    // §2.13 Avatar
+    const avBody = React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'18px', flexWrap:'wrap'}},
+      this.avatar('EH',40,'#E3E7EC'), this.avatar('LK',32,'#DCE6FB'), this.avatar('AM',24,'#E9F6EF'),
+      React.createElement('div',{style:{display:'flex', marginLeft:'12px'}},
+        React.createElement('div',{style:{marginRight:'-8px', borderRadius:'999px', boxShadow:'0 0 0 2px #fff'}}, this.avatar('EH',28,'#E3E7EC')),
+        React.createElement('div',{style:{marginRight:'-8px', borderRadius:'999px', boxShadow:'0 0 0 2px #fff'}}, this.avatar('LK',28,'#DCE6FB')),
+        React.createElement('div',{style:{borderRadius:'999px', boxShadow:'0 0 0 2px #fff'}}, this.avatar('+3',28,'#F1F3F5'))));
+    sec.push(this.frame('§2.13','Avatar','sm · md · initials fallback · stacked', avBody));
+
+    // §2.14 Skeleton / Spinner
+    const skel = (w,h) => React.createElement('div',{style:{width:w, height:h+'px', borderRadius:'6px', background:'linear-gradient(90deg,#EEF0F3 25%,#F6F7F9 50%,#EEF0F3 75%)', backgroundSize:'400px 100%', animation:'shimmer 1.4s linear infinite'}});
+    const skelBody = React.createElement('div',{style:{display:'flex', gap:'48px', alignItems:'flex-start', flexWrap:'wrap'}},
+      React.createElement('div',{style:{display:'flex', flexDirection:'column', gap:'10px', width:'280px'}}, skel('60%',16), skel('100%',12), skel('90%',12), skel('40%',12)),
+      this.cell('SPINNER', React.createElement('div',{style:{display:'flex', gap:'16px', alignItems:'center'}}, this.spinner(16,'#2F6FED'), this.spinner(22,'#8A8F98'))));
+    sec.push(this.frame('§2.14','Skeleton / Spinner','shimmer · loading', skelBody));
+
+    // §2.15 Kbd
+    const kbd = (k) => React.createElement('kbd',{key:k, style:{display:'inline-flex', alignItems:'center', height:'22px', padding:'0 7px', borderRadius:'5px', background:'#F7F8FA', border:'1px solid #D7DBE0', boxShadow:'0 1px 0 #D7DBE0', fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#51555E'}}, k);
+    const kbdBody = React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}, kbd('⌘'), kbd('K'), React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98', margin:'0 8px'}}, 'open command palette'), kbd('⌘'), kbd('↵'), React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98', marginLeft:'8px'}}, 'submit'));
+    sec.push(this.frame('§2.15','Kbd','keyboard shortcut hints', kbdBody));
+
+    return { sections: sec };
+  }
+}
+</script>
+</body>
+</html>

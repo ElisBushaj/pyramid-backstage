@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;700&family=Geist+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .2; } }
+  .hatch-buffer { background-image: repeating-linear-gradient(45deg, rgba(138,143,152,.28) 0 4px, transparent 4px 8px); }
+  .hatch-danger { background-image: repeating-linear-gradient(45deg, rgba(200,55,45,.35) 0 4px, transparent 4px 8px); }
+</style>
+</helmet>
+
+<div style="background:#DBDEE3; min-height:100vh; width:100%; box-sizing:border-box; padding:56px 48px 96px; font-family:'SF Pro Text','Geist',-apple-system,system-ui,sans-serif; color:#0B0D12; -webkit-font-smoothing:antialiased;">
+  <div style="max-width:1240px; margin:0 auto;">
+
+    <div style="margin-bottom:40px;">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#8A8F98; letter-spacing:0.04em;">§3</span>
+        <h1 style="font-size:24px; line-height:30px; font-weight:600; letter-spacing:-0.01em; margin:0;">Command components</h1>
+      </div>
+      <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:620px;">The domain heart. Each maps to a contract DTO and is shown with its full operational state set — conflict, held-expiring, overdue, low-stock.</p>
+      <div style="margin-top:18px;"><a href="index.dc.html" style="font-size:13px; color:#2F6FED; text-decoration:none;">← Canvas index</a></div>
+    </div>
+
+    {{ sections }}
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  frame(num, title, sub, body, opts) {
+    opts = opts || {};
+    return React.createElement('div', { key:num, style:{ marginBottom:'44px' } },
+      React.createElement('div', { style:{ marginBottom:'14px', display:'flex', alignItems:'baseline', gap:'10px', flexWrap:'wrap' } },
+        React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98' } }, num),
+        React.createElement('h2', { style:{ fontSize:'19px', lineHeight:'26px', fontWeight:600, margin:0 } }, title),
+        sub ? React.createElement('span', { style:{ fontSize:'13px', color:'#8A8F98' } }, sub) : null
+      ),
+      React.createElement('div', { style:{ background: opts.bg||'#fff', borderRadius:'14px', boxShadow:'0 1px 2px rgba(11,13,18,.04), 0 0 0 1px rgba(11,13,18,.06)', padding: opts.pad||'28px' } }, body)
+    );
+  }
+  icon(d, size, color) { return React.createElement('svg',{width:size||15,height:size||15,viewBox:'0 0 16 16',fill:'none'}, React.createElement('path',{d, stroke:color||'currentColor', strokeWidth:1.5, strokeLinecap:'round', strokeLinejoin:'round'})); }
+  badge(fg, sub, label, opts) {
+    opts = opts || {};
+    return React.createElement('span', { key:label, style:{ display:'inline-flex', alignItems:'center', gap:'6px', background:sub, border:`1px solid ${fg}26`, borderRadius:'999px', padding:'3px 10px', fontSize:'12px', fontWeight:600, color:fg, whiteSpace:'nowrap' } },
+      opts.noDot ? null : React.createElement('span',{style:{width:'6px', height:'6px', borderRadius:'999px', background:fg}}), label);
+  }
+  avatar(initials, size, color) {
+    size = size||28;
+    return React.createElement('div', { key:initials, style:{ width:size+'px', height:size+'px', borderRadius:'999px', background:color||'#E3E7EC', color:'#51555E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:(size*0.4)+'px', fontWeight:600, boxShadow:'inset 0 0 0 1px rgba(11,13,18,.06)', flexShrink:0 } }, initials);
+  }
+  btn(variant, label, opts) {
+    opts = opts || {};
+    let bg, color, border='1px solid transparent';
+    if (variant==='primary'){ bg='#2F6FED'; color='#fff'; }
+    else if (variant==='secondary'){ bg='#fff'; color='#0B0D12'; border='1px solid #D7DBE0'; }
+    else if (variant==='ghost'){ bg='transparent'; color='#0B0D12'; }
+    else if (variant==='danger'){ bg='#C8372D'; color='#fff'; }
+    return React.createElement('button',{ style:{ display:'inline-flex', alignItems:'center', gap:'7px', height:(opts.sm?30:34)+'px', padding:`0 ${opts.sm?12:14}px`, fontSize:(opts.sm?13:14)+'px', fontWeight:550, fontFamily:'inherit', borderRadius:'8px', background:bg, color, border, cursor:'pointer', whiteSpace:'nowrap' } }, opts.iconLeft||null, label, opts.iconRight||null);
+  }
+  label(t) { return React.createElement('div',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'12px'}}, t); }
+
+  // ---- ConflictBanner ----
+  conflictBanner(cfg) {
+    const rows = [];
+    rows.push(React.createElement('div',{key:'h', style:{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}},
+      React.createElement('div',{style:{width:'26px', height:'26px', borderRadius:'7px', background:'#fff', boxShadow:'inset 0 0 0 1px rgba(200,55,45,.2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#C8372D'}}, this.icon('M8 5v3.5M8 11v.2M8 1.5 1 13.5h14L8 1.5Z',15)),
+      React.createElement('h3',{style:{fontSize:'16px', fontWeight:600, margin:0, color:'#0B0D12'}}, cfg.title),
+      React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'11px', fontWeight:600, color:'#C8372D', background:'#fff', border:'1px solid rgba(200,55,45,.25)', borderRadius:'5px', padding:'2px 7px'}}, cfg.type)));
+    rows.push(React.createElement('p',{key:'d', style:{fontSize:'14px', lineHeight:'21px', color:'#7A2A23', margin:'12px 0 0'}}, cfg.detail));
+    // window + ids
+    rows.push(React.createElement('div',{key:'meta', style:{display:'flex', gap:'28px', flexWrap:'wrap', marginTop:'14px'}},
+      React.createElement('div',null, React.createElement('div',{style:{fontSize:'11px', color:'#A6564E', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'4px'}}, 'Colliding window'), React.createElement('div',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'13px', color:'#0B0D12', fontVariantNumeric:'tabular-nums'}}, cfg.window)),
+      React.createElement('div',null, React.createElement('div',{style:{fontSize:'11px', color:'#A6564E', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'4px'}}, 'Conflicting requests'), React.createElement('div',{style:{display:'flex', gap:'6px'}}, cfg.ids.map(id=>React.createElement('span',{key:id, style:{fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#C8372D', background:'#fff', border:'1px solid rgba(200,55,45,.25)', borderRadius:'5px', padding:'2px 7px'}}, id))))));
+    // asset meter
+    if (cfg.meter) {
+      const pct = Math.min(100, cfg.meter.req/cfg.meter.total*100);
+      const availPct = cfg.meter.avail/cfg.meter.total*100;
+      rows.push(React.createElement('div',{key:'meter', style:{marginTop:'16px', background:'#fff', borderRadius:'10px', border:'1px solid rgba(200,55,45,.2)', padding:'14px'}},
+        React.createElement('div',{style:{display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'8px'}},
+          React.createElement('span',{style:{color:'#51555E'}}, cfg.meter.label),
+          React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums'}}, React.createElement('span',{style:{color:'#C8372D', fontWeight:600}}, 'requested '+cfg.meter.req), React.createElement('span',{style:{color:'#8A8F98'}}, ' / available '+cfg.meter.avail+' of '+cfg.meter.total))),
+        React.createElement('div',{style:{position:'relative', height:'10px', borderRadius:'999px', background:'#F1F3F5', overflow:'hidden'}},
+          React.createElement('div',{style:{position:'absolute', left:0, top:0, height:'100%', width:availPct+'%', background:'#1A7F4B'}}),
+          React.createElement('div',{className:'hatch-danger', style:{position:'absolute', left:availPct+'%', top:0, height:'100%', width:(pct-availPct)+'%', background:'rgba(200,55,45,.18)', borderLeft:'1px dashed #C8372D'}}))
+      ));
+    }
+    rows.push(React.createElement('div',{key:'a', style:{display:'flex', gap:'10px', marginTop:'18px'}}, this.btn('primary','See alternatives',{iconRight:this.icon('M6 3.5 10.5 8 6 12.5',13,'#fff')}), this.btn('secondary','Adjust request')));
+    return React.createElement('div',{style:{background:'#FBECEA', border:'1px solid rgba(200,55,45,.28)', borderRadius:'12px', padding:'20px'}}, rows);
+  }
+
+  // ---- Timeline ----
+  timeline() {
+    const startH = 8, endH = 20, span = endH-startH;
+    const pos = (h)=> ((h-startH)/span*100);
+    const hourTicks = [];
+    for (let h=startH; h<=endH; h+=2) hourTicks.push(React.createElement('div',{key:h, style:{position:'absolute', left:pos(h)+'%', top:0, bottom:0, borderLeft:'1px solid #F1F3F5'}}, React.createElement('span',{style:{position:'absolute', top:'-20px', left:'-14px', fontFamily:"'Geist Mono',monospace", fontSize:'11px', color:'#8A8F98'}}, (h<10?'0':'')+h+':00')));
+    const bar = (cfg)=>{
+      const left = pos(cfg.start), width = pos(cfg.end)-pos(cfg.start);
+      const setupW = cfg.setup? pos(cfg.start)-pos(cfg.start-cfg.setup):0;
+      const teardownW = cfg.teardown? pos(cfg.end+cfg.teardown)-pos(cfg.end):0;
+      const c = cfg.color;
+      const kids = [];
+      if (cfg.setup) kids.push(React.createElement('div',{key:'su', className:'hatch-buffer', style:{position:'absolute', right:'100%', top:0, height:'100%', width:'', }}));
+      return React.createElement('div',{key:cfg.label, style:{position:'absolute', left:pos(cfg.start-(cfg.setup||0))+'%', width:(pos(cfg.end+(cfg.teardown||0))-pos(cfg.start-(cfg.setup||0)))+'%', top:'8px', height:'34px'}},
+        // setup buffer
+        cfg.setup? React.createElement('div',{key:'s', className:'hatch-buffer', style:{position:'absolute', left:0, top:0, height:'100%', width:(setupW/(pos(cfg.end+(cfg.teardown||0))-pos(cfg.start-(cfg.setup||0)))*100)+'%', background:c.bufBg, borderRadius:'6px 0 0 6px'}}):null,
+        // main
+        React.createElement('div',{style:{position:'absolute', left:(cfg.setup?(setupW/(pos(cfg.end+(cfg.teardown||0))-pos(cfg.start-(cfg.setup||0)))*100):0)+'%', width:((width)/(pos(cfg.end+(cfg.teardown||0))-pos(cfg.start-(cfg.setup||0)))*100)+'%', top:0, height:'100%', background:c.bg, border:`1px solid ${c.border}`, borderRadius: (cfg.setup?0:'6px')+' '+(cfg.teardown?0:'6px')+' '+(cfg.teardown?0:'6px')+' '+(cfg.setup?0:'6px'), display:'flex', alignItems:'center', padding:'0 10px', overflow:'hidden'}},
+          React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:c.text, whiteSpace:'nowrap'}}, cfg.label)),
+        // teardown buffer
+        cfg.teardown? React.createElement('div',{key:'t', className:'hatch-buffer', style:{position:'absolute', right:0, top:0, height:'100%', width:(teardownW/(pos(cfg.end+(cfg.teardown||0))-pos(cfg.start-(cfg.setup||0)))*100)+'%', background:c.bufBg, borderRadius:'0 6px 6px 0'}}):null
+      );
+    };
+    const colors = {
+      confirmed:{bg:'#E9F6EF', border:'#1A7F4B', text:'#15613A', bufBg:'#D7EEE0'},
+      held:{bg:'#FBF3E0', border:'#9A6B00', text:'#7A5500', bufBg:'#F1E4C4'},
+      scheduled:{bg:'#EEF3FE', border:'#2F6FED', text:'#244FB0', bufBg:'#DCE6FB'},
+      conflict:{bg:'#FBECEA', border:'#C8372D', text:'#9E2B23', bufBg:'#F3D6D2'},
+    };
+    const lanes = [
+      { name:'Blue Hall', cap:220, bars:[{label:'FinTech Startup Conf · 180', start:14, end:18, setup:1.5, teardown:1, color:colors.confirmed}] },
+      { name:'Orange Hall', cap:180, bars:[{label:'Product Launch · 160', start:9, end:12, setup:1, teardown:0.5, color:colors.scheduled}] },
+      { name:'Amphitheater', cap:400, bars:[] },
+      { name:'Foyer', cap:120, bars:[{label:'Held — Gala setup', start:16, end:19, setup:2, teardown:1, color:colors.held},{label:'⚠ Networking mixer', start:18, end:20, color:colors.conflict}] },
+    ];
+    const laneRows = lanes.map((ln,i)=>React.createElement('div',{key:ln.name, style:{display:'flex', borderTop: i===0?'none':'1px solid #F1F3F5'}},
+      React.createElement('div',{style:{width:'150px', flexShrink:0, padding:'14px 16px', borderRight:'1px solid #ECEEF1'}},
+        React.createElement('div',{style:{fontSize:'14px', fontWeight:550}}, ln.name),
+        React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, 'cap '+ln.cap)),
+      React.createElement('div',{style:{flex:1, position:'relative', height:'52px'}}, hourTicks, ln.bars.length? ln.bars.map(b=>bar(b)) : React.createElement('span',{style:{position:'absolute', left:'12px', top:'18px', fontSize:'13px', color:'#B8BDC6', fontStyle:'italic'}}, 'free'))
+    ));
+    // hover popover demo
+    const popover = React.createElement('div',{style:{position:'absolute', left:'46%', top:'56px', width:'210px', background:'#fff', borderRadius:'10px', boxShadow:'0 16px 40px -12px rgba(11,13,18,.22), 0 0 0 1px rgba(11,13,18,.08)', padding:'12px', zIndex:5}},
+      React.createElement('div',{style:{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}, React.createElement('span',{style:{fontSize:'13px', fontWeight:600}}, 'FinTech Startup Conf'), this.badge('#1A7F4B','#E9F6EF','CONFIRMED',{noDot:true})),
+      React.createElement('div',{style:{fontSize:'12px', color:'#51555E', lineHeight:'18px', fontFamily:"'Geist Mono',monospace"}}, '180 pax · theater', React.createElement('br'), '14:00–18:00', React.createElement('br'), 'setup 12:30 · teardown 19:00'),
+      React.createElement('div',{style:{position:'absolute', top:'-5px', left:'24px', width:'9px', height:'9px', background:'#fff', transform:'rotate(45deg)', boxShadow:'-1px -1px 0 rgba(11,13,18,.06)'}}));
+    return React.createElement('div',null,
+      // legend
+      React.createElement('div',{style:{display:'flex', gap:'18px', flexWrap:'wrap', marginBottom:'18px', alignItems:'center'}},
+        ['confirmed','held','scheduled','conflict'].map(k=>React.createElement('span',{key:k, style:{display:'inline-flex', alignItems:'center', gap:'7px', fontSize:'12px', color:'#51555E'}}, React.createElement('span',{style:{width:'14px', height:'12px', borderRadius:'3px', background:colors[k].bg, border:`1px solid ${colors[k].border}`}}), k)),
+        React.createElement('span',{style:{display:'inline-flex', alignItems:'center', gap:'7px', fontSize:'12px', color:'#51555E'}}, React.createElement('span',{className:'hatch-buffer', style:{width:'14px', height:'12px', borderRadius:'3px', background:'#E3E7EC'}}), 'setup / teardown buffer')),
+      React.createElement('div',{style:{position:'relative', border:'1px solid #ECEEF1', borderRadius:'10px', overflow:'visible', paddingTop:'24px'}}, laneRows, popover));
+  }
+
+  // ---- InventoryMeter ----
+  invMeter(cfg) {
+    const availPct = cfg.avail/cfg.total*100;
+    const heldPct = cfg.held/cfg.total*100;
+    const low = cfg.state==='low';
+    const danger = cfg.state==='danger';
+    const availColor = danger ? '#C8372D' : '#1A7F4B';
+    return React.createElement('div',{key:cfg.name, style:{padding:'14px 0', borderBottom:'1px solid #ECEEF1', display:'grid', gridTemplateColumns:'200px 1fr 150px', gap:'20px', alignItems:'center'}},
+      React.createElement('div',null, React.createElement('div',{style:{fontSize:'14px', fontWeight:550}}, cfg.name), React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98'}}, cfg.loc)),
+      React.createElement('div',null,
+        React.createElement('div',{style:{position:'relative', height:'12px', borderRadius:'999px', background:'#F1F3F5', overflow:'hidden', boxShadow:'inset 0 0 0 1px rgba(11,13,18,.05)'}},
+          React.createElement('div',{style:{position:'absolute', left:0, top:0, height:'100%', width:availPct+'%', background:availColor}}),
+          cfg.held? React.createElement('div',{style:{position:'absolute', left:availPct+'%', top:0, height:'100%', width:heldPct+'%', background:'#E0A300'}}):null),
+        React.createElement('div',{style:{display:'flex', gap:'14px', marginTop:'6px', fontSize:'12px', color:'#8A8F98'}},
+          React.createElement('span',null, React.createElement('span',{style:{display:'inline-block', width:'7px', height:'7px', borderRadius:'2px', background:availColor, marginRight:'5px'}}), 'available'),
+          cfg.held? React.createElement('span',null, React.createElement('span',{style:{display:'inline-block', width:'7px', height:'7px', borderRadius:'2px', background:'#E0A300', marginRight:'5px'}}), 'held '+cfg.held):null)),
+      React.createElement('div',{style:{textAlign:'right'}},
+        React.createElement('div',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'15px', fontWeight:600, fontVariantNumeric:'tabular-nums', color: danger?'#C8372D':'#0B0D12'}}, cfg.avail+' / '+cfg.total),
+        (low||danger)? this.badge(danger?'#C8372D':'#9A6B00', danger?'#FBECEA':'#FBF3E0', danger?'OUT OF STOCK':'LOW STOCK',{noDot:true}) : React.createElement('span',{style:{fontSize:'12px', color:'#8A8F98'}}, 'in stock')));
+  }
+
+  // ---- SpaceCard ----
+  spaceCard(cfg) {
+    return React.createElement('div',{key:cfg.name, style:{width:'280px', background:'#fff', border:'1px solid #ECEEF1', borderRadius:'12px', padding:'18px', boxShadow:'0 1px 2px rgba(11,13,18,.04)'}},
+      React.createElement('div',{style:{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}},
+        React.createElement('div',null, React.createElement('div',{style:{fontSize:'16px', fontWeight:600}}, cfg.name), React.createElement('div',{style:{fontSize:'13px', color:'#8A8F98'}}, cfg.floor)),
+        React.createElement('span',{style:{display:'inline-flex', alignItems:'center', gap:'6px', fontSize:'12px', fontWeight:600, color:cfg.free?'#1A7F4B':'#9A6B00'}}, React.createElement('span',{style:{width:'8px', height:'8px', borderRadius:'999px', background:cfg.free?'#1A7F4B':'#9A6B00'}}), cfg.free?'Available':'Held')),
+      React.createElement('div',{style:{margin:'16px 0', paddingBottom:'14px', borderBottom:'1px solid #ECEEF1'}},
+        React.createElement('div',{style:{display:'flex', alignItems:'baseline', gap:'8px'}}, React.createElement('span',{style:{fontSize:'30px', fontWeight:600, fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', letterSpacing:'-0.02em'}}, cfg.cap), React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98'}}, cfg.layout)),
+        React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98', marginTop:'2px'}}, 'capacity for requested layout')),
+      React.createElement('div',{style:{display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'14px'}}, cfg.features.map(f=>React.createElement('span',{key:f, style:{fontSize:'12px', color:'#51555E', background:'#F1F3F5', borderRadius:'999px', padding:'3px 9px'}}, f))),
+      React.createElement('div',{style:{display:'flex', justifyContent:'space-between', alignItems:'center'}},
+        React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'14px', fontWeight:600, fontVariantNumeric:'tabular-nums'}}, cfg.rate, React.createElement('span',{style:{fontSize:'12px', color:'#8A8F98', fontWeight:400}}, ' / day')),
+        this.btn('secondary','Select',{sm:true})));
+  }
+
+  // ---- ReservationCard ----
+  reservationCard(cfg) {
+    const held = cfg.status==='HELD';
+    return React.createElement('div',{key:cfg.space+cfg.status, style:{width:'300px', background:'#fff', border:`1px solid ${held?'rgba(154,107,0,.3)':'#ECEEF1'}`, borderRadius:'12px', overflow:'hidden', boxShadow:'0 1px 2px rgba(11,13,18,.04)'}},
+      held? React.createElement('div',{style:{background:'#FBF3E0', padding:'8px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(154,107,0,.2)'}},
+        React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color:'#9A6B00', display:'inline-flex', alignItems:'center', gap:'6px'}}, this.icon('M8 4.5v3.5l2 1.5M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z',13,'#9A6B00'), 'Lease expires in'),
+        React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'15px', fontWeight:600, color:'#9A6B00', fontVariantNumeric:'tabular-nums', animation:'pulse 1.6s ease-in-out infinite'}}, cfg.countdown)) : null,
+      React.createElement('div',{style:{padding:'16px'}},
+        React.createElement('div',{style:{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px'}},
+          React.createElement('div',null, React.createElement('div',{style:{fontSize:'16px', fontWeight:600}}, cfg.space), React.createElement('div',{style:{fontSize:'13px', color:'#51555E', fontFamily:"'Geist Mono',monospace", marginTop:'2px'}}, cfg.window)),
+          cfg.status==='CONFIRMED'? this.badge('#1A7F4B','#E9F6EF','CONFIRMED') : held? this.badge('#9A6B00','#FBF3E0','HELD') : this.badge('#8A8F98','#F1F3F5','RELEASED')),
+        React.createElement('div',{style:{borderTop:'1px solid #ECEEF1', paddingTop:'12px'}},
+          React.createElement('div',{style:{fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'8px'}}, 'Reserved assets'),
+          cfg.assets.map(a=>React.createElement('div',{key:a.n, style:{display:'flex', justifyContent:'space-between', fontSize:'13px', padding:'3px 0'}}, React.createElement('span',{style:{color:'#51555E'}}, a.n), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontWeight:600, fontVariantNumeric:'tabular-nums'}}, '×'+a.q))))));
+  }
+
+  // ---- QuoteTable ----
+  quoteTable() {
+    const items = [
+      { label:'Blue Hall — venue rate', kind:'SPACE', qty:1, unit:'80,000', sub:'80,000' },
+      { label:'Standard chair', kind:'ASSET', qty:180, unit:'120', sub:'21,600' },
+      { label:'Wireless microphone', kind:'ASSET', qty:2, unit:'3,500', sub:'7,000' },
+      { label:'Stage deck (6×4m)', kind:'ASSET', qty:1, unit:'12,000', sub:'12,000' },
+      { label:'Setup & teardown crew', kind:'LABOR', qty:6, unit:'1,400', sub:'8,400' },
+    ];
+    const kindColor = { SPACE:['#2F6FED','#EEF3FE'], ASSET:['#51555E','#F1F3F5'], LABOR:['#9A6B00','#FBF3E0'] };
+    const rows = items.map(it=>React.createElement('div',{key:it.label, style:{display:'grid', gridTemplateColumns:'1fr 90px 70px 110px 120px', gap:'12px', padding:'12px 0', borderBottom:'1px solid #ECEEF1', alignItems:'center', fontSize:'14px'}},
+      React.createElement('span',{style:{fontWeight:500}}, it.label),
+      React.createElement('span',null, this.badge(kindColor[it.kind][0], kindColor[it.kind][1], it.kind,{noDot:true})),
+      React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', color:'#51555E'}}, '×'+it.qty),
+      React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', color:'#51555E'}}, it.unit),
+      React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', fontWeight:600}}, it.sub)));
+    const totalRow = (label, val, emph)=>React.createElement('div',{key:label, style:{display:'flex', justifyContent:'space-between', padding: emph?'14px 0 0':'7px 0'}},
+      React.createElement('span',{style:{fontSize: emph?'15px':'14px', fontWeight: emph?600:400, color: emph?'#0B0D12':'#51555E'}}, label),
+      React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', fontSize: emph?'19px':'14px', fontWeight: emph?700:550, color:'#0B0D12'}}, val+' ', React.createElement('span',{style:{fontSize:'12px', color:'#8A8F98', fontWeight:400}}, 'ALL')));
+    return React.createElement('div',{style:{maxWidth:'620px'}},
+      React.createElement('div',{style:{display:'grid', gridTemplateColumns:'1fr 90px 70px 110px 120px', gap:'12px', padding:'0 0 10px', fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.04em', borderBottom:'1px solid #ECEEF1'}},
+        React.createElement('span',null,'Line item'), React.createElement('span',null,'Kind'), React.createElement('span',{style:{textAlign:'right'}},'Qty'), React.createElement('span',{style:{textAlign:'right'}},'Unit'), React.createElement('span',{style:{textAlign:'right'}},'Subtotal')),
+      rows,
+      React.createElement('div',{style:{marginTop:'14px', marginLeft:'auto', width:'280px'}}, totalRow('Net','129,000'), totalRow('VAT (20%)','25,800'), React.createElement('div',{style:{borderTop:'2px solid #0B0D12', marginTop:'6px'}}), totalRow('Total','154,800', true)));
+  }
+
+  // ---- TaskBoard ----
+  taskBoard() {
+    const lane = (title, icon, tasks)=>React.createElement('div',{key:title, style:{flex:1, minWidth:'280px'}},
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px'}},
+        React.createElement('span',{style:{color:'#51555E'}}, icon),
+        React.createElement('span',{style:{fontSize:'13px', fontWeight:600, letterSpacing:'0.04em', textTransform:'uppercase', color:'#51555E'}}, title),
+        React.createElement('span',{style:{fontSize:'12px', color:'#8A8F98', background:'#F1F3F5', borderRadius:'999px', padding:'1px 8px', fontFamily:"'Geist Mono',monospace"}}, tasks.length)),
+      React.createElement('div',{style:{display:'flex', flexDirection:'column', gap:'10px'}}, tasks.map(t=>this.taskCard(t))));
+    const setup = [
+      { title:'Arrange 180 chairs — theater layout', owner:'EH', color:'#DCE6FB', due:'22 Jul · 11:00', rel:'in 3h', status:'IN_PROGRESS' },
+      { title:'Sound check — 2 wireless mics', owner:'LK', color:'#E9F6EF', due:'22 Jul · 12:30', rel:'in 4h', status:'TODO' },
+      { title:'Stage deck assembly', owner:'AM', color:'#FBF3E0', due:'22 Jul · 10:00', rel:'overdue 1h', status:'OVERDUE' },
+    ];
+    const teardown = [
+      { title:'Strike stage & store deck', owner:'AM', color:'#FBF3E0', due:'22 Jul · 19:00', rel:'in 9h', status:'TODO' },
+      { title:'Return mics to inventory', owner:'LK', color:'#E9F6EF', due:'22 Jul · 19:30', rel:'in 9h', status:'BLOCKED' },
+    ];
+    return React.createElement('div',{style:{display:'flex', gap:'28px', flexWrap:'wrap'}},
+      lane('Setup', this.icon('M8 1.5v13M1.5 8h13',15), setup),
+      lane('Teardown', this.icon('M3 8h10',15), teardown));
+  }
+  taskCard(t) {
+    const sc = { TODO:['#8A8F98','#F1F3F5'], IN_PROGRESS:['#2F6FED','#EEF3FE'], DONE:['#1A7F4B','#E9F6EF'], BLOCKED:['#9A6B00','#FBF3E0'], OVERDUE:['#C8372D','#FBECEA'] };
+    const od = t.status==='OVERDUE';
+    return React.createElement('div',{key:t.title, style:{background:'#fff', border:`1px solid ${od?'rgba(200,55,45,.3)':'#ECEEF1'}`, borderRadius:'10px', padding:'12px 14px', boxShadow:'0 1px 2px rgba(11,13,18,.04)'}},
+      React.createElement('div',{style:{fontSize:'14px', fontWeight:500, marginBottom:'10px', lineHeight:'19px'}}, t.title),
+      React.createElement('div',{style:{display:'flex', alignItems:'center', justifyContent:'space-between'}},
+        React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px'}}, this.avatar(t.owner,24,t.color), React.createElement('span',{style:{fontSize:'12px', color:od?'#C8372D':'#8A8F98', fontWeight:od?600:400}}, t.rel)),
+        this.badge(sc[t.status][0], sc[t.status][1], t.status.replace('_',' '),{noDot:true})));
+  }
+
+  // ---- CopilotPanel states ----
+  chatMsg(role, text, opts) {
+    opts = opts||{};
+    const user = role==='user';
+    return React.createElement('div',{key:opts.key, style:{display:'flex', justifyContent: user?'flex-end':'flex-start', marginBottom:'12px'}},
+      React.createElement('div',{style:{maxWidth:'78%', background: user?'#0B0D12':'#fff', color: user?'#fff':'#0B0D12', border: user?'none':'1px solid #E3E7EC', borderRadius: user?'12px 12px 4px 12px':'12px 12px 12px 4px', padding:'10px 13px', fontSize:'14px', lineHeight:'20px', boxShadow: user?'none':'0 1px 2px rgba(11,13,18,.04)'}}, text));
+  }
+  copilotShell(title, body) {
+    return React.createElement('div',{key:title, style:{width:'360px', background:'#F7F9FE', border:'1px solid #DCE6FB', borderRadius:'14px', overflow:'hidden', boxShadow:'0 1px 2px rgba(11,13,18,.04)', display:'flex', flexDirection:'column'}},
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'9px', padding:'12px 16px', borderBottom:'1px solid #DCE6FB', background:'#EEF3FE'}},
+        React.createElement('div',{style:{width:'22px', height:'22px', borderRadius:'6px', background:'#2F6FED', display:'flex', alignItems:'center', justifyContent:'center'}}, this.icon('M8 2.5 9.2 6l3.3 .2-2.6 2 1 3.3L8 9.7 5.1 11.5l1-3.3L3.5 6.2 6.8 6 8 2.5Z',13,'#fff')),
+        React.createElement('span',{style:{fontSize:'14px', fontWeight:600}}, 'Copilot'),
+        React.createElement('span',{style:{marginLeft:'auto', fontSize:'11px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, title)),
+      React.createElement('div',{style:{padding:'16px', minHeight:'160px'}}, body));
+  }
+  thinking() {
+    return React.createElement('div',{style:{display:'flex', justifyContent:'flex-start'}},
+      React.createElement('div',{style:{background:'#fff', border:'1px solid #E3E7EC', borderRadius:'12px 12px 12px 4px', padding:'12px 14px', display:'flex', gap:'5px', alignItems:'center'}},
+        [0,1,2].map(i=>React.createElement('span',{key:i, style:{width:'6px', height:'6px', borderRadius:'999px', background:'#2F6FED', animation:`blink 1.2s ease-in-out ${i*0.18}s infinite`}})),
+        React.createElement('span',{style:{fontSize:'13px', color:'#8A8F98', marginLeft:'6px'}}, 'Checking availability…')));
+  }
+  proposedAction() {
+    return React.createElement('div',{style:{background:'#fff', border:'1px solid #DCE6FB', borderRadius:'12px', padding:'14px', marginTop:'4px'}},
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}, React.createElement('span',{style:{fontSize:'11px', fontWeight:600, color:'#2F6FED', textTransform:'uppercase', letterSpacing:'0.04em'}}, 'Proposed action'), this.badge('#9A6B00','#FBF3E0','REQUIRES APPROVAL',{noDot:true})),
+      React.createElement('div',{style:{fontSize:'14px', fontWeight:600, marginBottom:'4px'}}, 'Hold Blue Hall'),
+      React.createElement('div',{style:{fontSize:'13px', color:'#51555E', lineHeight:'19px', marginBottom:'12px'}}, '22 Jul 2026 · 14:00–18:00 · for FinTech Startup Conf (180 pax). A 15-minute lease will be placed.'),
+      React.createElement('div',{style:{display:'flex', gap:'8px'}}, this.btn('primary','Confirm hold',{sm:true}), this.btn('ghost','Dismiss',{sm:true})));
+  }
+  headsUp() {
+    return React.createElement('div',{style:{display:'flex', justifyContent:'flex-start'}},
+      React.createElement('div',{style:{maxWidth:'88%', background:'#FBECEA', border:'1px solid rgba(200,55,45,.28)', borderRadius:'12px 12px 12px 4px', padding:'12px 14px'}},
+        React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'7px', marginBottom:'6px'}}, this.icon('M8 5v3.5M8 11v.2M8 1.5 1 13.5h14L8 1.5Z',14,'#C8372D'), React.createElement('span',{style:{fontSize:'13px', fontWeight:600, color:'#9E2B23'}}, 'Heads up — this clashes')),
+        React.createElement('div',{style:{fontSize:'13px', color:'#7A2A23', lineHeight:'19px', marginBottom:'10px'}}, 'A networking mixer (REQ-0151) just took the Foyer 18:00–20:00, overlapping your teardown. Want me to re-plan?'),
+        React.createElement('div',{style:{display:'flex', gap:'8px'}}, this.btn('danger','Re-plan',{sm:true}), this.btn('secondary','Ignore',{sm:true}))));
+  }
+
+  // ---- KPIStat ----
+  kpi(cfg) {
+    return React.createElement('div',{key:cfg.label, style:{flex:1, minWidth:'180px', background:'#fff', border:'1px solid #ECEEF1', borderRadius:'12px', padding:'18px', boxShadow:'0 1px 2px rgba(11,13,18,.04)'}},
+      React.createElement('div',{style:{fontSize:'13px', color:'#51555E', marginBottom:'10px'}}, cfg.label),
+      React.createElement('div',{style:{display:'flex', alignItems:'baseline', gap:'10px'}},
+        React.createElement('span',{style:{fontSize:'30px', fontWeight:600, fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', letterSpacing:'-0.02em', color: cfg.alert?'#C8372D':'#0B0D12'}}, cfg.value),
+        cfg.trend? React.createElement('span',{style:{fontSize:'13px', fontWeight:600, color: cfg.trendUp?'#1A7F4B':'#C8372D', display:'inline-flex', alignItems:'center', gap:'2px'}}, cfg.trendUp?'▲':'▼', cfg.trend):null),
+      cfg.sub? React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98', marginTop:'4px'}}, cfg.sub):null);
+  }
+
+  // ---- AuditTimeline ----
+  auditTimeline() {
+    const entries = [
+      { who:'Elira Hoxha', init:'EH', color:'#DCE6FB', verb:'approved', entity:'REQ-2026-0142', time:'22 Jul 2026 · 09:14:02', reason:'Capacity and budget confirmed with organizer.', diff:true },
+      { who:'Copilot', init:'AI', color:'#EEF3FE', verb:'generated plan for', entity:'REQ-2026-0142', time:'22 Jul 2026 · 09:02:55', reason:null, diff:false },
+      { who:'Liam Kovaçi', init:'LK', color:'#E9F6EF', verb:'held Blue Hall for', entity:'REQ-2026-0142', time:'22 Jul 2026 · 08:58:11', reason:null, diff:false },
+      { who:'System', init:'SY', color:'#F1F3F5', verb:'created', entity:'REQ-2026-0142', time:'22 Jul 2026 · 08:55:40', reason:null, diff:false },
+    ];
+    return React.createElement('div',{style:{position:'relative', paddingLeft:'8px'}},
+      entries.map((e,i)=>React.createElement('div',{key:i, style:{display:'flex', gap:'14px', position:'relative', paddingBottom: i===entries.length-1?0:'22px'}},
+        i<entries.length-1? React.createElement('div',{style:{position:'absolute', left:'13px', top:'30px', bottom:0, width:'2px', background:'#ECEEF1'}}):null,
+        this.avatar(e.init,28,e.color),
+        React.createElement('div',{style:{flex:1}},
+          React.createElement('div',{style:{fontSize:'14px', lineHeight:'20px'}}, React.createElement('span',{style:{fontWeight:600}}, e.who), React.createElement('span',{style:{color:'#51555E'}}, ' '+e.verb+' '), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'13px', color:'#2F6FED'}}, e.entity)),
+          React.createElement('div',{style:{fontSize:'12px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace", marginTop:'2px'}}, e.time),
+          e.reason? React.createElement('div',{style:{fontSize:'13px', color:'#51555E', marginTop:'6px', background:'#F7F8FA', borderLeft:'2px solid #D7DBE0', padding:'6px 10px', borderRadius:'0 6px 6px 0'}}, '“'+e.reason+'”'):null,
+          e.diff? React.createElement('div',{style:{fontSize:'12px', color:'#2F6FED', marginTop:'6px', cursor:'pointer'}}, '▸ status: PROPOSED → APPROVED'):null))));
+  }
+
+  // ---- DataTable states ----
+  dataTable(state) {
+    const cols = ['Request','Organizer','Attendees','Dates','Value','Status'];
+    const rows = [
+      ['REQ-2026-0142','FinTech Startup Conf','180','22 Jul 2026','154,800 ALL', this.badge('#1A7F4B','#E9F6EF','APPROVED')],
+      ['REQ-2026-0151','Networking Mixer','90','22 Jul 2026','48,000 ALL', this.badge('#C8372D','#FBECEA','CONFLICT')],
+      ['REQ-2026-0139','Product Launch','160','21 Jul 2026','132,000 ALL', this.badge('#2F6FED','#EEF3FE','SCHEDULED')],
+      ['REQ-2026-0155','Annual Gala','300','24 Jul 2026','—', this.badge('#8A8F98','#F1F3F5','DRAFT')],
+    ];
+    const header = React.createElement('div',{style:{display:'grid', gridTemplateColumns:'150px 1fr 100px 130px 130px 120px', gap:'12px', padding:'10px 16px', background:'#F7F8FA', borderBottom:'1px solid #ECEEF1', fontSize:'11px', color:'#8A8F98', textTransform:'uppercase', letterSpacing:'0.04em', fontWeight:500}},
+      cols.map((c,i)=>React.createElement('span',{key:c, style:{textAlign: (i===2||i===4)?'right':'left'}}, c, i===0?' ▾':null)));
+    let body;
+    if (state==='loading') {
+      body = [0,1,2,3].map(i=>React.createElement('div',{key:i, style:{display:'grid', gridTemplateColumns:'150px 1fr 100px 130px 130px 120px', gap:'12px', padding:'14px 16px', borderBottom:'1px solid #ECEEF1'}},
+        [0,1,2,3,4,5].map(j=>React.createElement('div',{key:j, style:{height:'12px', borderRadius:'6px', background:'linear-gradient(90deg,#EEF0F3 25%,#F6F7F9 50%,#EEF0F3 75%)', backgroundSize:'400px 100%', animation:'shimmer 1.4s linear infinite', width: j===1?'70%':'80%'}}))));
+    } else if (state==='empty') {
+      body = React.createElement('div',{style:{padding:'48px 16px', textAlign:'center'}},
+        React.createElement('div',{style:{width:'40px', height:'40px', borderRadius:'10px', background:'#F1F3F5', margin:'0 auto 14px', display:'flex', alignItems:'center', justifyContent:'center', color:'#8A8F98'}}, this.icon('M3 4h10v8H3zM3 7h10',18)),
+        React.createElement('div',{style:{fontSize:'15px', fontWeight:600, marginBottom:'5px'}}, 'No requests yet'),
+        React.createElement('div',{style:{fontSize:'13px', color:'#8A8F98', marginBottom:'16px'}}, 'New event requests will appear here as they arrive.'),
+        React.createElement('div',{style:{display:'flex', justifyContent:'center'}}, this.btn('primary','New request',{sm:true, iconLeft:this.icon('M8 3.5v9M3.5 8h9',13,'#fff')})));
+    } else if (state==='error') {
+      body = React.createElement('div',{style:{padding:'48px 16px', textAlign:'center'}},
+        React.createElement('div',{style:{width:'40px', height:'40px', borderRadius:'10px', background:'#FBECEA', margin:'0 auto 14px', display:'flex', alignItems:'center', justifyContent:'center', color:'#C8372D'}}, this.icon('M8 5v3.5M8 11v.2',18)),
+        React.createElement('div',{style:{fontSize:'15px', fontWeight:600, marginBottom:'5px'}}, 'Couldn’t load requests'),
+        React.createElement('div',{style:{fontSize:'13px', color:'#8A8F98', marginBottom:'16px'}}, 'The connection to ops-core timed out.'),
+        React.createElement('div',{style:{display:'flex', justifyContent:'center'}}, this.btn('secondary','Retry',{sm:true})));
+    } else {
+      body = rows.map((r,i)=>React.createElement('div',{key:i, style:{display:'grid', gridTemplateColumns:'150px 1fr 100px 130px 130px 120px', gap:'12px', padding:'13px 16px', borderBottom:'1px solid #ECEEF1', alignItems:'center', fontSize:'14px'}},
+        React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'13px', color:'#2F6FED'}}, r[0]),
+        React.createElement('span',{style:{fontWeight:500}}, r[1]),
+        React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums'}}, r[2]),
+        React.createElement('span',{style:{color:'#51555E', fontFamily:"'Geist Mono',monospace", fontSize:'13px'}}, r[3]),
+        React.createElement('span',{style:{textAlign:'right', fontFamily:"'Geist Mono',monospace", fontVariantNumeric:'tabular-nums', fontWeight:550}}, r[4]),
+        React.createElement('span',null, r[5])));
+    }
+    return React.createElement('div',{style:{border:'1px solid #ECEEF1', borderRadius:'10px', overflow:'hidden'}}, header, body);
+  }
+
+  renderVals() {
+    const sec = [];
+
+    // §3.1 StatusBadge
+    const sb = (items)=>React.createElement('div',{style:{display:'flex', flexWrap:'wrap', gap:'10px', marginBottom:'8px'}}, items);
+    const statusBody = React.createElement('div',null,
+      this.label('Request lifecycle'),
+      sb([this.badge('#8A8F98','#F1F3F5','DRAFT'), this.badge('#9A6B00','#FBF3E0','PROPOSED'), this.badge('#1A7F4B','#E9F6EF','APPROVED'), this.badge('#2F6FED','#EEF3FE','SCHEDULED'), this.badge('#1A7F4B','#E9F6EF','COMPLETED'), this.badge('#C8372D','#FBECEA','REJECTED')]),
+      React.createElement('div',{style:{height:'20px'}}),
+      this.label('Reservation'),
+      sb([this.badge('#9A6B00','#FBF3E0','HELD'), this.badge('#1A7F4B','#E9F6EF','CONFIRMED'), this.badge('#8A8F98','#F1F3F5','RELEASED')]),
+      React.createElement('div',{style:{height:'20px'}}),
+      this.label('Task'),
+      sb([this.badge('#8A8F98','#F1F3F5','TODO'), this.badge('#2F6FED','#EEF3FE','IN PROGRESS'), this.badge('#1A7F4B','#E9F6EF','DONE'), this.badge('#9A6B00','#FBF3E0','BLOCKED'), this.badge('#C8372D','#FBECEA','OVERDUE')]),
+      React.createElement('div',{style:{height:'20px'}}),
+      this.label('Conflict + with related ID (mono)'),
+      sb([this.badge('#C8372D','#FBECEA','CONFLICT'), React.createElement('span',{key:'idb', style:{display:'inline-flex', alignItems:'center', gap:'6px'}}, this.badge('#C8372D','#FBECEA','CONFLICT',{noDot:true}), React.createElement('span',{style:{fontFamily:"'Geist Mono',monospace", fontSize:'13px', color:'#8A8F98'}}, 'REQ-0151'))]));
+    sec.push(this.frame('§3.1','StatusBadge','dot + label · never color-only · mono for related ID', statusBody));
+
+    // §3.2 ConflictBanner
+    const cbBody = React.createElement('div',{style:{display:'flex', flexDirection:'column', gap:'20px'}},
+      React.createElement('div',null, this.label('SPACE_DOUBLE_BOOKED'), this.conflictBanner({ title:'Blue Hall is double-booked', type:'SPACE_DOUBLE_BOOKED', detail:'Blue Hall is already confirmed for the FinTech Startup Conference during this window. Two events cannot occupy the same space.', window:'22 Jul 2026 · 14:00–18:00', ids:['REQ-0142','REQ-0151'] })),
+      React.createElement('div',null, this.label('ASSET_OVERALLOCATED — with requested / available meter'), this.conflictBanner({ title:'Not enough wireless microphones', type:'ASSET_OVERALLOCATED', detail:'This plan needs 6 wireless mics, but only 2 are free in the requested window — 4 are held by other events.', window:'22 Jul 2026 · 14:00–18:00', ids:['REQ-0142','REQ-0139'], meter:{ label:'Wireless microphone', req:6, avail:2, total:8 } })),
+      React.createElement('div',null, this.label('SETUP_WINDOW_OVERLAP'), this.conflictBanner({ title:'Setup overlaps another teardown', type:'SETUP_WINDOW_OVERLAP', detail:'Your 12:30 setup for Blue Hall starts before the previous event’s teardown finishes at 13:00. Turnaround needs 30 more minutes.', window:'22 Jul 2026 · 12:30–13:00', ids:['REQ-0142','REQ-0140'] })));
+    sec.push(this.frame('§3.2','ConflictBanner','the signature moment · type · detail · window · IDs · over-allocation meter', cbBody, {bg:'#F7F8FA'}));
+
+    // §3.3 Timeline
+    sec.push(this.frame('§3.3','AvailabilityTimeline / ScheduleCalendar','bars by status · hatched setup/teardown buffers · hover popover', this.timeline()));
+
+    // §3.4 InventoryMeter
+    const invBody = React.createElement('div',null,
+      this.invMeter({ name:'Standard chair', loc:'Store A · level −1', avail:320, held:60, total:500, state:'ok' }),
+      this.invMeter({ name:'Wireless microphone', loc:'AV cabinet · backstage', avail:2, held:4, total:8, state:'low' }),
+      this.invMeter({ name:'Stage deck (6×4m)', loc:'Loading bay', avail:0, held:1, total:2, state:'danger' }));
+    sec.push(this.frame('§3.4','InventoryMeter','available / total · held portion amber · crosses to danger when low', React.createElement('div',{style:{borderTop:'1px solid transparent'}}, invBody)));
+
+    // §3.5 SpaceCard
+    const scBody = React.createElement('div',{style:{display:'flex', gap:'20px', flexWrap:'wrap'}},
+      this.spaceCard({ name:'Blue Hall', floor:'Main floor · west wing', cap:220, layout:'theater', features:['Stage','Hybrid AV','Step-free','Air-con'], rate:'80,000', free:true }),
+      this.spaceCard({ name:'Foyer', floor:'Ground · entrance', cap:120, layout:'reception', features:['Bar','Coat check','Natural light'], rate:'42,000', free:false }));
+    sec.push(this.frame('§3.5','SpaceCard','capacity for requested layout (big tabular) · features · day rate · availability dot', scBody, {bg:'#F7F8FA'}));
+
+    // §3.6 ReservationCard
+    const rcBody = React.createElement('div',{style:{display:'flex', gap:'20px', flexWrap:'wrap'}},
+      this.reservationCard({ space:'Blue Hall', window:'22 Jul · 14:00–18:00', status:'HELD', countdown:'12:04', assets:[{n:'Standard chair', q:180},{n:'Wireless microphone', q:2},{n:'Stage deck', q:1}] }),
+      this.reservationCard({ space:'Blue Hall', window:'22 Jul · 14:00–18:00', status:'CONFIRMED', assets:[{n:'Standard chair', q:180},{n:'Wireless microphone', q:2},{n:'Stage deck', q:1}] }),
+      this.reservationCard({ space:'Orange Hall', window:'19 Jul · 10:00–14:00', status:'RELEASED', assets:[{n:'Banquet round', q:20},{n:'Linen set', q:20}] }));
+    sec.push(this.frame('§3.6','ReservationCard','HELD shows a lease countdown that warms to amber', rcBody, {bg:'#F7F8FA'}));
+
+    // §3.7 QuoteTable
+    sec.push(this.frame('§3.7','QuoteTable','line items → NET / VAT 20% / TOTAL emphasized · currency ALL · tabular', this.quoteTable()));
+
+    // §3.8 TaskBoard
+    sec.push(this.frame('§3.8','TaskBoard','SETUP / TEARDOWN lanes · owner · dueAt (relative + absolute) · overdue = danger', this.taskBoard(), {bg:'#F7F8FA'}));
+
+    // §3.9 CopilotPanel
+    const copilotBody = React.createElement('div',{style:{display:'flex', gap:'24px', flexWrap:'wrap'}},
+      this.copilotShell('idle / plan-preview', React.createElement('div',null,
+        this.chatMsg('user','Can we host a 180-person conference on 22 Jul?',{key:'u1'}),
+        this.chatMsg('assistant','Yes — Blue Hall seats 180 theater-style and is free 14:00–18:00. I’ve drafted a plan with a quote of 154,800 ALL.',{key:'a1'}),
+        this.proposedAction())),
+      this.copilotShell('assistant-thinking', React.createElement('div',null,
+        this.chatMsg('user','What about the Foyer for the after-party?',{key:'u2'}),
+        this.thinking())),
+      this.copilotShell('conflict heads-up (unprompted)', React.createElement('div',null,
+        this.chatMsg('assistant','Your Blue Hall plan is ready to approve.',{key:'a3'}),
+        this.headsUp())));
+    sec.push(this.frame('§3.9','CopilotPanel','muted-accent surface · thinking · ProposedActionCard (requiresApproval) · unprompted conflict heads-up', copilotBody, {bg:'#F7F8FA'}));
+
+    // §3.10 KPIStat
+    const kpiBody = React.createElement('div',{style:{display:'flex', gap:'16px', flexWrap:'wrap'}},
+      this.kpi({ label:'Events this week', value:'12', trend:'+3', trendUp:true, sub:'vs. last week' }),
+      this.kpi({ label:'Spaces in use', value:'4 / 6', sub:'now' }),
+      this.kpi({ label:'Low-stock assets', value:'2', alert:true, sub:'wireless mic, stage deck' }),
+      this.kpi({ label:'Pending approvals', value:'5', trend:'+2', trendUp:false, sub:'awaiting manager' }));
+    sec.push(this.frame('§3.10','KPIStat','big tabular number + label + trend ▲▼', kpiBody, {bg:'#F7F8FA'}));
+
+    // §3.11 AuditTimeline
+    sec.push(this.frame('§3.11','AuditTimeline','actor · action verb · entity · mono timestamp · expandable diff · reason', this.auditTimeline()));
+
+    // §3.12 DataTable
+    const dtBody = React.createElement('div',{style:{display:'flex', flexDirection:'column', gap:'24px'}},
+      React.createElement('div',null, this.label('default · sortable · row hover'), this.dataTable('default')),
+      React.createElement('div',{style:{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'24px'}},
+        React.createElement('div',null, this.label('loading'), this.dataTable('loading')),
+        React.createElement('div',null, this.label('empty'), this.dataTable('empty'))),
+      React.createElement('div',{style:{maxWidth:'520px'}}, this.label('error'), this.dataTable('error')));
+    sec.push(this.frame('§3.12','DataTable','sortable · paginated · default / loading / empty / error · row hover', dtBody, {bg:'#F7F8FA'}));
+
+    // §3.13 PageHeader
+    const phBody = React.createElement('div',null,
+      React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', color:'#8A8F98', marginBottom:'8px'}}, React.createElement('span',null,'Pipeline'), React.createElement('span',null,'/'), React.createElement('span',{style:{color:'#51555E'}}, 'Requests')),
+      React.createElement('div',{style:{display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:'12px'}},
+        React.createElement('div',null, React.createElement('h1',{style:{fontSize:'24px', fontWeight:600, margin:0, letterSpacing:'-0.01em'}}, 'Requests'), React.createElement('p',{style:{fontSize:'14px', color:'#51555E', margin:'4px 0 0'}}, '24 active · 5 awaiting approval')),
+        React.createElement('div',{style:{display:'flex', gap:'10px'}}, this.btn('secondary','Export'), this.btn('primary','New request',{iconLeft:this.icon('M8 3.5v9M3.5 8h9',13,'#fff')}))),
+      React.createElement('div',{style:{display:'flex', gap:'10px', marginTop:'18px', flexWrap:'wrap'}},
+        React.createElement('div',{style:{display:'inline-flex', gap:'2px', padding:'3px', background:'#F1F3F5', borderRadius:'8px'}}, ['All','Proposed','Approved','Scheduled'].map((t,i)=>React.createElement('span',{key:t, style:{padding:'5px 12px', fontSize:'13px', fontWeight:550, borderRadius:'6px', background:i===0?'#fff':'transparent', color:i===0?'#0B0D12':'#51555E', boxShadow:i===0?'0 1px 2px rgba(11,13,18,.08)':'none'}}, t))),
+        React.createElement('div',{style:{display:'flex', alignItems:'center', height:'32px', padding:'0 12px', borderRadius:'8px', border:'1px solid #D7DBE0', fontSize:'13px', color:'#8A8F98', gap:'8px'}}, this.icon('M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM11 11l3 3',13), 'Search…')));
+    sec.push(this.frame('§3.13','PageHeader','title + breadcrumb + single primary action + filters row', phBody));
+
+    // §3.14 Empty / Error
+    const ee = (icon, iconBg, iconColor, title, msg, action)=>React.createElement('div',{style:{flex:1, minWidth:'280px', background:'#fff', border:'1px dashed #D7DBE0', borderRadius:'12px', padding:'40px 28px', textAlign:'center'}},
+      React.createElement('div',{style:{width:'44px', height:'44px', borderRadius:'11px', background:iconBg, color:iconColor, margin:'0 auto 16px', display:'flex', alignItems:'center', justifyContent:'center'}}, this.icon(icon,20,iconColor)),
+      React.createElement('div',{style:{fontSize:'16px', fontWeight:600, marginBottom:'6px'}}, title),
+      React.createElement('div',{style:{fontSize:'14px', color:'#8A8F98', marginBottom:'18px', maxWidth:'280px', marginLeft:'auto', marginRight:'auto', lineHeight:'20px'}}, msg),
+      React.createElement('div',{style:{display:'flex', justifyContent:'center'}}, action));
+    const eeBody = React.createElement('div',{style:{display:'flex', gap:'20px', flexWrap:'wrap'}},
+      ee('M4 5h8v6H4zM4 8h8', '#F1F3F5','#8A8F98','No conflicts right now','Every reservation fits. The schedule is clean — nothing needs your attention.', this.btn('secondary','View calendar',{sm:true})),
+      ee('M8 5v3.5M8 11v.2', '#FBECEA','#C8372D','Something went wrong','We couldn’t reach ops-core. Your work is safe — try again in a moment.', this.btn('secondary','Retry',{sm:true})));
+    sec.push(this.frame('§3.14','EmptyState / ErrorState','illustrationless · calm · one line + a helpful first action', eeBody, {bg:'#F7F8FA'}));
+
+    return { sections: sec };
+  }
+}
+</script>
+</body>
+</html>

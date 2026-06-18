@@ -1,0 +1,121 @@
+Background
+The Pyramid of Tirana hosts conferences, exhibitions, hackathons, workshops, performances, community gatherings, and private events. What visitors see is only the final result.
+
+Behind every successful event lies an invisible layer of coordination:
+›
+Reviewing requests
+›
+Checking space availability
+›
+Preparing quotations
+›
+Reserving equipment
+›
+Tracking inventory
+›
+Coordinating setup and teardown
+›
+Preventing scheduling conflicts
+›
+Communicating changes across teams
+The problem
+Today, much of this happens through emails, phone calls, Excel spreadsheets, and institutional memory. As the Pyramid continues to grow as one of Albania's most dynamic public venues, this way of working becomes increasingly difficult to scale.
+
+A request as simple as "I'd like to organize a startup conference for 180 people next month" can trigger hours of back-and-forth communication before a single confirmation is sent. Without a single source of truth, valuable time is spent coordinating logistics instead of creating exceptional experiences.
+
+Questions that should have immediate, one-click away answers often don't:
+›
+Which spaces are available?
+›
+Is the requested setup feasible?
+›
+How much will it cost?
+›
+Do we have enough chairs, tables, microphones, and equipment?
+›
+Where are these assets currently located?
+›
+Are they already reserved for another event?
+›
+What tasks need to happen before the event takes place?
+›
+Who needs to do what, and when?
+Your mission
+Design a solution that transforms an event request into an event-ready operational plan. Your solution should eliminate fragmented communication and provide the Pyramid team with a seamless way to manage the entire journey from inquiry to execution.
+
+The goal is simple: help the Pyramid answer, instantly, "can we make this happen?" - and if the answer is yes, "what's next?".
+Core requirements
+Your solution should enable teams to:
+›
+Receive and manage event requests in one place
+›
+Match requests with appropriate Pyramid spaces
+›
+Check availability across venues and dates
+›
+Automatically generate quotations and proposals
+›
+Track inventory of operational assets, including chairs, tables, microphones, screens, and technical equipment
+›
+Know where assets are located and how many remain available
+›
+Reserve assets for confirmed events
+›
+Detect scheduling and resource conflicts
+›
+Generate setup and teardown task lists
+›
+Coordinate responsibilities across operational teams
+›
+Maintain a complete record of decisions, changes, and approvals
+Think beyond booking
+The Pyramid is more than a collection of venues. While its four main event spaces on floors 0 and -1 (Blue, Orange, Green, and Yellow) host the majority of activities, events often spill into the entrance, corridors, transitional areas, and informal gathering spaces in between.
+
+Teams are encouraged to rethink how these interconnected spaces, assets, and operations come together to create seamless event experiences behind the scenes. Possible directions include:
+›
+AI-powered request intake and proposal generation
+›
+Asset tracking using QR codes, NFC, or smart tagging
+›
+Automated workflows and approval chains
+›
+Intelligent conflict detection
+›
+Operational command centers
+›
+Digital twins of event logistics
+›
+Copilots that recommend next actions
+›
+Predictive allocation of shared resources
+Constraints
+›
+Multiple events taking place simultaneously
+›
+Limited operational resources
+›
+Shared assets across venues
+›
+Frequent last-minute changes
+›
+Ease of use for non-technical staff
+›
+Scalability as the Pyramid expands its programming
+What success looks like
+At the end of 48 hours, your team should demonstrate:
+›
+An event request submitted through the platform.
+›
+Automatic matching with an appropriate space.
+›
+Generation of a quotation or proposal.
+›
+Allocation and reservation of required assets.
+›
+Visibility into remaining inventory and potential conflicts.
+›
+Creation of an operational plan ready for execution.
+›
+A clear explanation of how the solution replaces fragmented emails, spreadsheets, and manual coordination.
+From the Pyramid CEO
+"The Pyramid has transformed from a monument of the past into a platform for the future. Yet behind every event, our teams still rely on emails, spreadsheets, and countless phone calls to make things happen. We're looking for bold ideas that can turn operational complexity into seamless experiences."

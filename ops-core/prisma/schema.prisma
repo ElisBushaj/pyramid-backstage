@@ -1,0 +1,301 @@
+// Pyramid Backstage — ops-core data model.
+// Shape mirrors ops-core/openapi.yaml (the contract). Persistence notes in docs/03-data/SCHEMA.md.
+// Money: integer minor units (*Minor). Time: UTC. Overlap is tested on the EFFECTIVE window
+// (event window padded by space buffers) — see docs/02-domain/CONFLICTS.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URL lives in prisma.config.ts (migrate) + the PrismaPg
+// adapter in src/config/prisma.ts (client). The datasource declares only the provider.
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────── enums
+enum Role {
+  ADMIN
+  MANAGER
+  OPS
+  VIEWER
+}
+
+enum SpaceKind {
+  MAIN
+  TRANSITIONAL
+}
+
+enum SpaceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssetType {
+  SEATING
+  TABLE
+  MICROPHONE
+  SCREEN
+  PROJECTOR
+  STAGE_UNIT
+  LIGHTING
+  OTHER
+}
+
+enum AssetStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum EventType {
+  CONFERENCE
+  EXHIBITION
+  WORKSHOP
+  PERFORMANCE
+  COMMUNITY
+  PRIVATE
+  OTHER
+}
+
+enum RequestStatus {
+  DRAFT
+  PROPOSED
+  APPROVED
+  SCHEDULED
+  COMPLETED
+  REJECTED
+}
+
+enum ReservationStatus {
+  HELD
+  CONFIRMED
+  RELEASED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+}
+
+enum TaskPhase {
+  SETUP
+  TEARDOWN
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+// ─────────────────────────────────────────────────────────── auth
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(VIEWER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions     Session[]
+  auditEntries AuditEntry[]
+
+  @@index([role, isActive])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────── spaces
+model Space {
+  id                    String      @id @default(uuid())
+  name                  String
+  floor                 Int
+  kind                  SpaceKind   @default(MAIN)
+  capacities            Json        // { THEATER: 220, CLASSROOM: 120, ... }
+  features              String[]    @default([])
+  dayRateMinor          Int
+  currency              String      @default("ALL")
+  setupBufferMinutes    Int         @default(240)
+  teardownBufferMinutes Int         @default(120)
+  status                SpaceStatus @default(ACTIVE)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  reservations Reservation[]
+
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────── assets
+model Asset {
+  id            String      @id @default(uuid())
+  name          String
+  type          AssetType
+  totalQuantity Int
+  location      String
+  status        AssetStatus @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  reservationAssets ReservationAsset[]
+
+  @@index([type, status])
+}
+
+// ─────────────────────────────────────────────────────────── requests
+model EventRequest {
+  id                String        @id @default(uuid())
+  title             String
+  organizerName     String
+  contactEmail      String?
+  contactPhone      String?
+  expectedAttendees Int
+  eventType         EventType
+  preferredDates    Json          // [{ start, end }]
+  requirements      Json?         // { layout, avNeeded, cateringNeeded, notes }
+  status            RequestStatus @default(DRAFT)
+  rejectionReason   String?
+  createdById       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  reservations Reservation[]
+  quotes       Quote[]
+  tasks        Task[]
+
+  @@index([status, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────── reservations
+model Reservation {
+  id             String            @id @default(uuid())
+  requestId      String
+  spaceId        String
+  start          DateTime          // event window
+  end            DateTime
+  effectiveStart DateTime          // start − space.setupBufferMinutes
+  effectiveEnd   DateTime          // end + space.teardownBufferMinutes
+  status         ReservationStatus @default(HELD)
+  expiresAt      DateTime?         // HELD lease; null once CONFIRMED
+  createdById    String?
+  createdAt      DateTime          @default(now())
+
+  request EventRequest       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  space   Space              @relation(fields: [spaceId], references: [id])
+  assets  ReservationAsset[]
+
+  @@index([spaceId, status, effectiveStart, effectiveEnd])
+  @@index([status, effectiveStart, effectiveEnd])
+  @@index([status, expiresAt])
+  @@index([requestId])
+}
+
+model ReservationAsset {
+  id            String @id @default(uuid())
+  reservationId String
+  assetId       String
+  quantity      Int
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  asset       Asset       @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@index([reservationId])
+}
+
+// ─────────────────────────────────────────────────────────── quotes
+model Quote {
+  id         String      @id @default(uuid())
+  requestId  String
+  currency   String      @default("ALL")
+  lineItems  Json        // [{ label, kind, qty, unitPriceMinor, subtotalMinor }]
+  netMinor   Int
+  vatRate    Float       @default(0.20)
+  vatMinor   Int
+  totalMinor Int         // SERVER-COMPUTED = net + vat
+  status     QuoteStatus @default(DRAFT)
+  version    Int         @default(1)
+  expiresAt  DateTime?
+  createdAt  DateTime    @default(now())
+
+  request EventRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, version])
+}
+
+// ─────────────────────────────────────────────────────────── tasks
+model Task {
+  id             String     @id @default(uuid())
+  requestId      String
+  title          String
+  phase          TaskPhase
+  owner          String?
+  assigneeId     String?
+  dueOffsetHours Int?
+  dueAt          DateTime?
+  status         TaskStatus @default(TODO)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  request EventRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, phase])
+}
+
+// ─────────────────────────────────────────────────────────── audit + outbox + idempotency
+model AuditEntry {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorName  String?
+  action     String
+  entityType String
+  entityId   String
+  requestId  String?
+  before     Json?
+  after      Json?
+  reason     String?
+  at         DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([requestId, at])
+  @@index([entityType, entityId])
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid())
+  subject     String    // e.g. conflict.detected
+  payload     Json
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  @@index([publishedAt])
+}
+
+model IdempotencyKey {
+  key         String   @id
+  requestHash String
+  response    Json
+  statusCode  Int
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([expiresAt])
+}

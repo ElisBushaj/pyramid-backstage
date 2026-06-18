@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;700&family=Geist+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .card-link { text-decoration:none; color:inherit; display:block; transition: box-shadow 200ms cubic-bezier(0.2,0,0,1), transform 200ms cubic-bezier(0.2,0,0,1); }
+  .card-link:hover { box-shadow: 0 16px 40px -12px rgba(11,13,18,.18), 0 2px 6px rgba(11,13,18,.05), 0 0 0 1px rgba(11,13,18,.1); transform: translateY(-2px); }
+</style>
+</helmet>
+
+<div style="background:#0B0D12; min-height:100vh; width:100%; box-sizing:border-box; padding:72px 48px 96px; font-family:'SF Pro Text','Geist',-apple-system,system-ui,sans-serif; color:#fff; -webkit-font-smoothing:antialiased;">
+  <div style="max-width:1100px; margin:0 auto;">
+
+    <!-- header -->
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:8px;">
+      <div style="width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg,#2F6FED,#244FB0); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 1px rgba(255,255,255,.08);">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1.5 16.5 16.5H1.5L9 1.5Z" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 6 12.5 13H5.5L9 6Z" fill="#fff" fill-opacity=".35"/></svg>
+      </div>
+      <span style="font-family:'Geist Mono',monospace; font-size:13px; letter-spacing:0.06em; color:#8A8F98; text-transform:uppercase;">Pyramid Backstage</span>
+    </div>
+    <h1 style="font-size:32px; line-height:38px; font-weight:600; letter-spacing:-0.02em; margin:0;">Command Center — Design Canvas</h1>
+    <p style="font-size:15px; line-height:23px; color:#8A8F98; margin:12px 0 0; max-width:620px;">A calm, premium operations command center for the Pyramid of Tirana. Monochrome by default, color only for operational meaning. Every artboard is labeled <span style="font-family:'Geist Mono',monospace; color:#B8BDC6;">§X.Y</span> to check 1:1 against the spec.</p>
+
+    <!-- legend -->
+    <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:24px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);">
+      <span style="font-size:13px; color:#8A8F98;">Locale <span style="color:#fff; font-weight:550;">EN</span> · Albanian in a later pass</span>
+      <span style="font-size:13px; color:#8A8F98;">Viewports <span style="color:#fff; font-weight:550;">Desktop 1280–1440 · Mobile 390</span></span>
+      <span style="font-size:13px; color:#8A8F98;">States <span style="color:#fff; font-weight:550;">full matrix</span></span>
+    </div>
+
+    <!-- section grid -->
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:36px;">
+      {{ cards }}
+    </div>
+
+    <div style="margin-top:32px; font-size:12px; color:#51555E; font-family:'Geist Mono',monospace;">Built per DESIGN_SYSTEM.md + PAGES.md · v0.1 foundation</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  card(c) {
+    const built = c.status === 'built';
+    return React.createElement('a', { key:c.file, href:c.file, className:'card-link', style:{ background:'#14161C', borderRadius:'14px', boxShadow:'0 0 0 1px rgba(255,255,255,.07)', padding:'24px', display:'flex', flexDirection:'column', gap:'14px', minHeight:'150px' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between' } },
+        React.createElement('span', { style:{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'#8A8F98' } }, c.num),
+        React.createElement('span', { style:{ fontSize:'11px', fontWeight:600, letterSpacing:'0.04em', textTransform:'uppercase', color: built?'#1A7F4B':'#8A8F98', background: built?'rgba(26,127,75,.16)':'rgba(255,255,255,.06)', borderRadius:'999px', padding:'3px 9px' } }, built?'Built':'Queued')
+      ),
+      React.createElement('div', null,
+        React.createElement('div', { style:{ fontSize:'17px', fontWeight:600, marginBottom:'5px' } }, c.title),
+        React.createElement('div', { style:{ fontSize:'13px', lineHeight:'19px', color:'#8A8F98' } }, c.desc)
+      ),
+      React.createElement('div', { style:{ marginTop:'auto', fontSize:'12px', color:'#51555E' } }, c.items)
+    );
+  }
+  renderVals() {
+    const defs = [
+      { num:'§1', file:'Tokens.dc.html', title:'Tokens', desc:'Color, type, spacing, radius, elevation, motion — the contract.', items:'10 reference artboards', status:'built' },
+      { num:'§2', file:'Primitives.dc.html', title:'Primitives', desc:'Button, Input, Select, toggles, Dialog, Drawer, Toast, Tabs, Badge — variants × states.', items:'15 components', status:'built' },
+      { num:'§3', file:'Command.dc.html', title:'Command components', desc:'StatusBadge, ConflictBanner, Timeline, InventoryMeter, cards, QuoteTable, TaskBoard, CopilotPanel, KPIStat, AuditTimeline, DataTable, Empty/Error.', items:'14 components, full state sets', status:'built' },
+      { num:'§2', file:'Shells.dc.html', title:'Shells', desc:'AppShell (default · collapsed · mobile drawer · NATS states) and AuthShell.', items:'2 shells', status:'built' },
+      { num:'§1–9', file:'Pages.dc.html', title:'Pages', desc:'Every route in PAGES.md with its full state set — login, dashboard, requests, intake, plan, calendar, spaces, inventory, tasks, conflicts, approvals, audit, users.', items:'15 sections · full state matrix', status:'built' },
+      { num:'§L', file:'Locale.dc.html', title:'Albanian locale', desc:'EN→AL string map, side-by-side overflow stress tests, and full screens rendered in Shqip.', items:'glossary + stress tests + 4 AL screens', status:'built' },
+    ];
+    return { cards: defs.map(d => this.card(d)) };
+  }
+}
+</script>
+</body>
+</html>

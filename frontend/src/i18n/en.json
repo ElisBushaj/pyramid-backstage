@@ -1,0 +1,10 @@
+{
+  "ui": {
+    "common": {
+      "loading": "Loading…",
+      "save": "Save",
+      "cancel": "Cancel",
+      "retry": "Retry"
+    }
+  }
+}
