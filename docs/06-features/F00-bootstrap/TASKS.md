@@ -1,13 +1,13 @@
 ---
 id: F00
 name: Bootstrap & Contract
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F00 — Tasks
 
 ### F00-T01 — Repo scaffold + package.json + tsconfig + vitest config
-- Status: not_started
+- Status: done
 - Depends on: none
 - Estimate: 0.5d
 - Acceptance:
@@ -18,7 +18,7 @@ last_updated: 2026-06-18
   - `.gitignore` excludes `node_modules`, `dist`, `.env`.
 
 ### F00-T02 — config/vars (fail-fast) + prisma + logger + express app + helmet/cors/cookie-parser
-- Status: not_started
+- Status: done
 - Depends on: F00-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -29,7 +29,7 @@ last_updated: 2026-06-18
   - tsc clean; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F00-T03 — errors (APIError factories) + controllers/_core (@controlledResponse) + ServiceResponse envelope
-- Status: not_started
+- Status: done
 - Depends on: F00-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -40,7 +40,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F00-T04 — ValidationHelpers + express-validator wiring + 422 mapping
-- Status: not_started
+- Status: done
 - Depends on: F00-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -51,7 +51,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F00-T05 — i18n al/en + translate() + locale middleware + CI key-parity check
-- Status: not_started
+- Status: done
 - Depends on: F00-T03
 - Estimate: 0.25d
 - Acceptance:
@@ -62,7 +62,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F00-T06 — Prisma schema (all models+enums) + initial migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -73,7 +73,7 @@ last_updated: 2026-06-18
   - An initial migration (`<timestamp>_init`) applies cleanly to an empty Postgres 17 DB via `prisma migrate deploy`; `prisma generate` produces a client tsc accepts.
 
 ### F00-T07 — Lock openapi.yaml + contract test (examples validate vs types/api) + gen:types script
-- Status: not_started
+- Status: done
 - Depends on: F00-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -84,7 +84,7 @@ last_updated: 2026-06-18
   - tsc clean; the contract test passes.
 
 ### F00-T08 — /health + /ready + Dockerfile.dev + docker-compose smoke + CI green on fresh clone
-- Status: not_started
+- Status: done
 - Depends on: F00-T02
 - Estimate: 0.5d
 - Acceptance:

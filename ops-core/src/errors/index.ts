@@ -68,6 +68,18 @@ export class APIError extends ExtendableError {
   static invalidTransition(from: string, to: string, messageKey = "common.invalid_transition") {
     return new APIError({ status: 409, error: "invalid_transition", messageKey, from, to });
   }
+  static idempotencyKeyMismatch() {
+    return new APIError({ status: 409, error: "idempotency_key_mismatch", messageKey: "common.idempotency_mismatch" });
+  }
+  static badRequest(messageKey = "common.bad_request") {
+    return new APIError({ status: 400, error: "bad_request", messageKey });
+  }
+  static rateLimited(messageKey = "common.rate_limited") {
+    return new APIError({ status: 429, error: "rate_limited", messageKey });
+  }
+  static internal(messageKey = "common.internal") {
+    return new APIError({ status: 500, error: "internal", messageKey });
+  }
 }
 
 function defaultErrorCode(status: number): string {
