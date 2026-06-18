@@ -1,13 +1,13 @@
 ---
 id: F04
 name: Event Requests
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F04 — Tasks
 
 ### F04-T01 — EventRequest model + lifecycle enum + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped the model complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F04-T02 — POST /requests + validators + audit (request.create)
-- Status: not_started
+- Status: done
 - Depends on: F04-T01, F09-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - Controller uses `@controlledResponse`; tsc clean; vitest passing.
 
 ### F04-T03 — GET /requests/:id aggregate (request+reservation+quote+tasks+conflicts+audit)
-- Status: not_started
+- Status: done
 - Depends on: F04-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -38,7 +38,7 @@ last_updated: 2026-06-18
   - Test: a request with a reservation + quote + tasks + audit returns a fully-populated aggregate; a bare DRAFT request returns the request with empty related collections.
 
 ### F04-T04 — Guarded status transitions (409 invalid_transition) + transition audit
-- Status: not_started
+- Status: done
 - Depends on: F04-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -49,7 +49,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F04-T05 — GET /requests list + filters + tests
-- Status: not_started
+- Status: done
 - Depends on: F04-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -59,7 +59,7 @@ last_updated: 2026-06-18
   - tsc clean; runs in CI.
 
 ### F04-T06 — PATCH /requests/:id — edit a DRAFT request (UI "Adjust request")
-- Status: not_started
+- Status: done
 - Depends on: F04-T04, F09-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -68,7 +68,7 @@ last_updated: 2026-06-18
   - Backs the design's "Adjust request" affordance (design §4.3). tsc clean; tests passing.
 
 ### F04-T07 — GET /requests free-text search (`q`)
-- Status: not_started
+- Status: done
 - Depends on: F04-T05
 - Estimate: 0.25d
 - Acceptance:

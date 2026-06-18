@@ -40,3 +40,13 @@ Every default chosen in the absence of explicit guidance, with a date and one-li
   Rationale: the design's buttons don't imply server work; keeps the contract lean. See [[docs/10-qa/DESIGN-BACKEND-ALIGNMENT.md]].
 - Decided: money is formatted in the frontend via `lib/money.ts` from integer minor units (EN `,` / AL `.` grouping); the design's compact `3.3L`-style KPI labels are display-only.
 - Added (additive, contract stays lock-compatible): `PATCH /requests/:id` (F04-T06), `GET /requests?q=` (F04-T07), `GET /dashboard/stats` (F13-T05) to back design affordances. Build note: the structured intake form must capture `title` (required by `EventRequestInput`).
+
+## 2026-06-19 — Build execution (F03-T03, F08-T02)
+- Assumed: **`GET /assets?quantity=` filters** the result to lines whose windowed
+  `availableQuantity >= quantity` (combined with `type`/window).
+  Rationale: the contract lists `quantity` as a query param without semantics; matching
+  for "assets that can satisfy this demand" is the obvious operational use (the AI/match
+  flow). Without `quantity`, all lines are returned annotated. Flagged for confirmation.
+- Assumed: **task `dueAt` is null until a reservation exists** for the request; once a
+  reservation is present, SETUP offsets apply to its event `start`, TEARDOWN to its `end`.
+  Rationale: matches TASKS.md; `dueOffsetHours` is retained so dueAt can be recomputed.

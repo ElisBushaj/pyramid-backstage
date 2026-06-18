@@ -1,13 +1,13 @@
 ---
 id: F03
 name: Assets / Inventory
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F03 — Tasks
 
 ### F03-T01 — Asset model + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -16,7 +16,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped the model complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F03-T02 — Assets CRUD (OPS+) + lower-qty-below-holds guard (422)
-- Status: not_started
+- Status: done
 - Depends on: F03-T01, F01-T05
 - Estimate: 0.5d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - `PATCH` on a missing id → `404`; tsc clean; vitest passing.
 
 ### F03-T03 — GET /assets windowed availableQuantity (total − Σ overlapping holds)
-- Status: not_started
+- Status: done
 - Depends on: F03-T02, F05-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -38,7 +38,7 @@ last_updated: 2026-06-18
   - Test: with 310 of 400 chairs held in a window, the chair line reports `availableQuantity: 90`; a retired line reports `0`.
 
 ### F03-T04 — Assets tests
-- Status: not_started
+- Status: done
 - Depends on: F03-T03
 - Estimate: 0.25d
 - Acceptance:
