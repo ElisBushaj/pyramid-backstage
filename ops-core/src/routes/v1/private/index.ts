@@ -3,6 +3,7 @@ import { requireAuth } from "../../../middlewares/auth.middleware";
 import { requireCsrf } from "../../../middlewares/csrf.middleware";
 import authRoutes from "../../../modules/auth/routes";
 import spacesRoutes from "../../../modules/spaces/routes";
+import conflictsRoutes from "../../../modules/conflicts/routes";
 import auditRoutes from "../../../modules/audit/routes";
 
 const router = Router();
@@ -15,6 +16,7 @@ router.use(requireCsrf);
 
 router.use("/auth", authRoutes);
 router.use("/spaces", spacesRoutes);
+router.use("/conflicts", conflictsRoutes);
 router.use("/audit", auditRoutes);
 // F02–F10 mount their routers here as built: assets, requests, reservations,
 // quotes, tasks, conflicts, approvals, dashboard.

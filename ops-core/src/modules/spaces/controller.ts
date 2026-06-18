@@ -4,8 +4,8 @@ import { spacesService } from "./service";
 
 /**
  * Spaces endpoints — the worked example of the module pattern (CORE_PATTERNS).
- * Controllers are thin: parse req, call the service, return its ServiceResponse.
- * Status + envelope + error mapping are handled by @controlledResponse.
+ * Controllers are thin: parse req, pull req.actor, call the service, return its
+ * ServiceResponse. Status + envelope + error mapping are handled by the decorator.
  */
 export class SpacesController {
   @controlledResponse("get")
@@ -18,13 +18,18 @@ export class SpacesController {
     });
   }
 
+  @controlledResponse("get")
+  static async availability(req: Request, _res: Response) {
+    return spacesService.availabilityFor(req.params.id as string, req.query.start as string, req.query.end as string);
+  }
+
   @controlledResponse("post")
   static async create(req: Request, _res: Response) {
-    return spacesService.create(req.body);
+    return spacesService.create(req.actor!, req.body);
   }
 
   @controlledResponse("patch")
   static async update(req: Request, _res: Response) {
-    return spacesService.update(req.params.id as string, req.body);
+    return spacesService.update(req.actor!, req.params.id as string, req.body);
   }
 }

@@ -1,13 +1,13 @@
 ---
 id: F02
 name: Spaces
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F02 — Tasks
 
 ### F02-T01 — Space model + migration (capacities JSON, buffers)
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -16,7 +16,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped the model complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F02-T02 — Spaces service + CRUD (OPS+) + validators + audit
-- Status: not_started
+- Status: done
 - Depends on: F02-T01, F01-T05
 - Estimate: 0.5d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - `PATCH` on a missing id → `404 not_found`; tsc clean; vitest passing.
 
 ### F02-T03 — GET /spaces match+filter (capacities[layout] ≥ minCapacity)
-- Status: not_started
+- Status: done
 - Depends on: F02-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -38,7 +38,7 @@ last_updated: 2026-06-18
   - Test: a 180-seat THEATER query returns only spaces seating ≥180 in theater and excludes banquet-only smaller rooms.
 
 ### F02-T04 — availability annotation on GET /spaces when start&end supplied
-- Status: not_started
+- Status: done
 - Depends on: F02-T03, F05-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -48,7 +48,7 @@ last_updated: 2026-06-18
   - Test: a space with a confirmed reservation in the window reports `available: false`; the same space queried for a free window reports `available: true`.
 
 ### F02-T05 — Spaces unit + route tests
-- Status: not_started
+- Status: done
 - Depends on: F02-T03
 - Estimate: 0.25d
 - Acceptance:

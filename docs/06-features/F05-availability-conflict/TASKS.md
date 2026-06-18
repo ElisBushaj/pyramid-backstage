@@ -1,13 +1,13 @@
 ---
 id: F05
 name: Availability & Conflict Engine
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F05 — Tasks
 
 ### F05-T01 — time/buffer utils + half-open overlap + effectiveWindow + unit tests
-- Status: not_started
+- Status: done
 - Depends on: F00-T03
 - Estimate: 0.25d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F05-T02 — space availability service (buffer-aware)
-- Status: not_started
+- Status: done
 - Depends on: F05-T01, F06-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -28,7 +28,7 @@ last_updated: 2026-06-18
   - Unit test: a space with an overlapping confirmed reservation → `available:false` with the right `conflictingRequestIds`; a free window → `available:true`.
 
 ### F05-T03 — asset availability service (total − Σ overlapping HELD|CONFIRMED holds, single grouped query)
-- Status: not_started
+- Status: done
 - Depends on: F05-T01, F06-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -39,7 +39,7 @@ last_updated: 2026-06-18
   - Unit test: with 310 of 400 chairs held overlapping the window → `90`; a non-overlapping hold does not reduce availability; two overlapping holds sum correctly.
 
 ### F05-T04 — detectConflicts → SPACE_DOUBLE_BOOKED|ASSET_OVERALLOCATED|SETUP_WINDOW_OVERLAP
-- Status: not_started
+- Status: done
 - Depends on: F05-T02, F05-T03
 - Estimate: 0.75d
 - Acceptance:
@@ -51,7 +51,7 @@ last_updated: 2026-06-18
   - Unit tests: each type fires exactly when it should and not otherwise; no false positive on touching half-open boundaries.
 
 ### F05-T05 — GET /conflicts + GET /spaces/:id/availability
-- Status: not_started
+- Status: done
 - Depends on: F05-T04
 - Estimate: 0.5d
 - Acceptance:
@@ -61,7 +61,7 @@ last_updated: 2026-06-18
   - Test: a space with an overlapping reservation yields a `SPACE_DOUBLE_BOOKED` from `/conflicts` and `available:false` from `/spaces/:id/availability`; a free window yields no conflict and `available:true`.
 
 ### F05-T06 — property tests (random overlaps never over-allocate / never double-book; half-open boundaries)
-- Status: not_started
+- Status: done
 - Depends on: F05-T04
 - Estimate: 0.5d
 - Acceptance:
