@@ -1,13 +1,13 @@
 ---
 id: F06
 name: Reservations
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F06 — Tasks
 
 ### F06-T01 — Reservation + ReservationAsset models + migration (effectiveStart/End, expiresAt)
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped these complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F06-T02 — atomic hold: serializable tx + row locks, re-validate via detectConflicts, 409 {conflicts}, audit + outbox
-- Status: not_started
+- Status: done
 - Depends on: F05-T04, F06-T01, F09-T02
 - Estimate: 1d
 - Acceptance:
@@ -28,7 +28,7 @@ last_updated: 2026-06-18
   - Returns `ServiceResponse<Reservation>` (201); tsc clean; unit + integration tests pass.
 
 ### F06-T03 — idempotency middleware (Redis, 24h, key-mismatch 409) on all mutations
-- Status: not_started
+- Status: done
 - Depends on: F00-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -39,7 +39,7 @@ last_updated: 2026-06-18
   - Unit/integration test: double-submit returns one effect + the original body; a body-mismatch replay → `409`.
 
 ### F06-T04 — confirm/release transitions (idempotent; invalid → 409)
-- Status: not_started
+- Status: done
 - Depends on: F06-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -50,7 +50,7 @@ last_updated: 2026-06-18
   - Both require `Idempotency-Key`; an unknown id → `404`; tsc clean; vitest passing.
 
 ### F06-T05 — HELD expiry reaper + check-on-read (no inventory leak)
-- Status: not_started
+- Status: done
 - Depends on: F06-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -60,7 +60,7 @@ last_updated: 2026-06-18
   - Test: a hold past `expiresAt` no longer reduces `availableQuantity` (check-on-read) and is flipped to `RELEASED` by the reaper; inventory returns to full.
 
 ### F06-T06 — concurrency integration test (two parallel holds for one scarce asset → exactly one wins)
-- Status: not_started
+- Status: done
 - Depends on: F06-T02
 - Estimate: 0.5d
 - Acceptance:

@@ -45,3 +45,26 @@ export async function writeAudit(tx: Prisma.TransactionClient, input: AuditInput
     },
   });
 }
+
+/**
+ * Audit a system-initiated change (the HELD-expiry reaper). No human actor, so
+ * actorId is null and actorName is "system" — the one legitimate non-user actor.
+ */
+export async function writeSystemAudit(
+  tx: Prisma.TransactionClient,
+  input: Omit<AuditInput, "actor">,
+) {
+  return tx.auditEntry.create({
+    data: {
+      actorId: null,
+      actorName: "system",
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      requestId: input.requestId ?? null,
+      before: asJson(input.before),
+      after: asJson(input.after),
+      reason: input.reason ?? null,
+    },
+  });
+}
