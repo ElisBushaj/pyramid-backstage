@@ -11,6 +11,7 @@ import { requestTaskRoutes, taskRoutes } from "../../../modules/tasks/routes";
 import approvalsRoutes from "../../../modules/approvals/routes";
 import conflictsRoutes from "../../../modules/conflicts/routes";
 import auditRoutes from "../../../modules/audit/routes";
+import dashboardRoutes from "../../../modules/dashboard/routes";
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.use("/reservations", reservationsRoutes);
 router.use("/quotes", quotesRoutes);
 router.use("/conflicts", conflictsRoutes);
 router.use("/audit", auditRoutes);
+router.use("/dashboard", dashboardRoutes);
 // F02–F10 mount their routers here as built: assets, requests, reservations,
 // quotes, tasks, conflicts, approvals, dashboard.
 

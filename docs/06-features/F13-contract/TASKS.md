@@ -1,13 +1,13 @@
 ---
 id: F13
 name: Contract Finalize + Type-Sharing + E2E
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F13 — Tasks
 
 ### F13-T01 — emit ops-core types/api/* + hand-mirror to frontend/src/api/types/*
-- Status: not_started
+- Status: done
 - Depends on: F00-T07
 - Estimate: 0.5d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-18
   - Enums are `UPPER_SNAKE` and identical across both mirrors.
 
 ### F13-T02 — contract test (openapi examples validate against the TS types)
-- Status: not_started
+- Status: done
 - Depends on: F13-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - tsc clean; the test runs in CI.
 
 ### F13-T03 — end-to-end integration test: intake → match → hold → quote → tasks → approve; plus the conflict→alternatives path
-- Status: not_started
+- Status: done
 - Depends on: F10-T01, F12-T04
 - Estimate: 0.75d
 - Acceptance:
@@ -37,7 +37,7 @@ last_updated: 2026-06-18
   - The test is deterministic against the reset seed and runs in CI; tsc clean.
 
 ### F13-T04 — demo-script verification (the 4 demo beats run green)
-- Status: not_started
+- Status: done
 - Depends on: F13-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -47,7 +47,7 @@ last_updated: 2026-06-18
   - Runs in CI (or is CI-runnable); tsc clean.
 
 ### F13-T05 — GET /dashboard/stats — KPI read-model for the Command Center
-- Status: not_started
+- Status: done
 - Depends on: F04-T05, F03-T03, F06-T02
 - Estimate: 0.5d
 - Acceptance:

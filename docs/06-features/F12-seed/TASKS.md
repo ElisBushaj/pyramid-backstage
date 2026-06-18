@@ -1,13 +1,13 @@
 ---
 id: F12
 name: Seed & Demo Dataset
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F12 — Tasks
 
 ### F12-T01 — seed 4 halls (Blue/Orange/Green/Yellow) + transitional areas with capacities + buffers
-- Status: not_started
+- Status: done
 - Depends on: F02-T01
 - Estimate: 0.25d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-18
   - Re-running after reset reproduces the same spaces deterministically (stable ids); enums + money conform to the contract.
 
 ### F12-T02 — seed ~6 asset lines with realistic counts (chairs 400, tables 80, mics 12, screens 6, projectors 6, stage 10)
-- Status: not_started
+- Status: done
 - Depends on: F03-T01
 - Estimate: 0.25d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - Deterministic ids; conforms to `docs/02-domain/ASSETS.md`.
 
 ### F12-T03 — seed staff users (one per role: ADMIN/MANAGER/OPS/VIEWER)
-- Status: not_started
+- Status: done
 - Depends on: F01-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -37,7 +37,7 @@ last_updated: 2026-06-18
   - Re-running after reset reproduces the same users deterministically.
 
 ### F12-T04 — seed 2-3 events + a DELIBERATE planted conflict + reset script
-- Status: not_started
+- Status: done
 - Depends on: F06-T02
 - Estimate: 0.5d
 - Acceptance:
