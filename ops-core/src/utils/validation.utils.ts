@@ -31,10 +31,12 @@ export const ValidationHelpers = {
     return field(loc, name).optional().isInt({ min }).withMessage("validation.min").toInt();
   },
   email(name: string, loc: Loc = "body"): ValidationChain {
-    return field(loc, name).isEmail().withMessage("validation.email").normalizeEmail();
+    // Lowercase only — avoid normalizeEmail's gmail dot-stripping so the stored
+    // address and the login address always match.
+    return field(loc, name).isEmail().withMessage("validation.email").customSanitizer((v: string) => String(v).trim().toLowerCase());
   },
   optionalEmail(name: string, loc: Loc = "body"): ValidationChain {
-    return field(loc, name).optional({ values: "null" }).isEmail().withMessage("validation.email");
+    return field(loc, name).optional({ values: "null" }).isEmail().withMessage("validation.email").customSanitizer((v: string) => String(v).trim().toLowerCase());
   },
   enumOf(name: string, values: readonly string[], loc: Loc = "body"): ValidationChain {
     return field(loc, name).isString().bail().isIn(values as string[]).withMessage("validation.enum");

@@ -1,13 +1,13 @@
 ---
 id: F09
 name: Audit & Ledger
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F09 — Tasks
 
 ### F09-T01 — AuditEntry model + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-18
   - `at` defaults to `now()` (UTC); there is no `updatedAt`/`deletedAt` — the table is append-only by shape.
 
 ### F09-T02 — audit writer helper (writes inside the caller's transaction)
-- Status: not_started
+- Status: done
 - Depends on: F09-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -28,7 +28,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F09-T03 — GET /audit?requestId&entityType
-- Status: not_started
+- Status: done
 - Depends on: F09-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -39,7 +39,7 @@ last_updated: 2026-06-18
   - Test: seeded entries are returned filtered + ordered correctly for each query-param combination.
 
 ### F09-T04 — audit tests (actor recorded, before/after diff, append-only)
-- Status: not_started
+- Status: done
 - Depends on: F09-T03
 - Estimate: 0.25d
 - Acceptance:

@@ -10,8 +10,11 @@ const statusFor: Record<HttpVerb, number> = { get: 200, post: 201, patch: 200, d
  * Decorator for controller methods. The method returns a ServiceResponse<T>
  * (or raw data); this layer localizes the message, sets the status, and maps
  * any thrown APIError onto the error contract. Controllers never touch `res`.
+ * Pass `statusOverride` for the cases the verb default is wrong (e.g. a POST
+ * that returns 200 rather than 201 — login/logout/approve/confirm).
  */
-export function controlledResponse(verb: HttpVerb): MethodDecorator {
+export function controlledResponse(verb: HttpVerb, statusOverride?: number): MethodDecorator {
+  const status = statusOverride ?? statusFor[verb];
   return (_t, _k, descriptor: PropertyDescriptor) => {
     const original = descriptor.value;
     descriptor.value = async function (req: Request, res: Response, next: NextFunction) {
@@ -21,9 +24,9 @@ export function controlledResponse(verb: HttpVerb): MethodDecorator {
         const locale: Locale = req.locale ?? "en";
         if (result && typeof result === "object" && "messageKey" in result) {
           const r = result as ServiceResponse<unknown>;
-          res.status(statusFor[verb]).json({ ...r, message: r.message || translate(r.messageKey, locale) });
+          res.status(status).json({ ...r, message: r.message || translate(r.messageKey, locale) });
         } else {
-          res.status(statusFor[verb]).json(result);
+          res.status(status).json(result);
         }
       } catch (err) {
         formatError(err, req, res, next);

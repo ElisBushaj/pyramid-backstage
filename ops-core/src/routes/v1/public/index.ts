@@ -1,8 +1,9 @@
 import { Router } from "express";
+import authPublicRoutes from "../../../modules/auth/public.routes";
 
 const router = Router();
 
-// Unauthenticated routes. F01 mounts /auth/login here.
-// router.use("/auth", authPublicRoutes);
+// Unauthenticated routes.
+router.use("/auth", authPublicRoutes);
 
 export default router;

@@ -1,13 +1,13 @@
 ---
 id: F01
 name: Auth & RBAC
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F01 — Tasks
 
 ### F01-T01 — User + Session models + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -16,7 +16,7 @@ last_updated: 2026-06-18
   - `prisma generate` produces a client tsc accepts; the `Role` enum matches `openapi.yaml` (`ADMIN | MANAGER | OPS | VIEWER`).
 
 ### F01-T02 — argon2id hashing + create-admin script
-- Status: not_started
+- Status: done
 - Depends on: F01-T01
 - Estimate: 0.25d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - tsc clean; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F01-T03 — login/logout + httpOnly signed cookie session + server-side session store
-- Status: not_started
+- Status: done
 - Depends on: F01-T02
 - Estimate: 0.75d
 - Acceptance:
@@ -38,7 +38,7 @@ last_updated: 2026-06-18
   - Vitest integration test (real Postgres) covers login-happy → cookie set → logout → session gone.
 
 ### F01-T04 — requireAuth middleware + req.actor + GET /auth/me
-- Status: not_started
+- Status: done
 - Depends on: F01-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -49,7 +49,7 @@ last_updated: 2026-06-18
   - Test: authed request populates `req.actor`; unauthed/expired request → `401`.
 
 ### F01-T05 — requireRole/requirePermission (ADMIN/MANAGER/OPS/VIEWER)
-- Status: not_started
+- Status: done
 - Depends on: F01-T04
 - Estimate: 0.5d
 - Acceptance:
@@ -60,7 +60,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F01-T06 — CSRF protection + login rate-limit
-- Status: not_started
+- Status: done
 - Depends on: F01-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -70,7 +70,7 @@ last_updated: 2026-06-18
   - Test: N+1 rapid failed logins return `429`; a request without a CSRF token to a mutation is rejected.
 
 ### F01-T07 — Admin users CRUD (/admin/users, ADMIN only)
-- Status: not_started
+- Status: done
 - Depends on: F01-T05
 - Estimate: 0.5d
 - Acceptance:
@@ -81,7 +81,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F01-T08 — Auth tests (login happy/unhappy, role gates, session expiry)
-- Status: not_started
+- Status: done
 - Depends on: F01-T05, F01-T06
 - Estimate: 0.5d
 - Acceptance:
