@@ -1,13 +1,13 @@
 ---
 id: F11
 name: Events / NATS
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F11 — Tasks
 
 ### F11-T01 — OutboxEvent model + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -16,7 +16,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped the model complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F11-T02 — NATS connect + JetStream config (config/nats) + NATS_ENABLED guard
-- Status: not_started
+- Status: done
 - Depends on: F00-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -26,7 +26,7 @@ last_updated: 2026-06-18
   - tsc clean; conforms to `docs/04-api/CORE_PATTERNS.md`; ADR-0002 honoured (NATS is the optional live layer).
 
 ### F11-T03 — outbox relay (poll unpublished → publish → mark publishedAt; at-least-once)
-- Status: not_started
+- Status: done
 - Depends on: F11-T01, F11-T02
 - Estimate: 0.75d
 - Acceptance:
@@ -37,7 +37,7 @@ last_updated: 2026-06-18
   - Integration test: insert an unpublished `OutboxEvent`, run one relay pass, assert it is published and `publishedAt` is set.
 
 ### F11-T04 — emit domain events (request.created, reservation.held/confirmed, conflict.detected, request.approved, inventory.low)
-- Status: not_started
+- Status: done
 - Depends on: F11-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -48,7 +48,7 @@ last_updated: 2026-06-18
   - Test: performing each mutation leaves exactly one matching `OutboxEvent` row with the correct subject and payload.
 
 ### F11-T05 — degrade-to-REST: system fully works with NATS_ENABLED=false
-- Status: not_started
+- Status: done
 - Depends on: F11-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -58,7 +58,7 @@ last_updated: 2026-06-18
   - Test: run the core flow with `NATS_ENABLED=false` and assert every step succeeds and `/ready` is 200.
 
 ### F11-T06 — events integration test (outbox → consumer receives)
-- Status: not_started
+- Status: done
 - Depends on: F11-T04
 - Estimate: 0.5d
 - Acceptance:

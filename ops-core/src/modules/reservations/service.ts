@@ -7,6 +7,7 @@ import type { Reservation, ReservationInput } from "../../types/api/reservations
 import type { Conflict } from "../../types/api/conflicts";
 import { effectiveWindow, isValidRange } from "../../utils/time";
 import { detectConflicts } from "../../services/conflict";
+import { assetAvailability } from "../../services/availability";
 import { writeAudit, writeSystemAudit } from "../audit/audit.writer";
 import { writeOutbox } from "../events/outbox.writer";
 import { reservationToDto, type ReservationRow } from "./mapper";
@@ -114,6 +115,7 @@ class ReservationsService {
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
+        await this.emitInventoryLow(requestedAssets, start, end);
         return ok(reservationToDto(created), "reservation.held");
       } catch (e) {
         if (e instanceof HoldConflict) {
@@ -132,6 +134,21 @@ class ReservationsService {
 
   private async emitConflictDetected(spaceId: string, requestId: string, conflicts: Conflict[], window: { start: string; end: string }) {
     await prisma.$transaction((tx) => writeOutbox(tx, "conflict.detected", { requestId, spaceId, window, conflicts }));
+  }
+
+  /** Emit inventory.low when a held asset's remaining availability is ≤ 10% of stock. */
+  private async emitInventoryLow(requestedAssets: Array<{ assetId: string; quantity: number }>, start: Date, end: Date) {
+    if (!requestedAssets.length) return;
+    const assets = await prisma.asset.findMany({ where: { id: { in: requestedAssets.map((a) => a.assetId) } } });
+    const avail = await assetAvailability(assets, start, end);
+    for (const a of assets) {
+      const available = avail.get(a.id) ?? 0;
+      if (available <= Math.ceil(a.totalQuantity * 0.1)) {
+        await prisma.$transaction((tx) =>
+          writeOutbox(tx, "inventory.low", { assetId: a.id, name: a.name, available, total: a.totalQuantity, window: { start: start.toISOString(), end: end.toISOString() } }),
+        ).catch(() => undefined);
+      }
+    }
   }
 
   async confirm(actor: Actor, id: string): Promise<ServiceResponse<Reservation>> {
