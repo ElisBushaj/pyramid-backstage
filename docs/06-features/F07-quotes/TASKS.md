@@ -1,13 +1,13 @@
 ---
 id: F07
 name: Quotes
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F07 — Tasks
 
 ### F07-T01 — Quote model + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -16,7 +16,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped the model complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F07-T02 — pricing engine (day-rate + assets + 20% VAT; server-computed total; integer minor units)
-- Status: not_started
+- Status: done
 - Depends on: F07-T01, F02-T01, F03-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - tsc clean; vitest passing.
 
 ### F07-T03 — POST /quotes + validators
-- Status: not_started
+- Status: done
 - Depends on: F07-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -37,7 +37,7 @@ last_updated: 2026-06-18
   - Controller uses `@controlledResponse`; tsc clean; vitest passing.
 
 ### F07-T04 — versioning + expiry
-- Status: not_started
+- Status: done
 - Depends on: F07-T03
 - Estimate: 0.25d
 - Acceptance:
@@ -47,7 +47,7 @@ last_updated: 2026-06-18
   - Test: regenerate bumps the version and keeps the old one discoverable; an expired quote rejects acceptance.
 
 ### F07-T05 — quote tests (VAT math, total recompute ignores client total)
-- Status: not_started
+- Status: done
 - Depends on: F07-T03
 - Estimate: 0.25d
 - Acceptance:

@@ -348,6 +348,27 @@ paths:
                       data: { type: array, items: { $ref: "#/components/schemas/Task" } }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /private/tasks/{id}:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    patch:
+      tags: [tasks]
+      summary: Update a task's assignee / status (audited)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/TaskUpdateInput" } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/Task" } }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /private/requests/{id}/approve:
     parameters: [{ $ref: "#/components/parameters/PathId" }]
     post:
@@ -879,6 +900,11 @@ components:
         owner: { type: string }
         assigneeId: { type: string }
         dueOffsetHours: { type: integer }
+    TaskUpdateInput:
+      type: object
+      properties:
+        assigneeId: { type: string, nullable: true }
+        status: { $ref: "#/components/schemas/TaskStatus" }
 
     # ── Conflict ──────────────────────────────────────────────────────────────
     Conflict:

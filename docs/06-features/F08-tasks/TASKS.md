@@ -1,13 +1,13 @@
 ---
 id: F08
 name: Tasks
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # F08 — Tasks
 
 ### F08-T01 — Task model + migration
-- Status: not_started
+- Status: done
 - Depends on: F00-T06
 - Estimate: 0.25d
 - Acceptance:
@@ -16,7 +16,7 @@ last_updated: 2026-06-18
   - If F00-T06 already shipped the model complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
 ### F08-T02 — POST/GET /requests/:id/tasks + dueAt computed from reserved window
-- Status: not_started
+- Status: done
 - Depends on: F08-T01, F06-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-18
   - Controllers use `@controlledResponse`; tsc clean; vitest passing.
 
 ### F08-T03 — assignment + status PATCH + audit
-- Status: not_started
+- Status: done
 - Depends on: F08-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -37,7 +37,7 @@ last_updated: 2026-06-18
   - Returns `ServiceResponse<Task>`; tsc clean; vitest passing.
 
 ### F08-T04 — tasks tests
-- Status: not_started
+- Status: done
 - Depends on: F08-T02
 - Estimate: 0.25d
 - Acceptance:
