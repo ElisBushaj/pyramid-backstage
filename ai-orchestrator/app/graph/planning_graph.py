@@ -1,38 +1,27 @@
 """Deterministic planning graph — a FIXED DAG (LangGraph ``StateGraph``).
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║ SCAFFOLD ONLY — Alvin's lane.                                                  ║
+║ PHASE A — Alvin's lane. The deterministic spine is now IMPLEMENTED.            ║
 ║                                                                               ║
-║ The GRAPH WIRING below is COMPLETE and CORRECT. It encodes the                ║
-║ deterministic-DAG requirement (AI_ORCHESTRATION.md non-negotiable #1): the    ║
-║ planner is a fixed pipeline of named nodes, NOT an open-ended ReAct agent     ║
-║ that re-decides tool order each run. Determinism is what makes the demo work  ║
-║ every time on stage.                                                          ║
+║ The wiring is unchanged (the topology IS the spec — AI_ORCHESTRATION.md        ║
+║ non-negotiable #1: a fixed pipeline, not an open ReAct loop). Each node body   ║
+║ now calls the corresponding ``ops_core_client`` tool and threads the real      ║
+║ ops-core responses through state. No node invents data; the narrative is       ║
+║ composed AROUND injected values (non-negotiable #2).                           ║
 ║                                                                               ║
-║ Each node BODY is a stub: a typed function with a docstring describing what   ║
-║ to implement and a `raise NotImplementedError(...)` (or a TODO passthrough)   ║
-║ pointing at docs/06-features/A00-ai-orchestrator. Implement the bodies;       ║
-║ DO NOT change the wiring (the topology IS the spec).                          ║
+║ Phase A intentionally uses NO LLM and NO RAG: ``parse_intake`` takes a         ║
+║ structured ``EventRequestInput`` (the NL parser lands in Phase B) and          ║
+║ ``generate_tasks`` uses a rule-based template (RAG templates land in Phase C). ║
+║ Asset selection + bundles are deliberately simple here.                        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 The DAG (linear spine + one conditional branch):
 
-    parse_intake
-        → match_space
-        → check_availability
-        → hold_reservation ──(conflict)──► alternatives ─┐
-        → generate_quote                                  │
-        → generate_tasks                                  │
-        → detect_conflicts                                │
-        → assemble_plan ◄─────────────────────────────────┘
-        → END
-
-``hold_reservation`` is the branch point: on an ops-core 409 conflict
-(``OpsCoreConflict``) the conditional edge routes to ``alternatives`` (which
-surfaces unused ``preferredDates`` windows / other spaces) and then jumps
-straight to ``assemble_plan`` with ``feasible=False``. The happy path continues
-down the spine. The conflict branch keys off ``409 {conflicts}`` — deterministic,
-no guessing (non-negotiable #5).
+    parse_intake → match_space → check_availability → hold_reservation
+    hold_reservation ─┬─(no conflict)─► generate_quote → generate_tasks
+                      │                   → detect_conflicts → assemble_plan
+                      └─(conflict)──────► alternatives ──────► assemble_plan
+    assemble_plan → END
 """
 
 from __future__ import annotations
@@ -41,17 +30,20 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from ..ops_core_client import OpsCoreClient
+from ..ops_core_client import OpsCoreClient, OpsCoreConflict
 from ..schemas import (
     Conflict,
+    DateRange,
+    EventRequest,
     EventRequestInput,
     Quote,
     Reservation,
+    ReservedAsset,
+    ReservationInput,
     Space,
     Task,
+    TaskInput,
 )
-
-_A00 = "Alvin: implement {node} — see docs/06-features/A00-ai-orchestrator"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -63,11 +55,9 @@ class PlanState(TypedDict, total=False):
     Inputs (set before invoking the graph):
       ops:          the OpsCoreClient (injected tool handle).
       request_id:   an existing EventRequest id, OR
-      intake:       a parsed EventRequestInput (when starting from NL/structured).
+      intake:       a parsed EventRequestInput (when starting from structured intake).
 
-    Filled in as the DAG runs:
-      space, reservation, quote, tasks, conflicts, alternatives, feasible,
-      narrative — these become the OperationalPlan in ``assemble_plan``.
+    Filled in as the DAG runs.
     """
 
     # ── injected ─────────────────────────────────────────────────────────────
@@ -75,8 +65,16 @@ class PlanState(TypedDict, total=False):
     request_id: str
     intake: EventRequestInput | None
 
+    # ── hydrated from the request ──────────────────────────────────────────────
+    request_obj: EventRequest | None
+    windows: list[DateRange]
+    chosen_window: DateRange | None
+    attendees: int | None
+    layout: str | None
+    av_needed: bool
+    reserved_assets: list[ReservedAsset]
+
     # ── working / outputs ────────────────────────────────────────────────────
-    chosen_window: dict[str, str] | None  # the preferredDates entry being tried
     space: Space | None
     reservation: Reservation | None
     quote: Quote | None
@@ -88,126 +86,256 @@ class PlanState(TypedDict, total=False):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# NODES — typed stubs. Implement each body; keep the signatures + names.
-# Each is ``async def node(state) -> partial-state-update``.
+# NODES — each ``async def node(state) -> partial-state-update``.
 # ═════════════════════════════════════════════════════════════════════════════
 async def parse_intake(state: PlanState) -> dict[str, Any]:
-    """Node ``parse_intake`` — normalize the request into a structured shape.
+    """Normalize the request into structured state.
 
-    TODO (A00): If ``state['intake']`` is set, validate it against
-    ``EventRequestInput`` (one retry + canned fallback for demo inputs; low
-    temperature — non-negotiable #4) and ``ops.create_request(...)`` to mint an
-    EventRequest, capturing ``request_id``. If ``state['request_id']`` is already
-    set, fetch the aggregate to hydrate. Pick the first ``preferredDates`` window
-    into ``chosen_window``.
+    Phase A: if ``intake`` is set, create the request in ops-core; otherwise
+    hydrate from an existing ``request_id``. Pick the first preferred window.
+    (Phase B replaces the structured-intake assumption with the NL parser.)
     """
-    raise NotImplementedError(_A00.format(node="parse_intake"))
+    ops = state["ops"]
+    intake = state.get("intake")
+    if intake is not None:
+        req = await ops.create_request(intake)
+    else:
+        agg = await ops.get_request_aggregate(state["request_id"])
+        req = agg.request
+        if req is None:
+            raise ValueError(f"request {state['request_id']} not found")
+
+    windows = req.preferredDates or []
+    requirements = req.requirements
+    return {
+        "request_id": req.id,
+        "request_obj": req,
+        "windows": windows,
+        "chosen_window": windows[0] if windows else None,
+        "attendees": req.expectedAttendees,
+        "layout": requirements.layout if requirements else None,
+        "av_needed": bool(requirements.avNeeded) if requirements else False,
+    }
 
 
 async def match_space(state: PlanState) -> dict[str, Any]:
-    """Node ``match_space`` — choose the best-fit space for the request.
+    """Choose the best-fit space for the request window.
 
-    TODO (A00): Call ``ops.match_spaces(min_capacity=..., layout=...,
-    start=..., end=...)`` for ``chosen_window`` and pick the first feasible
-    Space (RAG can rank on features/past events). Store it in ``state['space']``.
+    Phase A: ask ops-core for spaces matching capacity + layout in the window,
+    prefer one flagged available. (RAG ranking + space bundles land in Phase C.)
     """
-    raise NotImplementedError(_A00.format(node="match_space"))
+    win = state.get("chosen_window")
+    if win is None:
+        return {"feasible": False}
+
+    spaces = await state["ops"].match_spaces(
+        min_capacity=state.get("attendees"),
+        layout=state.get("layout"),
+        start=win.start,
+        end=win.end,
+    )
+    chosen = next((s for s in spaces if s.available is not False), None)
+    if chosen is None and spaces:
+        # No flagged-free match: take the first fit anyway; the atomic hold will
+        # surface the real conflict (TOCTOU-safe — the write re-checks).
+        chosen = spaces[0]
+    return {"space": chosen}
 
 
 async def check_availability(state: PlanState) -> dict[str, Any]:
-    """Node ``check_availability`` — confirm the space + assets for the window.
+    """Pre-flight read + asset selection for the window.
 
-    TODO (A00): Call ``ops.check_space_availability(...)`` and
-    ``ops.check_assets(...)`` (buffer-aware) for ``chosen_window``. This is a
-    pre-flight read; the authoritative re-check happens atomically inside
-    ``hold_reservation`` (RESERVATIONS.md — the write re-validates, killing the
-    TOCTOU race). If this read already shows no capacity, the planner may try the
-    next ``preferredDates`` window before attempting a hold.
+    Phase A: pick concrete assets to reserve — seating = attendees, plus 2 mics
+    when AV is needed — from live windowed inventory. The authoritative re-check
+    happens atomically inside ``hold_reservation``.
     """
-    raise NotImplementedError(_A00.format(node="check_availability"))
+    ops = state["ops"]
+    space = state.get("space")
+    win = state.get("chosen_window")
+    if space is None or win is None:
+        return {}
+
+    reserved: list[ReservedAsset] = []
+    attendees = state.get("attendees") or 0
+    if attendees > 0:
+        seating = await ops.check_assets(asset_type="SEATING", start=win.start, end=win.end)
+        if seating:
+            reserved.append(ReservedAsset(assetId=seating[0].id, quantity=attendees))
+    if state.get("av_needed"):
+        mics = await ops.check_assets(asset_type="MICROPHONE", start=win.start, end=win.end)
+        if mics:
+            reserved.append(ReservedAsset(assetId=mics[0].id, quantity=2))
+    return {"reserved_assets": reserved}
 
 
 async def hold_reservation(state: PlanState) -> dict[str, Any]:
-    """Node ``hold_reservation`` — atomically hold the space + assets.
+    """Atomically hold space + assets. THE BRANCH POINT.
 
-    THE BRANCH POINT. TODO (A00): Call ``ops.hold_reservation(ReservationInput)``.
-      • Success → store ``state['reservation']`` (HELD, with expiresAt) and let
-        the spine continue to ``generate_quote``.
-      • ``OpsCoreConflict`` → catch it, write ``state['conflicts'] =
-        exc.conflicts`` and ``state['feasible'] = False``; the conditional edge
-        (``_after_hold``) then routes to ``alternatives``. DO catch the conflict
-        HERE so the branch can read ``conflicts`` off state.
+    Success → ``reservation`` + ``feasible=True`` (spine continues). On
+    ``OpsCoreConflict`` (ops-core 409) → record ``conflicts`` + ``feasible=False``
+    so ``_after_hold`` routes to ``alternatives`` (non-negotiable #5).
     """
-    raise NotImplementedError(_A00.format(node="hold_reservation"))
+    space = state.get("space")
+    win = state.get("chosen_window")
+    if space is None or win is None:
+        return {"feasible": False, "conflicts": []}
+
+    body = ReservationInput(
+        requestId=state["request_id"],
+        spaceId=space.id,
+        dateRange=win,
+        assets=state.get("reserved_assets", []),
+        holdMinutes=30,
+    )
+    try:
+        reservation = await state["ops"].hold_reservation(body)
+    except OpsCoreConflict as exc:
+        return {"feasible": False, "conflicts": exc.conflicts}
+    return {"feasible": True, "reservation": reservation}
 
 
 async def generate_quote(state: PlanState) -> dict[str, Any]:
-    """Node ``generate_quote`` — produce a priced quote (server-computed total).
-
-    TODO (A00): Call ``ops.generate_quote(request_id=..., reservation_id=...)``.
-    Store ``state['quote']``. Never compute the total client-side — ops-core
-    owns ``netMinor``/``vatMinor``/``totalMinor`` (CONTRACT.md rule #6).
-    """
-    raise NotImplementedError(_A00.format(node="generate_quote"))
+    """Produce a priced quote — ops-core owns net/VAT/total (CONTRACT.md rule #6)."""
+    reservation = state.get("reservation")
+    if reservation is None:
+        return {}
+    quote = await state["ops"].generate_quote(
+        request_id=state["request_id"], reservation_id=reservation.id
+    )
+    return {"quote": quote}
 
 
 async def generate_tasks(state: PlanState) -> dict[str, Any]:
-    """Node ``generate_tasks`` — derive + persist a setup/teardown task list.
+    """Derive + persist a SETUP/TEARDOWN task list.
 
-    TODO (A00): Build a SETUP/TEARDOWN ``TaskInput[]`` (RAG setup templates keyed
-    on space + layout + attendees), then ``ops.persist_tasks(request_id, tasks)``.
-    Store the returned ``state['tasks']`` (AI-generated, human-owned).
+    Phase A: rule-based template. (Phase C keys templates on RAG setup templates
+    by space + layout + size.)
     """
-    raise NotImplementedError(_A00.format(node="generate_tasks"))
+    reservation = state.get("reservation")
+    if reservation is None:
+        return {}
+
+    layout = state.get("layout") or "FLEXIBLE"
+    attendees = state.get("attendees") or 0
+    plan: list[TaskInput] = [
+        TaskInput(
+            title=f"Set up {layout} seating ({attendees})",
+            phase="SETUP",
+            owner="ops_team",
+            dueOffsetHours=-4,
+        )
+    ]
+    if state.get("av_needed"):
+        plan.append(
+            TaskInput(title="AV + sound check", phase="SETUP", owner="av_team", dueOffsetHours=-2)
+        )
+    plan.append(
+        TaskInput(title="Strike seating + clean", phase="TEARDOWN", owner="ops_team", dueOffsetHours=2)
+    )
+    tasks = await state["ops"].persist_tasks(state["request_id"], plan)
+    return {"tasks": tasks}
 
 
 async def detect_conflicts(state: PlanState) -> dict[str, Any]:
-    """Node ``detect_conflicts`` — final proactive conflict sweep (happy path).
+    """Final proactive sweep on the happy path (belt-and-suspenders).
 
-    TODO (A00): Call ``ops.detect_conflicts(space_id=..., start=..., end=...)``
-    for the reserved window as a belt-and-suspenders check before assembling the
-    plan. Append anything found to ``state['conflicts']`` (normally empty here —
-    the hold already succeeded). Leave ``feasible`` True unless something fires.
+    Excludes the reservation we just created (otherwise ops-core reports our own
+    hold as a self-conflict).
     """
-    raise NotImplementedError(_A00.format(node="detect_conflicts"))
+    space = state.get("space")
+    win = state.get("chosen_window")
+    if not state.get("feasible") or space is None or win is None:
+        return {}
+
+    found = await state["ops"].detect_conflicts(space_id=space.id, start=win.start, end=win.end)
+    rid = state["request_id"]
+    found = [c for c in found if rid not in (c.conflictingRequestIds or [])]
+    if found:
+        return {"conflicts": state.get("conflicts", []) + found}
+    return {}
 
 
 async def alternatives(state: PlanState) -> dict[str, Any]:
-    """Node ``alternatives`` — build the fallback story when a hold conflicts.
+    """Build the fallback story when a hold conflicts.
 
-    TODO (A00): Reached only via the conditional edge from ``hold_reservation``
-    on conflict. Populate ``state['alternatives']`` from the UNUSED
-    ``preferredDates`` windows and/or other matching spaces ("Blue is taken on
-    the 22nd, but it's free on your alternate date, the 24th"). Keep
-    ``feasible=False`` and the ``conflicts`` already on state. Flows to
-    ``assemble_plan``.
+    Keyed off the conflict already on state. Offers unused preferred windows and
+    any other space free in the chosen window — grounded, not guessed.
     """
-    raise NotImplementedError(_A00.format(node="alternatives"))
+    ops = state["ops"]
+    alts: list[dict[str, Any]] = []
+
+    for w in state.get("windows", [])[1:]:
+        alts.append(
+            {
+                "type": "ALTERNATE_WINDOW",
+                "dateRange": {"start": w.start, "end": w.end},
+                "detail": f"Your alternate date {w.start[:10]} may be free.",
+            }
+        )
+
+    win = state.get("chosen_window")
+    booked_id = state["space"].id if state.get("space") else None
+    if win is not None:
+        spaces = await ops.match_spaces(
+            min_capacity=state.get("attendees"),
+            layout=state.get("layout"),
+            start=win.start,
+            end=win.end,
+        )
+        for s in spaces:
+            if s.id != booked_id and s.available is True:
+                alts.append(
+                    {
+                        "type": "ALTERNATE_SPACE",
+                        "spaceId": s.id,
+                        "spaceName": s.name,
+                        "detail": f"{s.name} is free for your window and fits {state.get('attendees')}.",
+                    }
+                )
+
+    return {"alternatives": alts, "feasible": False}
 
 
 async def assemble_plan(state: PlanState) -> dict[str, Any]:
-    """Node ``assemble_plan`` — compose the OperationalPlan + narrative.
+    """Compose the narrative AROUND injected values — never free-generate a number."""
+    feasible = bool(state.get("feasible"))
+    space = state.get("space")
+    quote = state.get("quote")
+    tasks = state.get("tasks", [])
+    conflicts = state.get("conflicts", [])
+    alts = state.get("alternatives", [])
+    win = state.get("chosen_window")
+    attendees = state.get("attendees")
+    layout = state.get("layout") or "flexible layout"
 
-    TODO (A00): Assemble the final ``OperationalPlan`` fields from state. Compose
-    the ``narrative`` prose AROUND values pulled from the structured plan —
-    NEVER free-generate a total or a count (non-negotiable #2). On the conflict
-    path, narrate the conflict + the ``alternatives``. Set ``state['narrative']``
-    (and any remaining plan fields). This is the terminal node before END.
-    """
-    raise NotImplementedError(_A00.format(node="assemble_plan"))
+    if feasible and space is not None:
+        date = win.start[:10] if win else "the requested date"
+        if quote is not None:
+            money = f"{quote.totalMinor:,} ALL incl. VAT"
+        else:
+            money = "a quote on request"
+        conflict_note = "No conflicts." if not conflicts else f"{len(conflicts)} conflict(s) flagged."
+        narrative = (
+            f"{space.name} on {date}, {layout} for {attendees}. "
+            f"{len(tasks)} setup/teardown task(s) queued. Total {money}. {conflict_note}"
+        )
+    else:
+        reason = (
+            conflicts[0].detail
+            if conflicts
+            else "No matching space or inventory for the requested window."
+        )
+        alt_txt = (" " + alts[0]["detail"]) if alts else ""
+        narrative = f"Not feasible as requested: {reason}{alt_txt}"
+
+    return {"feasible": feasible, "narrative": narrative}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Conditional edge — the conflict branch decision.
 # ═════════════════════════════════════════════════════════════════════════════
 def _after_hold(state: PlanState) -> str:
-    """Route after ``hold_reservation``.
-
-    Deterministic: if a conflict was recorded (``feasible`` False or
-    ``conflicts`` non-empty), branch to ``alternatives``; otherwise continue the
-    happy-path spine to ``generate_quote``. Keys off ``409 {conflicts}`` state —
-    no model call, no guessing (non-negotiable #5).
-    """
+    """Route after ``hold_reservation`` — deterministic, keyed off state."""
     if state.get("feasible") is False or state.get("conflicts"):
         return "alternatives"
     return "generate_quote"
@@ -217,21 +345,9 @@ def _after_hold(state: PlanState) -> str:
 # Graph builder — COMPLETE, CORRECT WIRING. (Do not change the topology.)
 # ═════════════════════════════════════════════════════════════════════════════
 def build_planning_graph() -> Any:
-    """Build + compile the deterministic planning ``StateGraph``.
-
-    Topology (fixed DAG):
-
-        parse_intake → match_space → check_availability → hold_reservation
-        hold_reservation ─┬─(no conflict)─► generate_quote → generate_tasks
-                          │                   → detect_conflicts → assemble_plan
-                          └─(conflict)──────► alternatives ──────► assemble_plan
-        assemble_plan → END
-
-    Returns the compiled graph; ``await graph.ainvoke(PlanState(...))`` runs it.
-    """
+    """Build + compile the deterministic planning ``StateGraph``."""
     g: StateGraph = StateGraph(PlanState)
 
-    # ── register the named nodes ─────────────────────────────────────────────
     g.add_node("parse_intake", parse_intake)
     g.add_node("match_space", match_space)
     g.add_node("check_availability", check_availability)
@@ -242,13 +358,11 @@ def build_planning_graph() -> Any:
     g.add_node("alternatives", alternatives)
     g.add_node("assemble_plan", assemble_plan)
 
-    # ── linear spine up to the branch point ──────────────────────────────────
     g.set_entry_point("parse_intake")
     g.add_edge("parse_intake", "match_space")
     g.add_edge("match_space", "check_availability")
     g.add_edge("check_availability", "hold_reservation")
 
-    # ── the conditional conflict branch ──────────────────────────────────────
     g.add_conditional_edges(
         "hold_reservation",
         _after_hold,
@@ -258,15 +372,10 @@ def build_planning_graph() -> Any:
         },
     )
 
-    # ── happy-path tail ──────────────────────────────────────────────────────
     g.add_edge("generate_quote", "generate_tasks")
     g.add_edge("generate_tasks", "detect_conflicts")
     g.add_edge("detect_conflicts", "assemble_plan")
-
-    # ── conflict-path tail rejoins at assemble_plan ──────────────────────────
     g.add_edge("alternatives", "assemble_plan")
-
-    # ── terminal ─────────────────────────────────────────────────────────────
     g.add_edge("assemble_plan", END)
 
     return g.compile()
