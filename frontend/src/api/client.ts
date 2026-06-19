@@ -22,6 +22,12 @@ export function setLocaleProvider(fn: () => string) {
   localeProvider = fn
 }
 
+function readCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`))
+  return match ? decodeURIComponent(match[1]!) : undefined
+}
+
 function buildUrl(path: string, query?: RequestOptions['query']): string {
   const url = `${BASE_URL}${path}`
   if (!query) return url
@@ -50,6 +56,13 @@ async function request<T>(
 
   if (opts.idempotency) {
     headers['Idempotency-Key'] = crypto.randomUUID()
+  }
+
+  // Double-submit CSRF: echo the readable pb_csrf cookie on unsafe methods
+  // (the server sets it at login — see middlewares/csrf.middleware.ts).
+  if (method !== 'GET' && method !== 'HEAD') {
+    const csrf = readCookie('pb_csrf')
+    if (csrf) headers['x-csrf-token'] = csrf
   }
 
   const response = await fetch(buildUrl(path, opts.query), {
