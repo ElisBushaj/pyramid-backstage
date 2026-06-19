@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { User, UserInput } from './types/auth'
-import type { SpaceWithAvailability, SpaceAvailability } from './types/spaces'
-import type { AssetWithAvailability } from './types/assets'
+import type { Space, SpaceInput, SpaceWithAvailability, SpaceAvailability } from './types/spaces'
+import type { Asset, AssetInput, AssetWithAvailability } from './types/assets'
 import type { EventRequest, EventRequestInput, RequestAggregate, DashboardStats } from './types/requests'
 import type { Reservation, ReservationInput } from './types/reservations'
 import type { Quote, LineItemInput } from './types/quotes'
@@ -124,6 +124,22 @@ export const useSpaceAvailability = (id?: string, start?: string, end?: string) 
 
 export const useAssets = (params: Query) =>
   useQuery({ queryKey: q('assets', params), queryFn: () => api.get<AssetWithAvailability[]>('/private/assets', { query: params }) })
+
+export function useUpdateSpace(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<SpaceInput>) => api.patch<Space>(`/private/spaces/${id}`, { body, idempotency: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: q('spaces') }),
+  })
+}
+
+export function useUpdateAsset(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<AssetInput>) => api.patch<Asset>(`/private/assets/${id}`, { body, idempotency: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: q('assets') }),
+  })
+}
 
 export const useConflicts = (params: Query, enabled = true) =>
   useQuery({ queryKey: q('conflicts', params), queryFn: () => api.get<Conflict[]>('/private/conflicts', { query: params }), enabled })

@@ -8,7 +8,9 @@ import Requests from '@/pages/Requests'
 import Intake from '@/pages/Intake'
 import RequestDetail from '@/pages/RequestDetail'
 import Spaces from '@/pages/Spaces'
+import SpaceDetail from '@/pages/SpaceDetail'
 import Inventory from '@/pages/Inventory'
+import AssetDetail from '@/pages/AssetDetail'
 import Tasks from '@/pages/Tasks'
 import Conflicts from '@/pages/Conflicts'
 import Audit from '@/pages/Audit'
@@ -32,7 +34,9 @@ export const router = createBrowserRouter([
       { path: 'requests/:id', element: <RequestDetail /> },
       { path: 'calendar', element: <Calendar /> },
       { path: 'spaces', element: <Spaces /> },
+      { path: 'spaces/:id', element: <SpaceDetail /> },
       { path: 'inventory', element: <Inventory /> },
+      { path: 'inventory/:id', element: <AssetDetail /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'conflicts', element: <Conflicts /> },
       { path: 'audit', element: <Audit /> },

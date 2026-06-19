@@ -24,6 +24,7 @@
   --text-tertiary:  #8A8F98;
   --text-inverted:  #FFFFFF;
   --text-on-accent: #FFFFFF;
+  --text-disabled:  #B8BDC6;  /* universal disabled foreground (controls) */
 
   /* ---- Border ----------------------------------------------- */
   --border-subtle: #ECEEF1;
@@ -31,10 +32,11 @@
   --border-focus:  #2F6FED;
 
   /* ---- Accent (calm blue) ----------------------------------- */
-  --accent:         #2F6FED;
-  --accent-hover:   #2A63D4;
-  --accent-pressed: #244FB0;
-  --accent-muted:   #EEF3FE;
+  --accent:          #2F6FED;
+  --accent-hover:    #2A63D4;
+  --accent-pressed:  #244FB0;
+  --accent-muted:    #EEF3FE;
+  --accent-disabled: #A8C4F5;  /* muted accent — switch "on" disabled */
 
   /* ---- Status (ops semantics, paired with subtle bg) -------- */
   --success:        #1A7F4B;
@@ -42,21 +44,34 @@
   --warning:        #9A6B00;
   --warning-subtle: #FBF3E0;
   --danger:         #C8372D;
+  --danger-hover:   #AE2F26;
+  --danger-pressed: #94271F;
   --danger-subtle:  #FBECEA;
   --info:           #2F6FED;
   --info-subtle:    #EEF3FE;
 
+  /* ---- Skeleton shimmer (sweep gradient stops) -------------- */
+  --skeleton-base:  #EEF0F3;
+  --skeleton-sheen: #F6F7F9;
+
   /* ---- Radii ------------------------------------------------ */
-  --radius-xs:   4px;
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-pill: 999px;
+  --radius-xs:      4px;
+  --radius-sm:      6px;
+  --radius-control: 8px;   /* buttons, inputs, icon-buttons, segmented track */
+  --radius-md:      10px;
+  --radius-lg:      16px;
+  --radius-pill:    999px;
 
   /* ---- Elevation -------------------------------------------- */
   --elev-flat:    none;
   --elev-raised:  0 1px 2px rgba(11, 13, 18, 0.04), 0 0 0 1px rgba(11, 13, 18, 0.06);
   --elev-overlay: 0 16px 40px -12px rgba(11, 13, 18, 0.18), 0 2px 6px rgba(11, 13, 18, 0.05), 0 0 0 1px rgba(11, 13, 18, 0.06);
+  --elev-drawer:  -16px 0 40px -12px rgba(11, 13, 18, 0.18);
+
+  /* ---- Focus rings (3px accent glow at decreasing alpha) ----- */
+  --ring-strong: 0 0 0 3px rgba(47, 111, 237, 0.35);  /* buttons */
+  --ring-medium: 0 0 0 3px rgba(47, 111, 237, 0.30);  /* toggles, icon-buttons */
+  --ring-soft:   0 0 0 3px rgba(47, 111, 237, 0.18);  /* inputs */
 
   /* ---- Motion — durations × easings ------------------------- */
   --dur-micro: 120ms;
@@ -94,6 +109,10 @@
   --text-tertiary:  #6E747E;
   --text-inverted:  #0B0D12;
   --text-on-accent: #FFFFFF;
+  --text-disabled:  #4A4F59;
+
+  --skeleton-base:  #1A1E27;
+  --skeleton-sheen: #232833;
 
   --border-subtle: #232833;
   --border-strong: #333A47;

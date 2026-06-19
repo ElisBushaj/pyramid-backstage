@@ -1,51 +1,65 @@
-import { useState } from 'react'
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router'
 import { ShieldCheck } from 'lucide-react'
-import { useConflicts, useSpaces } from '@/api/hooks'
+import { useConflicts } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Input, Select } from '@/components/ui/Input'
 import { ConflictBanner } from '@/components/command/ConflictBanner'
-import { LoadingBlock } from '@/components/ui/Feedback'
+import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 
 export default function Conflicts() {
   const t = useT()
-  const { data: spaces } = useSpaces({})
-  const [spaceId, setSpaceId] = useState('')
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
+  const navigate = useNavigate()
 
-  const ready = !!start && !!end
-  const { data: conflicts, isLoading } = useConflicts(
-    { spaceId: spaceId || undefined, start: start ? new Date(start).toISOString() : undefined, end: end ? new Date(end).toISOString() : undefined },
-    ready,
-  )
+  const { data, isLoading, isError, refetch } = useConflicts({})
+  const conflicts = data ?? []
+
+  const subtitle = useMemo(() => {
+    if (isLoading || isError) return undefined
+    const n = conflicts.length
+    return n === 0 ? t('conflicts.allClear') : t('conflicts.subtitle', { count: n })
+  }, [conflicts.length, isLoading, isError, t])
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        breadcrumb={[t('nav.operations'), t('nav.conflicts')]}
         title={t('nav.conflicts')}
-        filters={
-          <>
-            <Select className="w-48" value={spaceId} onChange={(e) => setSpaceId(e.target.value)}>
-              <option value="">{t('spaces.title')}: {t('ui.common.all')}</option>
-              {(spaces ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </Select>
-            <Input className="w-48" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
-            <Input className="w-48" type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
-          </>
-        }
+        subtitle={subtitle}
       />
-      {!ready ? (
-        <p className="text-[13px] text-text-tertiary">{t('spaces.window')}…</p>
-      ) : isLoading ? (
-        <LoadingBlock rows={2} />
-      ) : conflicts && conflicts.length > 0 ? (
+
+      {isLoading ? (
+        <div className="flex flex-col gap-5">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-border-subtle bg-surface p-5">
+              <div className="flex items-center gap-2.5">
+                <Skeleton className="size-[26px] rounded-[7px]" />
+                <Skeleton className="h-4 w-48 rounded-sm" />
+              </div>
+              <Skeleton className="mt-3.5 h-3 w-[80%] rounded-sm" />
+              <Skeleton className="mt-2 h-3 w-[55%] rounded-sm" />
+              <div className="mt-[18px] flex gap-2.5">
+                <Skeleton className="h-9 w-36 rounded-control" />
+                <Skeleton className="h-9 w-28 rounded-control" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <ErrorState
+          title={t('conflicts.loadError')}
+          message={t('error.timedOut')}
+          action={{ label: t('ui.common.retry'), onClick: () => void refetch() }}
+        />
+      ) : conflicts.length > 0 ? (
         <ConflictBanner conflicts={conflicts} />
       ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-success-subtle bg-success-subtle px-6 py-14 text-center">
-          <ShieldCheck className="size-6 text-success" />
-          <p className="text-[14px] text-success">{t('conflict.none')}</p>
-        </div>
+        <EmptyState
+          icon={ShieldCheck}
+          title={t('conflicts.emptyTitle')}
+          message={t('conflicts.emptyBody')}
+          action={{ label: t('conflicts.viewCalendar'), onClick: () => navigate('/calendar') }}
+        />
       )}
     </div>
   )

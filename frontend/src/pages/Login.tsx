@@ -25,17 +25,40 @@ export default function Login() {
 
   return (
     <AuthShell>
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <form onSubmit={submit} className="flex flex-col gap-3.5" noValidate>
         <FormField label={t('auth.email')} htmlFor="email">
-          <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input
+            id="email"
+            type="email"
+            autoComplete="username"
+            placeholder="name@pyramid.al"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </FormField>
         <FormField label={t('auth.password')} htmlFor="password">
-          <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </FormField>
-        {message ? <p className="rounded-sm bg-danger-subtle px-3 py-2 text-[13px] text-danger">{message}</p> : null}
-        <Button type="submit" fullWidth loading={login.isPending} disabled={!email || !password}>
+        {message ? (
+          <p role="alert" className="rounded-control bg-danger-subtle px-3 py-2 text-[13px] text-danger">
+            {message}
+          </p>
+        ) : null}
+        <Button type="submit" size="lg" fullWidth loading={login.isPending} disabled={!email || !password}>
           {login.isPending ? t('auth.signingIn') : t('auth.signIn')}
         </Button>
+        <button type="button" className="mt-1 text-center text-[13px] text-accent hover:underline">
+          {t('auth.forgot')}
+        </button>
       </form>
     </AuthShell>
   )

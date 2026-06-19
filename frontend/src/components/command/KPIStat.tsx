@@ -1,28 +1,47 @@
-import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { Card } from '@/components/ui/Card'
-import { Skeleton } from '@/components/ui/Feedback'
 
-export function KPIStat({ label, value, delta, hint, loading }: { label: string; value?: number | string; delta?: number | null; hint?: string; loading?: boolean }) {
+/**
+ * KPIStat — §3.10. Big tabular number + sentence-case label + optional trend ▲▼.
+ *
+ * Label is 13px secondary (sentence-case), NOT uppercase tertiary. The value is
+ * mono 30/600 tabular and turns danger when `alert`. Trend color is decoupled
+ * from sign — pass `trendUp` explicitly (canvas tile 4 is a +2 that points down).
+ */
+export interface KPIStatProps {
+  label: string
+  value: number | string
+  trend?: number | string
+  trendUp?: boolean
+  alert?: boolean
+  sub?: string
+}
+
+export function KPIStat({ label, value, trend, trendUp, alert, sub }: KPIStatProps) {
   return (
-    <Card className="px-5 py-4">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-[550] uppercase tracking-[0.02em] text-text-tertiary">{label}</span>
-        {loading ? (
-          <Skeleton className="h-8 w-16" />
-        ) : (
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[28px] font-[600] tabular-nums leading-none text-text-primary">{value ?? '—'}</span>
-            {typeof delta === 'number' && delta !== 0 ? (
-              <span className={cn('flex items-center text-[12px] font-[550]', delta > 0 ? 'text-success' : 'text-danger')}>
-                {delta > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-                {Math.abs(delta)}
-              </span>
-            ) : null}
-          </div>
-        )}
-        {hint ? <span className="text-[12px] text-text-tertiary">{hint}</span> : null}
+    <div className="flex-1 min-w-[180px] rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised">
+      <div className="mb-2.5 min-h-[34px] text-[13px] leading-[17px] text-text-secondary">{label}</div>
+      <div className="flex items-baseline gap-2.5">
+        <span
+          className={cn(
+            'font-mono text-[30px] font-[600] leading-none tabular-nums tracking-[-0.02em]',
+            alert ? 'text-danger' : 'text-text-primary',
+          )}
+        >
+          {value}
+        </span>
+        {trend !== undefined && trend !== null ? (
+          <span
+            className={cn(
+              'inline-flex items-center gap-0.5 text-[13px] font-[600]',
+              trendUp ? 'text-success' : 'text-danger',
+            )}
+          >
+            <span aria-hidden>{trendUp ? '▲' : '▼'}</span>
+            {trend}
+          </span>
+        ) : null}
       </div>
-    </Card>
+      {sub ? <div className="mt-1 text-[12px] text-text-tertiary">{sub}</div> : null}
+    </div>
   )
 }

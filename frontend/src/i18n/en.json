@@ -13,7 +13,10 @@
       "back": "Back"
     }
   },
-  "brand": { "name": "Pyramid Backstage", "tagline": "Pyramid of Tirana — Event Operations" },
+  "brand": {
+    "name": "Pyramid Backstage",
+    "tagline": "Pyramid of Tirana — Event Operations"
+  },
   "nav": {
     "overview": "Overview",
     "dashboard": "Dashboard",
@@ -26,29 +29,61 @@
     "operations": "Operations",
     "tasks": "Tasks",
     "conflicts": "Conflicts",
+    "approvals": "Approvals",
     "record": "Record",
     "audit": "Audit",
     "settings": "Settings",
-    "users": "Staff"
+    "users": "Staff",
+    "collapse": "Collapse"
+  },
+  "shell": {
+    "searchPlaceholder": "Search or start a request…",
+    "copilot": "Copilot"
   },
   "auth": {
     "title": "Sign in",
-    "subtitle": "Pyramid Backstage — staff access",
-    "email": "Email",
+    "subtitle": "Operations sign-in",
+    "email": "Work email",
     "password": "Password",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
     "signOut": "Sign out",
+    "forgot": "Forgot password?",
+    "footerNote": "Staff only · access is audited",
     "invalid": "Wrong email or password.",
     "rateLimited": "Too many attempts. Please wait and try again.",
     "required": "Email and password are required."
   },
   "status": {
-    "DRAFT": "Draft", "PROPOSED": "Proposed", "APPROVED": "Approved", "SCHEDULED": "Scheduled", "COMPLETED": "Completed", "REJECTED": "Rejected",
-    "HELD": "Held", "CONFIRMED": "Confirmed", "RELEASED": "Released",
-    "TODO": "To do", "IN_PROGRESS": "In progress", "DONE": "Done", "BLOCKED": "Blocked",
-    "ACTIVE": "Active", "MAINTENANCE": "Maintenance", "RETIRED": "Retired",
-    "SENT": "Sent", "ACCEPTED": "Accepted", "EXPIRED": "Expired"
+    "DRAFT": "Draft",
+    "PROPOSED": "Proposed",
+    "APPROVED": "Approved",
+    "SCHEDULED": "Scheduled",
+    "COMPLETED": "Completed",
+    "REJECTED": "Rejected",
+    "HELD": "Held",
+    "CONFIRMED": "Confirmed",
+    "RELEASED": "Released",
+    "TODO": "To do",
+    "IN_PROGRESS": "In progress",
+    "DONE": "Done",
+    "BLOCKED": "Blocked",
+    "OVERDUE": "Overdue",
+    "CONFLICT": "Conflict",
+    "OUT_OF_STOCK": "Out of stock",
+    "LOW_STOCK": "Low stock",
+    "ACTIVE": "Active",
+    "MAINTENANCE": "Maintenance",
+    "RETIRED": "Retired",
+    "SENT": "Sent",
+    "ACCEPTED": "Accepted",
+    "EXPIRED": "Expired"
+  },
+  "roles": {
+    "ADMIN": "Admin",
+    "MANAGER": "Manager",
+    "OPS": "Ops",
+    "VIEWER": "Viewer"
   },
   "conflict": {
     "SPACE_DOUBLE_BOOKED": "Space double-booked",
@@ -60,9 +95,19 @@
     "requested": "Requested",
     "available": "Available",
     "none": "No conflicts — everything is clear.",
-    "window": "Window"
+    "window": "Window",
+    "collidingWindow": "Colliding window",
+    "conflictingRequests": "Conflicting requests",
+    "requestedShort": "requested",
+    "availableShort": "available"
   },
-  "live": { "connected": "Live", "degraded": "Polling", "lastEvent": "Last event" },
+  "live": {
+    "connected": "Live",
+    "degraded": "Polling",
+    "connectedNats": "NATS connected",
+    "degradedNats": "NATS degraded",
+    "lastEvent": "Last event"
+  },
   "dashboard": {
     "title": "Dashboard",
     "eventsThisWeek": "Events this week",
@@ -70,7 +115,19 @@
     "lowStock": "Low-stock assets",
     "pendingApprovals": "Pending approvals",
     "recentActivity": "Recent activity",
-    "noEvents": "No events yet. Create the first request to begin."
+    "noEvents": "No events yet. Create the first request to begin.",
+    "spacesInUseSub": "{{count}} spaces in use",
+    "now": "now",
+    "eventsSub": "vs. last week",
+    "awaitingManager": "awaiting manager",
+    "liveSchedule": "Live schedule — today",
+    "live": "live",
+    "activeConflicts": "{{count}} active conflict",
+    "resolve": "Resolve",
+    "loadErrorTitle": "Couldn't load the dashboard",
+    "loadErrorBody": "The connection to ops-core timed out.",
+    "emptyTitle": "No events this week",
+    "emptyBody": "When requests are approved and scheduled, they'll show up here."
   },
   "requests": {
     "title": "Requests",
@@ -85,7 +142,19 @@
     "intakeSubtitle": "Capture the inquiry. The plan comes next.",
     "create": "Create request",
     "creating": "Creating…",
-    "adjust": "Adjust request"
+    "adjust": "Adjust request",
+    "createAndPlan": "Create request & plan",
+    "intakeFixField": "Please fix the highlighted field",
+    "subtitle": "{{active}} active · {{awaiting}} awaiting approval",
+    "noActive": "No active requests",
+    "idHeader": "Request",
+    "datesHeader": "Dates",
+    "value": "Value",
+    "statusHeader": "Status",
+    "filterLabel": "Filter requests by status",
+    "emptyTitle": "No requests yet",
+    "emptyBody": "New event requests will appear here as they arrive.",
+    "loadError": "Couldn't load requests"
   },
   "field": {
     "title": "Event title",
@@ -120,10 +189,53 @@
     "leaseEnds": "Hold ends",
     "noReservation": "No space held yet.",
     "noQuote": "No quote yet.",
-    "noTasks": "No tasks yet."
+    "noTasks": "No tasks yet.",
+    "copilotPlan": "Copilot plan",
+    "copilotBuilding": "Copilot is building the plan…",
+    "narrativeFeasible": "Yes — we can host this. Blue Hall seats 180 theater-style and is free in the requested window. A stage, chairs and wireless mics are reserved, and a quote is drafted including 20% VAT. Setup and teardown tasks are assigned.",
+    "narrativeNotFeasible": "Not as requested. The space is taken in this window. Another hall fits the same count, or the same hall is open on a nearby date. Pick an alternative below and I'll re-plan.",
+    "narrativePending": "No space is held yet. Hold a space and draft a quote to complete the plan.",
+    "scheduledConfirmed": "Scheduled · reservations confirmed",
+    "tabOverview": "Overview",
+    "tasksTitle": "Setup & teardown plan",
+    "alternatives": "Alternatives",
+    "recommended": "RECOMMENDED",
+    "useThis": "Use this",
+    "rejectTitle": "Reject this request?",
+    "rejectReasonPlaceholder": "Add a reason for the organizer…",
+    "loadError": "The connection to ops-core timed out.",
+    "approvedToast": "Plan approved",
+    "approvedToastBody": "Scheduled — reservations are confirmed.",
+    "rejectedToast": "Request rejected"
   },
-  "quote": { "net": "Net", "vat": "VAT (20%)", "total": "Total", "qty": "Qty", "unit": "Unit", "subtotal": "Subtotal", "item": "Item" },
-  "tasks": { "setup": "Setup", "teardown": "Teardown", "owner": "Owner", "due": "Due", "assignee": "Assignee", "empty": "No tasks." },
+  "quote": {
+    "net": "Net",
+    "vat": "VAT (20%)",
+    "total": "Total",
+    "qty": "Qty",
+    "unit": "Unit",
+    "subtotal": "Subtotal",
+    "item": "Item",
+    "kind": "Kind"
+  },
+  "tasks": {
+    "setup": "Setup",
+    "teardown": "Teardown",
+    "owner": "Owner",
+    "due": "Due",
+    "assignee": "Assignee",
+    "empty": "No tasks.",
+    "allEvents": "All events",
+    "new": "New task",
+    "filterByEvent": "Filter by event",
+    "subtitleCount": "{{n}} tasks · SETUP / TEARDOWN",
+    "subtitleOverdue": "{{n}} task overdue",
+    "overdueBanner": "is overdue and blocks setup.",
+    "loadError": "Couldn't load tasks",
+    "loadErrorBody": "The connection to ops-core timed out.",
+    "emptyTitle": "All caught up",
+    "emptyBody": "No open setup or teardown tasks. New tasks appear here when a plan is approved."
+  },
   "spaces": {
     "title": "Spaces",
     "floor": "Floor",
@@ -131,18 +243,62 @@
     "dayRate": "Day rate",
     "buffers": "Buffers",
     "available": "Available",
+    "availableNow": "Available now",
     "unavailable": "Unavailable",
     "minCapacity": "Min capacity",
     "window": "Window",
-    "empty": "No spaces."
+    "empty": "No spaces.",
+    "edit": "Edit space",
+    "editMode": "Edit mode",
+    "save": "Save changes",
+    "capacityPerLayout": "Capacity per layout",
+    "details": "Details",
+    "features": "Features",
+    "setupBuffer": "Setup buffer",
+    "teardownBuffer": "Teardown buffer",
+    "todaySchedule": "Today's schedule · setup & teardown buffers",
+    "perDay": "/ day",
+    "minutes": "min",
+    "loadError": "Couldn't load this space",
+    "pax": "pax",
+    "count": "{{count}} spaces · availability for this window",
+    "matchCount": "{{count}} match",
+    "emptyTitle": "No spaces match",
+    "emptyBody": "No space fits these filters in this window. Try a smaller capacity or a different time.",
+    "clearFilters": "Clear filters",
+    "loadErrorList": "Couldn't load spaces",
+    "held": "Held",
+    "capacityForLayout": "capacity for requested layout",
+    "select": "Select"
   },
   "inventory": {
     "title": "Inventory",
     "available": "Available",
     "total": "Total",
+    "totalUnits": "Total units",
+    "held": "Held",
     "location": "Location",
+    "type": "Type",
     "empty": "No assets.",
-    "lowStock": "Low stock"
+    "lowStock": "Low stock",
+    "outOfStock": "Out of stock",
+    "inStock": "In stock",
+    "details": "Details",
+    "edit": "Edit asset",
+    "whereReserved": "Where it's reserved",
+    "changeWindow": "Change window",
+    "loadError": "Couldn't load inventory",
+    "availableWindow": "Available · window",
+    "windowSub": "Availability for this window",
+    "lowCount": "{{count}} assets low for this window",
+    "lowBanner": "{{names}} won't cover all held events in this window.",
+    "emptyTitle": "No assets yet",
+    "emptyBody": "Add chairs, tables, AV gear and more to track availability.",
+    "colAsset": "Asset",
+    "colAvailability": "Availability",
+    "colInWindow": "In window",
+    "availableLower": "available",
+    "heldLower": "held"
   },
   "audit": {
     "title": "Audit",
@@ -155,7 +311,15 @@
     "after": "After",
     "empty": "No history yet.",
     "filterRequest": "Request ID",
-    "filterEntity": "Entity type"
+    "filterEntity": "Entity type",
+    "subtitle": "Complete, append-only record",
+    "filter": "Filter",
+    "errorTitle": "Couldn't load the audit log",
+    "errorBody": "The connection to ops-core timed out.",
+    "emptyTitle": "No activity yet",
+    "emptyBody": "Actions taken across the system will appear here as an append-only record.",
+    "emptyFilter": "No activity for this filter",
+    "emptyFilterBody": "Try a different request or entity type."
   },
   "users": {
     "title": "Staff",
@@ -165,13 +329,103 @@
     "active": "Active",
     "create": "Add staff",
     "empty": "No staff users.",
-    "forbidden": "Admin only."
+    "forbidden": "Admin only.",
+    "count": "{{n}} staff accounts",
+    "emptyBody": "Invite your first teammate to get started.",
+    "errorTitle": "Couldn't load users",
+    "errorBody": "The connection to ops-core timed out.",
+    "forbiddenTitle": "403 — Admins only",
+    "forbiddenBody": "User management is restricted to the ADMIN role. Contact an administrator if you need access.",
+    "editUser": "Edit user",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "rowMenu": "User actions",
+    "passwordHint": "At least 8 characters."
   },
   "copilot": {
     "title": "Copilot",
     "placeholder": "Can we make this happen?",
     "unavailable": "The AI copilot is not connected in this build. Use the structured form to plan.",
-    "send": "Send"
+    "send": "Send",
+    "thinkingDefault": "Checking availability…"
   },
-  "error": { "title": "Something went wrong", "notFound": "Page not found", "generic": "We hit an unexpected error.", "forbidden": "You don't have permission to view this." }
+  "error": {
+    "title": "Something went wrong",
+    "notFound": "Page not found",
+    "generic": "We hit an unexpected error.",
+    "forbidden": "You don't have permission to view this.",
+    "timedOut": "The connection to ops-core timed out."
+  },
+  "intake": {
+    "tabForm": "Form",
+    "tabChat": "Chat",
+    "eyebrow": "Structured form",
+    "pax": "pax",
+    "chatOffline": "offline",
+    "chatSeedUser": "We need to host a 180-person fintech conference on 22 July.",
+    "chatSeedAssistant": "Got it — I've pre-filled the form. Blue Hall fits 180 theater-style. Add requirements or hit create.",
+    "titlePlaceholder": "e.g. FinTech Startup Conference",
+    "organizerPlaceholder": "e.g. Adriana Marku",
+    "attendeesPlaceholder": "e.g. 180",
+    "emailPlaceholder": "name@organisation.al",
+    "phonePlaceholder": "+355 …",
+    "notesPlaceholder": "Stage, podium, 2 wireless mics, hybrid streaming, coffee for 180.",
+    "required": {
+      "title": "Event title is required.",
+      "organizerName": "Organizer name is required.",
+      "expectedAttendees": "Attendee count is required.",
+      "start": "A preferred start is required.",
+      "end": "A preferred end is required."
+    },
+    "invalid": {
+      "title": "Please enter a valid event title.",
+      "organizerName": "Please enter a valid organizer name.",
+      "expectedAttendees": "Please enter a valid attendee count.",
+      "start": "Please enter a valid start time.",
+      "end": "Please enter a valid end time."
+    }
+  },
+  "eventType": {
+    "CONFERENCE": "Conference",
+    "EXHIBITION": "Exhibition",
+    "WORKSHOP": "Workshop",
+    "PERFORMANCE": "Performance",
+    "COMMUNITY": "Community",
+    "PRIVATE": "Private",
+    "OTHER": "Other"
+  },
+  "layout": {
+    "THEATER": "Theater",
+    "CLASSROOM": "Classroom",
+    "BANQUET": "Banquet",
+    "RECEPTION": "Reception",
+    "CABARET": "Cabaret",
+    "BOARDROOM": "Boardroom",
+    "CUSTOM": "Custom"
+  },
+  "calendar": {
+    "day": "Day",
+    "week": "Week",
+    "viewMode": "View mode",
+    "today": "Today",
+    "loadError": "Couldn't load the calendar",
+    "loadErrorBody": "The connection to ops-core timed out.",
+    "emptyTitle": "Nothing scheduled",
+    "emptyBody": "No reservations on this day. All spaces are free.",
+    "jumpToToday": "Jump to today",
+    "weekTitle": "Week view is coming",
+    "weekBody": "The week timeline isn't available yet. Switch back to the day view."
+  },
+  "conflicts": {
+    "subtitle": "{{count}} active conflict",
+    "allClear": "No active conflicts",
+    "loadError": "Couldn't load conflicts",
+    "emptyTitle": "No conflicts right now",
+    "emptyBody": "Every reservation fits. The schedule is clean — nothing needs your attention.",
+    "viewCalendar": "View calendar"
+  },
+  "reservation": {
+    "leaseExpiresIn": "Lease expires in",
+    "reservedAssets": "Reserved assets"
+  }
 }

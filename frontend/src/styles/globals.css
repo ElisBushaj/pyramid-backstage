@@ -33,6 +33,7 @@
   --color-text-tertiary:  var(--text-tertiary);
   --color-text-inverted:  var(--text-inverted);
   --color-text-on-accent: var(--text-on-accent);
+  --color-text-disabled:  var(--text-disabled);
 
   /* Border */
   --color-border-subtle: var(--border-subtle);
@@ -40,10 +41,11 @@
   --color-border-focus:  var(--border-focus);
 
   /* Accent */
-  --color-accent:         var(--accent);
-  --color-accent-hover:   var(--accent-hover);
-  --color-accent-pressed: var(--accent-pressed);
-  --color-accent-muted:   var(--accent-muted);
+  --color-accent:          var(--accent);
+  --color-accent-hover:    var(--accent-hover);
+  --color-accent-pressed:  var(--accent-pressed);
+  --color-accent-muted:    var(--accent-muted);
+  --color-accent-disabled: var(--accent-disabled);
 
   /* Status */
   --color-success:        var(--success);
@@ -51,25 +53,38 @@
   --color-warning:        var(--warning);
   --color-warning-subtle: var(--warning-subtle);
   --color-danger:         var(--danger);
+  --color-danger-hover:   var(--danger-hover);
+  --color-danger-pressed: var(--danger-pressed);
   --color-danger-subtle:  var(--danger-subtle);
   --color-info:           var(--info);
   --color-info-subtle:    var(--info-subtle);
+
+  /* Skeleton shimmer stops */
+  --color-skeleton-base:  var(--skeleton-base);
+  --color-skeleton-sheen: var(--skeleton-sheen);
 
   /* Font families */
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
   /* Radii */
-  --radius-xs:   var(--radius-xs);
-  --radius-sm:   var(--radius-sm);
-  --radius-md:   var(--radius-md);
-  --radius-lg:   var(--radius-lg);
-  --radius-pill: var(--radius-pill);
+  --radius-xs:      var(--radius-xs);
+  --radius-sm:      var(--radius-sm);
+  --radius-control: var(--radius-control);
+  --radius-md:      var(--radius-md);
+  --radius-lg:      var(--radius-lg);
+  --radius-pill:    var(--radius-pill);
 
   /* Elevation */
   --shadow-flat:    var(--elev-flat);
   --shadow-raised:  var(--elev-raised);
   --shadow-overlay: var(--elev-overlay);
+  --shadow-drawer:  var(--elev-drawer);
+
+  /* Focus rings — use as focus-visible:shadow-ring-* */
+  --shadow-ring-strong: var(--ring-strong);
+  --shadow-ring-medium: var(--ring-medium);
+  --shadow-ring-soft:   var(--ring-soft);
 
   /* Motion — durations + easings */
   --duration-micro: var(--dur-micro);
@@ -123,4 +138,70 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================================
+   Shared keyframes + the skeleton shimmer utility.
+   The canvas Skeleton is a left-to-right sheen sweep (not a pulse):
+   a 3-stop gradient over an oversized background, swept 1.4s linear.
+   Spinner is a 2px ring rotated 700ms (used by Button/Spinner).
+   ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
+}
+/* Lease-countdown breathe (HELD ReservationCard). Softer than Tailwind's
+   animate-pulse — dips to .35, not .5. */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+/* Copilot "thinking" dots — staggered blink. */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+/* Live NATS pill — the connected dot breathes; the degraded dot is static. */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
+}
+
+@layer components {
+  .skeleton {
+    border-radius: var(--radius-sm);
+    background-image: linear-gradient(
+      90deg,
+      var(--skeleton-base) 25%,
+      var(--skeleton-sheen) 50%,
+      var(--skeleton-base) 75%
+    );
+    background-size: 400px 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  /* Diagonal hatches — drawn as a background IMAGE so an element's own
+     background-color (the buffer tint) shows through the transparent gaps.
+     .hatch-buffer: setup/teardown zones on the AvailabilityTimeline (gray).
+     .hatch-danger: over-allocation segment on the ConflictBanner meter (red). */
+  .hatch-buffer {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(138, 143, 152, 0.28) 0 4px,
+      transparent 4px 8px
+    );
+  }
+  .hatch-danger {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(200, 55, 45, 0.35) 0 4px,
+      transparent 4px 8px
+    );
+  }
+
+  .lease-pulse  { animation: pulse-soft 1.6s ease-in-out infinite; }
+  .thinking-dot { animation: blink 1.2s ease-in-out infinite; }
 }
