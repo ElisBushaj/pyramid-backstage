@@ -15,4 +15,10 @@ RUN npx prisma generate
 COPY . .
 
 EXPOSE 4000
-CMD ["npm", "run", "dev:watch"]
+# Regenerate the Prisma client at *startup*, not just build time: compose mounts a
+# persistent `ops_core_node_modules` volume over /app/node_modules that shadows the
+# image's build-time client and survives rebuilds. Without this, adding a model to
+# the schema (e.g. AssetMovement) leaves the container running a stale client and
+# ts-node crashes on `prisma.<newModel>`. The bind-mounted prisma/ dir is current,
+# so generating here always matches the live schema.
+CMD ["sh", "-c", "npx prisma generate && npm run dev:watch"]
