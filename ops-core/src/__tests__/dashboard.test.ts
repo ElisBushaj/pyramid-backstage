@@ -281,7 +281,7 @@ describe("GET /dashboard/stats — no N+1 (single parallel batch)", () => {
   // The read-model issues a fixed set of aggregate queries regardless of data
   // volume. We instrument the exact prisma methods the service calls and assert
   // the call counts stay constant as the dataset grows 10×.
-  let counts: Record<string, number>;
+  let counts: { eventRequestCount: number; reservationFindMany: number; spaceCount: number; queryRaw: number };
   const originals: Array<() => void> = [];
 
   function instrument() {

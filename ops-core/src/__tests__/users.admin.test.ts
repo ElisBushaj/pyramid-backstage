@@ -422,7 +422,7 @@ describe("admin users — cross-feature invariants", () => {
       .filter(Boolean)[0]?.[1];
     const list = await anon()
       .get(USERS)
-      .set("Cookie", promoted.headers["set-cookie"] as string[])
+      .set("Cookie", promoted.headers["set-cookie"] as unknown as string[])
       .set("x-csrf-token", csrf ?? "");
     expect(list.status).toBe(200);
   });

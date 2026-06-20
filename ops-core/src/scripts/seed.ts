@@ -135,7 +135,7 @@ async function seedEvents(actor: Actor) {
     expectedAttendees: 160, eventType: "EXHIBITION", preferredDates: [W1, W2], requirements: { layout: "RECEPTION" },
   });
 
-  console.log("[seed] created 3 events (E1 SCHEDULED in Blue@W1 = planted conflict, E2 PROPOSED in Green@W2, E3 DRAFT by PARTNER)");
+  console.log("[seed] created 3 events (E1 SCHEDULED in Blue@W1 = planted conflict, E2 PROPOSED in Green@W2, E3 PROPOSED by PARTNER)");
 }
 
 export async function runSeed(opts: { reset?: boolean } = {}): Promise<void> {

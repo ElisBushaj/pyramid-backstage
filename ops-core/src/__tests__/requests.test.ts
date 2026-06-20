@@ -116,12 +116,8 @@ describe("POST /requests — create (F04-T02)", () => {
     }
 
     it("a MISSING required eventType is rejected (422, field flagged)", async () => {
-      // NOTE: the present-but-invalid path yields fields.eventType = "validation.enum"
-      // (asserted in the table above). A MISSING eventType currently surfaces the raw
-      // express-validator default ("Invalid value") rather than an i18n messageKey,
-      // because ValidationHelpers.enumOf's leading .isString() carries no .withMessage.
-      // That helper is shared/out-of-scope here; FLAGGED for reconciliation. The
-      // observable contract — rejected as 422 with the field present — is asserted.
+      // A missing enum maps to the registered validation.enum key — ValidationHelpers.enumOf
+      // attaches it to the leading .isString() too, so it never leaks the raw default.
       const client = await loginAs("OPS");
       const body = { ...validBody } as Record<string, unknown>;
       delete body.eventType;
@@ -129,7 +125,7 @@ describe("POST /requests — create (F04-T02)", () => {
       expect(res.status).toBe(422);
       expect(res.body.error).toBe("validation");
       expect(res.body.messageKey).toBe("validation.failed");
-      expect(res.body.fields).toHaveProperty("eventType");
+      expect(res.body.fields.eventType).toBe("validation.enum");
     });
 
     it("does NOT persist anything on a validation failure", async () => {
