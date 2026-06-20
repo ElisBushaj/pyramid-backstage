@@ -39,7 +39,7 @@ export const ValidationHelpers = {
     return field(loc, name).optional({ values: "null" }).isEmail().withMessage("validation.email").customSanitizer((v: string) => String(v).trim().toLowerCase());
   },
   enumOf(name: string, values: readonly string[], loc: Loc = "body"): ValidationChain {
-    return field(loc, name).isString().bail().isIn(values as string[]).withMessage("validation.enum");
+    return field(loc, name).isString().withMessage("validation.enum").bail().isIn(values as string[]).withMessage("validation.enum");
   },
   optionalEnumOf(name: string, values: readonly string[], loc: Loc = "body"): ValidationChain {
     return field(loc, name).optional().isIn(values as string[]).withMessage("validation.enum");

@@ -1,8 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import type { Request, Response } from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 import Ajv from "ajv";
+import { APIError } from "../errors";
+import { formatError } from "../controllers/_core";
 
 const openapiPath = path.resolve(__dirname, "..", "..", "openapi.yaml");
 const doc = parse(fs.readFileSync(openapiPath, "utf8")) as any;
@@ -64,5 +67,83 @@ describe("contract: enum casing is UPPER_SNAKE and matches the TS mirrors", () =
   it.each(Object.entries(expected))("%s matches the contract exactly", (name, values) => {
     expect(doc.components.schemas[name]?.enum).toEqual(values);
     for (const v of values) expect(v).toMatch(/^[A-Z][A-Z0-9_]*$/);
+  });
+});
+
+describe("contract: the runtime error contract matches openapi.yaml's Error schemas", () => {
+  // The bodies formatError actually emits must validate against the spec the
+  // frontend + AI mirror. This wires the live error layer to the published shapes
+  // so a drift (e.g. dropping `fields` or `conflicts`) fails the build.
+  function bodyFor(err: APIError): Record<string, unknown> {
+    let captured: unknown;
+    const res = {
+      headersSent: false,
+      status() { return res; },
+      json(p: unknown) { captured = p; return res; },
+    } as unknown as Response;
+    formatError(err, { locale: "en" } as Request, res, vi.fn());
+    return captured as Record<string, unknown>;
+  }
+
+  const ref = (name: string) => `openapi.yaml#/components/schemas/${name}`;
+
+  it("base Error body (401/403/404/400/429/500) validates against #/Error", () => {
+    const validate = ajv.getSchema(ref("Error"))!;
+    for (const err of [
+      APIError.unauthorized(),
+      APIError.forbidden(),
+      APIError.notFound(),
+      APIError.badRequest(),
+      APIError.rateLimited(),
+      APIError.internal(),
+    ]) {
+      const body = bodyFor(err);
+      expect(validate(body), `${err.error}: ${JSON.stringify((validate as any).errors)}`).toBe(true);
+      expect(body).toMatchObject({ status: err.status, error: err.error, messageKey: err.messageKey });
+    }
+  });
+
+  it("409 conflict body validates against #/ConflictError (carries conflicts[])", () => {
+    const validate = ajv.getSchema(ref("ConflictError"))!;
+    const body = bodyFor(
+      APIError.conflict([
+        { type: "SPACE_DOUBLE_BOOKED", spaceId: "space_blue", conflictingRequestIds: ["req_5a1"], window: { start: "2026-07-22T07:00:00Z", end: "2026-07-22T20:00:00Z" }, detail: "x" },
+      ]),
+    );
+    expect(validate(body), JSON.stringify((validate as any).errors)).toBe(true);
+    expect((body as any).conflicts).toHaveLength(1);
+  });
+
+  it("409 invalid_transition body validates against #/InvalidTransitionError (from/to)", () => {
+    const validate = ajv.getSchema(ref("InvalidTransitionError"))!;
+    const body = bodyFor(APIError.invalidTransition("REJECTED", "APPROVED"));
+    expect(validate(body), JSON.stringify((validate as any).errors)).toBe(true);
+    expect(body).toMatchObject({ from: "REJECTED", to: "APPROVED", error: "invalid_transition" });
+  });
+
+  it("422 validation body validates against #/ValidationError (fields map)", () => {
+    const validate = ajv.getSchema(ref("ValidationError"))!;
+    const body = bodyFor(APIError.validation({ expectedAttendees: "validation.required" }));
+    expect(validate(body), JSON.stringify((validate as any).errors)).toBe(true);
+    expect((body as any).fields).toEqual({ expectedAttendees: "validation.required" });
+  });
+
+  it("the structured-error machine codes appear as literal examples in the spec", () => {
+    // The three errors with dedicated schemas pin their machine `error` string as
+    // an example; ops-core's factories emit exactly these.
+    expect(doc.components.schemas.ConflictError.allOf[1].properties.error.example).toBe("conflict");
+    expect(doc.components.schemas.InvalidTransitionError.allOf[1].properties.error.example).toBe("invalid_transition");
+    expect(doc.components.schemas.ValidationError.allOf[1].properties.error.example).toBe("validation");
+  });
+
+  it("the base-Error cases (401/403/404/429) each have a reusable response component", () => {
+    for (const r of ["Unauthorized", "Forbidden", "NotFound", "RateLimited", "Validation", "Conflict", "InvalidTransition"]) {
+      expect(doc.components.responses[r], `missing reusable response: ${r}`).toBeTruthy();
+    }
+  });
+
+  it("the structured error schemas require their extra field (conflicts / fields)", () => {
+    expect(doc.components.schemas.ConflictError.allOf[1].required).toContain("conflicts");
+    expect(doc.components.schemas.Error.required).toEqual(expect.arrayContaining(["status", "error", "messageKey"]));
   });
 });
