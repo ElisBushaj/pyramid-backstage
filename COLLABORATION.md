@@ -110,13 +110,18 @@ From CONTRACT.md — these keep the mock and the real service from drifting whil
   bundles** (main hall + foyer + green-room box) and adds **circulation/access** notes to the
   narrative — all reasoning, no CAD parsing at runtime. **Owns the floor-map component** (§6.1).
 
-## 5. One seam decision to make early: how the AI authenticates to ops-core
+## 5. AI→ops-core auth — RESOLVED (F17 service token)
 
-Today the AI client leaves auth open (the mock needs none). For the real service + partner
-row-level scoping, decide: does the AI call ops-core with a **service token** (system actor) or by
-**forwarding the caller's session**? Recommendation: a **service token** for planning reads, and
-pass the acting user's id/role through so audit + partner-scoping stay correct. It's a ~10-minute
-contract addition (an auth header) — agree it now, not at hour 40.
+Settled + wired. The AI authenticates to the real ops-core with a **service token**
+(`Authorization: Bearer <OPS_CORE_SERVICE_TOKEN>`) and forwards the acting staff user
+(`X-Acting-User-Id` / `X-Acting-User-Role`), clamped to a `MANAGER` ceiling so a compromised AI
+can't self-grant `ADMIN`. ops-core's `requireAuth` accepts it (Elis, F17); the AI client sends it
+from settings — `OPS_CORE_SERVICE_TOKEN` + `ACTING_USER_ID` (default = seeded manager) +
+`ACTING_USER_ROLE`. An **empty token sends no headers**, so the mock path is unchanged.
+**Integration = a 2-env flip:** point `OPS_CORE_URL` at the real service and set
+`OPS_CORE_SERVICE_TOKEN` to match ops-core's. `infrastructure/docker-compose.yml` wires the same
+token into both services by default. (Caveat: partner-intake *through the AI* needs the frontend to
+forward the partner's identity — a small F18 follow-up; the staff golden path uses the seeded manager.)
 
 ## 6. The space catalog — the shared artifact
 

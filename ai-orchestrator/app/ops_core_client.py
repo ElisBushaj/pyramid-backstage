@@ -15,9 +15,11 @@ Until ops-core is live, point ``OPS_CORE_URL`` at the stateful ``mock-ops-core``
 (:4010) — the mock honors the same envelope + the real 409 conflict path, so the
 conflict branch is genuinely testable in isolation.
 
-NOTE: auth. ops-core's private routes sit behind a session cookie. The mock needs
-no auth. When wiring against the real service, pass cookies/headers via the
-``headers`` constructor arg (or extend this client) — left open here on purpose.
+AUTH (F17): against the REAL ops-core every call carries a service token
+(``Authorization: Bearer <OPS_CORE_SERVICE_TOKEN>``) plus the forwarded acting
+staff user (``X-Acting-User-Id`` / ``X-Acting-User-Role``), built from settings.
+An empty ``OPS_CORE_SERVICE_TOKEN`` (the mock) sends NO auth headers, so the mock
+path is unchanged — flipping to real ops-core is just setting the token.
 """
 
 from __future__ import annotations
@@ -82,6 +84,21 @@ def _idempotency_headers() -> dict[str, str]:
     return {"Idempotency-Key": str(uuid4())}
 
 
+def _service_auth_headers() -> dict[str, str]:
+    """F17 service-token + forwarded-actor headers (empty when no token is set).
+
+    Empty token => no headers => the mock path is unchanged. With a token, every
+    call authenticates as the configured acting staff user.
+    """
+    if not settings.OPS_CORE_SERVICE_TOKEN:
+        return {}
+    headers = {"Authorization": f"Bearer {settings.OPS_CORE_SERVICE_TOKEN}"}
+    if settings.ACTING_USER_ID:
+        headers["X-Acting-User-Id"] = settings.ACTING_USER_ID
+        headers["X-Acting-User-Role"] = settings.ACTING_USER_ROLE
+    return headers
+
+
 class OpsCoreClient:
     """Thin async wrapper over the ops-core contract.
 
@@ -101,10 +118,13 @@ class OpsCoreClient:
         headers: dict[str, str] | None = None,
     ):
         self.base_url = (base_url or settings.OPS_CORE_URL).rstrip("/")
+        # Service-token + forwarded-actor auth (F17) on every request; empty when
+        # no token is configured (the mock), so its path is unchanged. Explicit
+        # per-call headers (e.g. Idempotency-Key) merge on top per request.
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=timeout,
-            headers=headers or {},
+            headers={**_service_auth_headers(), **(headers or {})},
         )
 
     # ── lifecycle ────────────────────────────────────────────────────────────

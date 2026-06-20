@@ -29,6 +29,16 @@ class Settings(BaseSettings):
     # stateful mock, e.g. OPS_CORE_URL=http://localhost:4010/api/v1
     OPS_CORE_URL: str = "http://localhost:4000/api/v1"
 
+    # ── F17 service-token auth to the REAL ops-core ─────────────────────────
+    # Shared secret; must equal ops-core's OPS_CORE_SERVICE_TOKEN. Leave EMPTY
+    # for the mock (no auth) — an empty token means NO auth headers are sent, so
+    # the mock path is unchanged.
+    OPS_CORE_SERVICE_TOKEN: str | None = None
+    # The staff user the AI acts for (audit + partner row-scoping key). Defaults
+    # to the seeded manager; ops-core clamps the role to its MANAGER ceiling.
+    ACTING_USER_ID: str = "c0000000-0000-4000-8000-000000000002"
+    ACTING_USER_ROLE: str = "MANAGER"
+
     # ── Claude / Anthropic (optional in scaffold — the graph nodes are stubs) ─
     # When Alvin wires the graph, the SDK reads this. Model id is the exact
     # string `claude-opus-4-8` (Anthropic's most capable Opus-tier model).
