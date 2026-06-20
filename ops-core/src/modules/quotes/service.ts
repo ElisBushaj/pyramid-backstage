@@ -25,18 +25,20 @@ class QuotesService {
     const reservation = input.reservationId
       ? await prisma.reservation.findUnique({ where: { id: input.reservationId }, include: { assets: true } })
       : await prisma.reservation.findFirst({ where: { requestId: input.requestId, status: { in: ["HELD", "CONFIRMED"] } }, include: { assets: true }, orderBy: { createdAt: "desc" } });
-    if (input.reservationId && !reservation) throw APIError.notFound();
+    // A quote prices a request + its reservation; with none to price (unknown id,
+    // or no live HELD|CONFIRMED hold) we 404 rather than persist a net=0 quote (Q-13).
+    if (!reservation) throw APIError.notFound();
 
-    const space = reservation ? await prisma.space.findUnique({ where: { id: reservation.spaceId } }) : null;
+    const space = await prisma.space.findUnique({ where: { id: reservation.spaceId } });
     const assetRates = new Map<string, { name: string; unitPriceMinor: number }>();
-    if (reservation?.assets.length) {
+    if (reservation.assets.length) {
       const assets = await prisma.asset.findMany({ where: { id: { in: reservation.assets.map((a) => a.assetId) } } });
       for (const a of assets) assetRates.set(a.id, { name: a.name, unitPriceMinor: 0 }); // assets free (Q-03 default)
     }
 
     const priced = priceQuote({
       space: space ? { name: space.name, dayRateMinor: space.dayRateMinor } : null,
-      reservation: reservation ? { start: reservation.start, end: reservation.end, assets: reservation.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })) } : null,
+      reservation: { start: reservation.start, end: reservation.end, assets: reservation.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })) },
       assetRates,
       extraLineItems: input.extraLineItems,
       vatRate: vars.vatRate,
