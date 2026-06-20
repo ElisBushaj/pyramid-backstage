@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet } from 'react-router'
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router'
 import { Plus, ListChecks, LogOut } from 'lucide-react'
 import { useMe, useLogout } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
@@ -12,6 +12,7 @@ import { LocaleToggle } from './LocaleToggle'
 // back to the staff Command Center.
 export function PortalShell() {
   const t = useT()
+  const navigate = useNavigate()
   const me = useMe().data
   const logout = useLogout()
 
@@ -34,7 +35,7 @@ export function PortalShell() {
         </nav>
         <div className="ml-auto flex items-center gap-2">
           <LocaleToggle />
-          <Button variant="ghost" size="sm" onClick={() => logout.mutate()}><LogOut className="size-3.5" /> {t('portal.logout')}</Button>
+          <Button variant="ghost" size="sm" onClick={() => logout.mutate(undefined, { onSuccess: () => navigate('/login') })}><LogOut className="size-3.5" /> {t('portal.logout')}</Button>
         </div>
       </header>
       <main className="mx-auto max-w-[840px] px-6 py-8">
