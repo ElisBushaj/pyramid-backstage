@@ -93,7 +93,7 @@ async def _llm_attempt(text: str, repair_hint: str | None = None) -> EventReques
         f"{text}\n\n(Your previous output was invalid: {repair_hint}. Return corrected JSON only.)"
     )
     resp = await client.messages.create(
-        model=settings.MODEL,
+        model=settings.FAST_MODEL,
         max_tokens=1024,
         system=_system_prompt(),
         messages=[{"role": "user", "content": user}],

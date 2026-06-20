@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # string `claude-opus-4-8` (Anthropic's most capable Opus-tier model).
     ANTHROPIC_API_KEY: str | None = None
     MODEL: str = "claude-opus-4-8"
+    # Faster model for the structured / low-stakes calls (NL intake parse + chat
+    # question phrasing). Sonnet is plenty for extraction and far snappier than Opus
+    # for these — keeps the copilot responsive on stage.
+    FAST_MODEL: str = "claude-sonnet-4-6"
 
     # ── Conversation state (Redis) + RAG (ChromaDB) ─────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"

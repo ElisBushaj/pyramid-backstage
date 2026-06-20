@@ -70,7 +70,7 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
 
         client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         resp = await client.messages.create(
-            model=settings.MODEL,
+            model=settings.FAST_MODEL,
             max_tokens=120,
             system=(
                 "You are a warm, concise venue-booking copilot for the Pyramid of Tirana. "
@@ -109,7 +109,14 @@ async def handle_chat(session_id: str, message: str, *, ops, graph) -> ChatRespo
                 requiresApproval=True,
             )
 
-    sess.setdefault("messages", []).append(message)
+    # A self-contained new request (has a count AND a date) starts a fresh brief —
+    # don't merge it into a prior event's context (the "event A bleeds into event B"
+    # bug). Partial/incremental messages still accumulate across turns to gather one.
+    if _has_num(message) and _has_date(message):
+        sess["messages"] = [message]
+        sess["plan"] = None
+    else:
+        sess.setdefault("messages", []).append(message)
     brief = "  ".join(sess["messages"])
 
     missing: list[str] = []

@@ -160,11 +160,20 @@ services:
         condition: service_started
     ports:
       - "${AI_PORT:-8000}:8000"
+    volumes:
+      # Mount the app so code changes load on recreate (+ hot-reload) without a full
+      # image rebuild — mirrors how ops-core/frontend mount their source.
+      - ../ai-orchestrator/app:/app/app
+    # Load ANTHROPIC_API_KEY (+ MODEL) from the AI's own .env so Claude is actually
+    # used in the stack. The environment: block below still overrides URLs/token for
+    # container networking (environment takes precedence over env_file).
+    env_file:
+      - ../ai-orchestrator/.env
     environment:
       OPS_CORE_URL: ${OPS_CORE_URL:-http://ops-core:4000/api/v1}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       REDIS_URL: redis://redis:6379
       CHROMA_URL: http://chromadb:8000
+      WATCHFILES_FORCE_POLLING: "true"
       # F17: must match ops-core's OPS_CORE_SERVICE_TOKEN; AI acts as the seeded manager.
       OPS_CORE_SERVICE_TOKEN: ${OPS_CORE_SERVICE_TOKEN:-dev-service-token-change-me}
       ACTING_USER_ID: ${ACTING_USER_ID:-c0000000-0000-4000-8000-000000000002}
