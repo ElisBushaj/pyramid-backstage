@@ -6,6 +6,7 @@ import { vars } from "../../config/vars";
 import type { Reservation, ReservationInput } from "../../types/api/reservations";
 import type { Conflict } from "../../types/api/conflicts";
 import { effectiveWindow, isValidRange } from "../../utils/time";
+import { isSerializationError } from "../../utils/tx";
 import { detectConflicts } from "../../services/conflict";
 import { assetAvailability } from "../../services/availability";
 import { writeAudit, writeSystemAudit } from "../audit/audit.writer";
@@ -48,11 +49,6 @@ export async function releaseReservationTx(
   if (cas.count === 0) return;
   await writeAudit(tx, { actor, action: "reservation.release", entityType: "Reservation", entityId: reservation.id, requestId: reservation.requestId, before: { status: reservation.status }, after: { status: "RELEASED" } });
   await writeOutbox(tx, "reservation.released", { reservationId: reservation.id, requestId: reservation.requestId, spaceId: reservation.spaceId });
-}
-
-function isSerializationError(e: unknown): boolean {
-  // Prisma surfaces serialization failures / deadlocks as P2034.
-  return e instanceof Prisma.PrismaClientKnownRequestError && (e.code === "P2034" || e.code === "P2037");
 }
 
 class ReservationsService {
@@ -127,8 +123,9 @@ class ReservationsService {
           await this.emitConflictDetected(input.spaceId, input.requestId, e.conflicts, input.dateRange);
           throw APIError.conflict(e.conflicts, "reservation.conflict");
         }
-        if (isSerializationError(e) && attempt < MAX_HOLD_ATTEMPTS - 1) continue; // retry: the winner committed, re-check will 409
-        throw e;
+        if (!isSerializationError(e)) throw e; // a non-serialization failure is a real bug → surface it
+        if (attempt < MAX_HOLD_ATTEMPTS - 1) continue; // retry: the winner committed, re-check will 409
+        break; // retries exhausted on serialization aborts → fall through to the re-detect tail (429/409), never a raw 500
       }
     }
     // Exhausted retries (all serialization failures). Re-detect once: a real conflict

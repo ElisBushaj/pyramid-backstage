@@ -93,34 +93,41 @@ class SpacesService {
   }
 
   async create(actor: Actor, input: SpaceInput): Promise<ServiceResponse<Space>> {
-    const row = await prisma.$transaction(async (tx) => {
-      const created = await tx.space.create({
-        data: {
-          name: input.name,
-          floor: input.floor,
-          kind: input.kind ?? "MAIN",
-          capacities: input.capacities,
-          features: input.features ?? [],
-          dayRateMinor: input.dayRateMinor,
-          setupBufferMinutes: input.setupBufferMinutes ?? 240,
-          teardownBufferMinutes: input.teardownBufferMinutes ?? 120,
-          // catalog-extension fields (F14) — optional via the API; primarily seed-populated.
-          ...(input.slug !== undefined ? { slug: input.slug } : {}),
-          ...(input.category !== undefined ? { category: input.category } : {}),
-          ...(input.zone !== undefined ? { zone: input.zone } : {}),
-          ...(input.isCirculation !== undefined ? { isCirculation: input.isCirculation } : {}),
-          ...(input.adjacent !== undefined ? { adjacent: input.adjacent } : {}),
-          ...(input.map !== undefined ? { map: input.map as object } : {}),
-          ...(input.ceilingCm !== undefined ? { ceilingCm: input.ceilingCm } : {}),
-        },
+    try {
+      const row = await prisma.$transaction(async (tx) => {
+        const created = await tx.space.create({
+          data: {
+            name: input.name,
+            floor: input.floor,
+            kind: input.kind ?? "MAIN",
+            capacities: input.capacities,
+            features: input.features ?? [],
+            dayRateMinor: input.dayRateMinor,
+            setupBufferMinutes: input.setupBufferMinutes ?? 240,
+            teardownBufferMinutes: input.teardownBufferMinutes ?? 120,
+            // catalog-extension fields (F14) — optional via the API; primarily seed-populated.
+            ...(input.slug !== undefined ? { slug: input.slug } : {}),
+            ...(input.category !== undefined ? { category: input.category } : {}),
+            ...(input.zone !== undefined ? { zone: input.zone } : {}),
+            ...(input.isCirculation !== undefined ? { isCirculation: input.isCirculation } : {}),
+            ...(input.adjacent !== undefined ? { adjacent: input.adjacent } : {}),
+            ...(input.map !== undefined ? { map: input.map as object } : {}),
+            ...(input.ceilingCm !== undefined ? { ceilingCm: input.ceilingCm } : {}),
+          },
+        });
+        await writeAudit(tx, {
+          actor, action: "space.create", entityType: "Space", entityId: created.id,
+          after: { name: created.name, floor: created.floor, dayRateMinor: created.dayRateMinor },
+        });
+        return created;
       });
-      await writeAudit(tx, {
-        actor, action: "space.create", entityType: "Space", entityId: created.id,
-        after: { name: created.name, floor: created.floor, dayRateMinor: created.dayRateMinor },
-      });
-      return created;
-    });
-    return ok(spaceToDto(row), "space.created");
+      return ok(spaceToDto(row), "space.created");
+    } catch (e) {
+      // A duplicate `slug` is the one unique constraint on Space — map the P2002
+      // to the 422 contract (field-level) so it never escapes as a 500. Mirrors
+      // the users service's email-uniqueness handling.
+      throw mapSpaceUniqueViolation(e);
+    }
   }
 
   async update(actor: Actor, id: string, input: Partial<SpaceInput>): Promise<ServiceResponse<Space>> {
@@ -146,17 +153,35 @@ class SpacesService {
     if (input.adjacent !== undefined) data.adjacent = input.adjacent;
     if (input.map !== undefined) data.map = input.map as unknown as Prisma.InputJsonValue;
     if (input.ceilingCm !== undefined) data.ceilingCm = input.ceilingCm;
-    const row = await prisma.$transaction(async (tx) => {
-      const updated = await tx.space.update({ where: { id }, data });
-      await writeAudit(tx, {
-        actor, action: "space.update", entityType: "Space", entityId: id,
-        before: { name: existing.name, dayRateMinor: existing.dayRateMinor, status: existing.status },
-        after: { name: updated.name, dayRateMinor: updated.dayRateMinor, status: updated.status },
+    try {
+      const row = await prisma.$transaction(async (tx) => {
+        const updated = await tx.space.update({ where: { id }, data });
+        await writeAudit(tx, {
+          actor, action: "space.update", entityType: "Space", entityId: id,
+          before: { name: existing.name, dayRateMinor: existing.dayRateMinor, status: existing.status },
+          after: { name: updated.name, dayRateMinor: updated.dayRateMinor, status: updated.status },
+        });
+        return updated;
       });
-      return updated;
-    });
-    return ok(spaceToDto(row), "space.updated");
+      return ok(spaceToDto(row), "space.updated");
+    } catch (e) {
+      throw mapSpaceUniqueViolation(e);
+    }
   }
+}
+
+/**
+ * Map a Prisma unique-constraint violation on Space (only `slug` is unique) to
+ * the field-level 422 contract; re-throw anything else unchanged. Keeps a
+ * duplicate slug from escaping as a 500 (F14). `validation.invalid` is the
+ * registered field key — a dedicated `space.slug_taken` would read better but
+ * is not yet in the locale registry.
+ */
+function mapSpaceUniqueViolation(e: unknown): unknown {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    return APIError.validation({ slug: "validation.invalid" });
+  }
+  return e;
 }
 
 export const spacesService = new SpacesService();

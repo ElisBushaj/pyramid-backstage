@@ -71,3 +71,13 @@ Assumed defaults (no explicit guidance; logged so they can be overridden):
   Rationale: static reference data; avoids a contract addition; Alvin loads the same JSON into `venue_facts`. (ADR-0013)
 - Assumed: **catalog rows 7–19 carry estimated capacities/rates/buffers/adjacency**; rows 1–6 stay byte-authoritative vs `seed.ts`.
   Rationale: read from the floor plans but not surveyed; flagged for real-venue confirmation (new OPEN question).
+
+## 2026-06-20 — Requests/F15 test hardening (Q-12)
+
+- Assumed: **a PARTNER `POST /private/requests` lands at `PROPOSED`** (staff still land `DRAFT`).
+  Rationale: F15 SPEC states "created at `PROPOSED`" 3× as acceptance criteria; PARTNER_PORTAL.md says "lands `DRAFT → PROPOSED`"; ADR-0010 routes partner requests into the existing MANAGER+ approval queue (a list of PROPOSED). A partner can't reach PROPOSED via a hold (staff-only), so DRAFT would be an un-approvable dead-end. Fixed `requestsService.create`. [assumption: partner-create=PROPOSED] — conflicts with a stale `seed.ts` comment ("E3 DRAFT by PARTNER"), flagged in OPEN.md Q-12 for the seed owner to reconcile.
+
+## 2026-06-20 — Quotes/F07 test hardening (Q-13)
+
+- Assumed: **a quote with no resolvable reservation → 404 `not_found`** (not a silent empty zero-quote).
+  Rationale: QUOTES.md frames a quote as pricing "a request + its reservation"; F07-T03 already mandates 404 for an unknown `reservationId`, so an *implicitly* missing reservation (no `reservationId` and no `HELD|CONFIRMED` hold) should fail the same way rather than persist a meaningless net=0/total=0 DRAFT (a money-correctness trap after a hold expires/releases). Fixed `quotesService.generate` to `throw APIError.notFound()` when no reservation resolves; reuses the existing `common.not_found` key (no new messageKey). [assumption: no-reservation-quote=404] — flagged in OPEN.md Q-13 in case a services-only (reservation-less, extraLineItems-only) quote should instead be allowed.
