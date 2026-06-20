@@ -500,5 +500,17 @@
     "emptyTitle": "Asgjë në pritje",
     "emptyBody": "Nuk ka kërkesa në pritje për miratim.",
     "aiSlot": "Rekomandimi i AI do të shfaqet këtu sapo kopiloti të lidhet."
+  },
+  "floorMap": {
+    "title": "Harta e katit",
+    "floor": "Kati",
+    "aria": "Harta radiale e katit {floor}",
+    "legend": {
+      "main": "Hapësira kryesore",
+      "bundle": "Paketë",
+      "conflict": "Konflikt",
+      "circulation": "Qasja e prekur"
+    },
+    "venueTitle": "Piramida — me një shikim"
   }
 }

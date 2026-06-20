@@ -500,5 +500,17 @@
     "emptyTitle": "Nothing pending",
     "emptyBody": "There are no requests awaiting approval.",
     "aiSlot": "AI recommendation will appear here once the copilot is connected."
+  },
+  "floorMap": {
+    "title": "Floor map",
+    "floor": "Floor",
+    "aria": "Radial floor map of floor {floor}",
+    "legend": {
+      "main": "Main space",
+      "bundle": "Bundle",
+      "conflict": "Conflict",
+      "circulation": "Access affected"
+    },
+    "venueTitle": "The Pyramid — at a glance"
   }
 }

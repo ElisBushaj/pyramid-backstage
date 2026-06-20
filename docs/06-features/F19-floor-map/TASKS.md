@@ -7,7 +7,7 @@ last_updated: 2026-06-20
 # F19 — Tasks
 
 ### F19-T01 — FloorMap.tsx v1: radial map per floor from the catalog `map` field
-- Status: not_started
+- Status: done
 - Depends on: F14-T05
 - Estimate: 1d
 - Acceptance:
@@ -19,7 +19,7 @@ last_updated: 2026-06-20
   - tsc clean; Vitest renders the component for each floor with empty/partial/full `spaces[]` and asserts no throw.
 
 ### F19-T02 — status → colour mapping + legend + floor switcher + EN/AL i18n
-- Status: not_started
+- Status: done
 - Depends on: F19-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -29,7 +29,7 @@ last_updated: 2026-06-20
   - tsc clean; Vitest asserts the colour for each status and that switching floors swaps the rendered space set.
 
 ### F19-T03 — derive spaces[] from /plan output + embed in RequestDetail and Dashboard
-- Status: not_started
+- Status: done
 - Depends on: F18-T03, F19-T02
 - Estimate: 0.75d
 - Acceptance:
@@ -40,7 +40,7 @@ last_updated: 2026-06-20
   - tsc clean; Vitest covers chosen-only, chosen+bundle, conflict, and AI-down (all-free) derivations.
 
 ### F19-T04 — drop-in swap seam for Alvin's component (identical props)
-- Status: not_started
+- Status: done
 - Depends on: F19-T03
 - Estimate: 0.25d
 - Acceptance:

@@ -10,6 +10,7 @@ import {
   useSpaces,
   useAssets,
 } from '@/api/hooks'
+import { FloorMapPanel, deriveFloorStatuses } from '@/components/command/FloorMap'
 import { APIError } from '@/api/api-error'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
@@ -192,6 +193,17 @@ export default function RequestDetail() {
         <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-subtle px-4 py-3 text-[13px] text-text-secondary">
           {t('plan.noReservation')}
         </div>
+      )}
+
+      {/* F19 — the plan, lit on the actual Pyramid: chosen space + bundle + any conflict. */}
+      {(reservation || hasConflict) && (
+        <FloorMapPanel
+          spaces={deriveFloorStatuses(spaces ?? [], {
+            chosenSpaceId: reservation?.spaceId,
+            conflictSpaceIds: allConflicts.map((c) => c.spaceId).filter((x): x is string => !!x),
+            plan: aiPlan.data,
+          })}
+        />
       )}
 
       <Tabs defaultValue="overview">
