@@ -118,18 +118,9 @@ HTTP=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost/health" 2>/dev/
 $COMPOSE exec -T ops-core node -e "require('http').get('http://localhost:4000/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))" \
     && echo "  ops-core /ready: ok" || { echo "  ops-core /ready: UNHEALTHY"; OK=1; }
 
-# Cert auto-renewal (twice daily, webroot through the running nginx).
-RENEW="$APP_DIR/scripts/renew-certs.sh"
-cat > "$RENEW" <<RENEWEOF
-#!/bin/bash
-docker run --rm \\
-    -v "$APP_DIR/certbot/conf:/etc/letsencrypt" \\
-    -v "$APP_DIR/certbot/www:/var/www/certbot" \\
-    certbot/certbot renew --webroot -w /var/www/certbot --quiet
-$COMPOSE exec -T nginx nginx -s reload 2>/dev/null
-RENEWEOF
-chmod +x "$RENEW"
-( crontab -l 2>/dev/null | grep -v "renew-certs.sh"; echo "0 3,15 * * * $RENEW >> /var/log/certbot-renew.log 2>&1" ) | crontab -
+# Cert auto-renewal is handled by the `certbot-renewer` sidecar (see
+# docker-compose.prod.yml) — a container-native 12h loop that renews + reloads
+# nginx. No host cron dependency (minimal cloud images ship without it).
 
 docker image prune -f >/dev/null 2>&1 || true
 

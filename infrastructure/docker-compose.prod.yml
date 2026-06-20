@@ -222,6 +222,36 @@ services:
         limits: { memory: 128M }
         reservations: { memory: 32M }
 
+  # Container-native TLS renewal: every 12h, renew via webroot then reload nginx.
+  # Replaces a host cron job (minimal cloud images ship without `cron`). Talks to
+  # the host Docker daemon via the mounted socket — acceptable on a single-tenant
+  # VPS; it never touches the nginx service definition, so the proxy stays put.
+  certbot-renewer:
+    image: docker:cli
+    container_name: pyramid-certbot-renewer-prod
+    depends_on:
+      nginx: { condition: service_started }
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        trap exit TERM
+        echo "cert-renewer up — checking every 12h"
+        while :; do
+          docker run --rm \
+            -v /opt/pyramid/certbot/conf:/etc/letsencrypt \
+            -v /opt/pyramid/certbot/www:/var/www/certbot \
+            certbot/certbot renew --webroot -w /var/www/certbot --quiet || true
+          docker exec pyramid-nginx-prod nginx -s reload 2>/dev/null || true
+          sleep 12h & wait $!
+        done
+    restart: always
+    networks: [pyramid_net]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
 volumes:
   pyramid_db_data_prod: { driver: local }
   pyramid_nats_data_prod: { driver: local }
