@@ -9,7 +9,26 @@ import type {
 import { writeAudit } from "../audit/audit.writer";
 import { writeOutbox } from "../events/outbox.writer";
 import { assetAvailability, assetHeldQuantities } from "../../services/availability";
-import { runSerializable } from "../../utils/tx";
+
+const SCAN_ATTEMPTS = 5;
+
+/**
+ * A scan runs in a serializable tx with a `SELECT … FOR UPDATE` row lock. When two
+ * scans race on the same asset, Postgres aborts the loser with SQLSTATE 40001. The
+ * shared utils/tx helper only retries Prisma's P2034/P2037 codes, but a conflict
+ * raised inside a raw `$queryRaw FOR UPDATE` surfaces wrapped as P2010
+ * (driverAdapterError: TransactionWriteConflict, message carries `40001`). Treat
+ * all of these as the same retryable serialization conflict so the loser re-runs
+ * against the winner's committed state — yielding a clean 422 over-checkout (or a
+ * success if room remains), never a 500. Mirrors the reservation hold's retry.
+ */
+function isSerializationConflict(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (e.code === "P2034" || e.code === "P2037") return true;
+  const driverName = (e.meta as { driverAdapterError?: { name?: string } } | undefined)?.driverAdapterError?.name;
+  if (driverName === "TransactionWriteConflict") return true;
+  return e.code === "P2010" && /\b40001\b|could not serialize/i.test(e.message);
+}
 
 type AssetRow = { id: string; name: string; type: string; totalQuantity: number; location: string; status: string };
 
@@ -97,61 +116,83 @@ class AssetsService {
    * can't have more units out than exist) and over-check-in. See ASSET_TRACKING.md.
    */
   async scan(actor: Actor, assetId: string, input: AssetScanInput): Promise<ServiceResponse<AssetScanResult>> {
-    const asset = await prisma.asset.findUnique({ where: { id: assetId } });
-    if (!asset) throw APIError.notFound();
     if (!Number.isInteger(input.quantity) || input.quantity < 1) throw APIError.validation({ quantity: "validation.min" });
+    const exists = await prisma.asset.findUnique({ where: { id: assetId }, select: { id: true } });
+    if (!exists) throw APIError.notFound();
 
-    const out = await runSerializable(async (tx) => {
-      // Lock the asset row so the net-out read and the movement write can't interleave
-      // with a concurrent scan (which would let two CHECK_OUTs exceed totalQuantity).
-      await tx.$queryRaw(Prisma.sql`SELECT id FROM "Asset" WHERE id = ${assetId} FOR UPDATE`);
-      const grouped = await tx.assetMovement.groupBy({ by: ["assetId", "action"], where: { assetId }, _sum: { quantity: true } });
-      const net = this.netFromGroups(grouped).get(assetId) ?? 0;
-      if (input.action === "CHECK_OUT" && net + input.quantity > asset.totalQuantity) {
-        throw APIError.validation({ quantity: "asset.scan.over_checkout" });
-      }
-      if (input.action === "CHECK_IN" && input.quantity > net) {
-        throw APIError.validation({ quantity: "asset.scan.over_checkin" });
-      }
-      const movement = await tx.assetMovement.create({
-        data: {
-          assetId, action: input.action, quantity: input.quantity,
-          fromLocation: asset.location, toLocation: input.toLocation,
-          reservationId: input.reservationId ?? null, actorId: actor.id, note: input.note ?? null,
-        },
-      });
-      const updated = await tx.asset.update({ where: { id: assetId }, data: { location: input.toLocation } });
-      await writeAudit(tx, {
-        actor, action: "asset.scan", entityType: "Asset", entityId: assetId,
-        before: { location: asset.location }, after: { location: input.toLocation },
-        reason: `${input.action} ${input.quantity} → ${input.toLocation}`,
-      });
-      await writeOutbox(tx, "asset.moved", {
-        assetId, action: input.action, quantity: input.quantity,
-        fromLocation: asset.location, toLocation: input.toLocation, reservationId: input.reservationId ?? null,
-      });
-      const newNet = input.action === "CHECK_OUT" ? net + input.quantity : input.action === "CHECK_IN" ? net - input.quantity : net;
-      return { updated, movement, newNet };
-    });
+    // Serializable + FOR UPDATE row lock. On a concurrent-scan serialization abort
+    // (SQLSTATE 40001) the loser re-runs against the winner's committed ledger, so a
+    // genuine over-checkout becomes a clean 422 rather than a 500. The body is
+    // idempotent across retries: it re-reads the locked asset and re-folds the ledger.
+    for (let attempt = 0; attempt < SCAN_ATTEMPTS; attempt++) {
+      try {
+        const out = await prisma.$transaction(
+          async (tx) => {
+            // Lock the asset row so the net-out read and the movement write can't interleave
+            // with a concurrent scan (which would let two CHECK_OUTs exceed totalQuantity).
+            await tx.$queryRaw(Prisma.sql`SELECT id FROM "Asset" WHERE id = ${assetId} FOR UPDATE`);
+            // Re-read under the lock so totalQuantity/location are the committed truth on every retry.
+            const asset = await tx.asset.findUnique({ where: { id: assetId } });
+            if (!asset) throw APIError.notFound();
+            const grouped = await tx.assetMovement.groupBy({ by: ["assetId", "action"], where: { assetId }, _sum: { quantity: true } });
+            const net = this.netFromGroups(grouped).get(assetId) ?? 0;
+            if (input.action === "CHECK_OUT" && net + input.quantity > asset.totalQuantity) {
+              throw APIError.validation({ quantity: "asset.scan.over_checkout" });
+            }
+            if (input.action === "CHECK_IN" && input.quantity > net) {
+              throw APIError.validation({ quantity: "asset.scan.over_checkin" });
+            }
+            const movement = await tx.assetMovement.create({
+              data: {
+                assetId, action: input.action, quantity: input.quantity,
+                fromLocation: asset.location, toLocation: input.toLocation,
+                reservationId: input.reservationId ?? null, actorId: actor.id, note: input.note ?? null,
+              },
+            });
+            const updated = await tx.asset.update({ where: { id: assetId }, data: { location: input.toLocation } });
+            await writeAudit(tx, {
+              actor, action: "asset.scan", entityType: "Asset", entityId: assetId,
+              before: { location: asset.location }, after: { location: input.toLocation },
+              reason: `${input.action} ${input.quantity} → ${input.toLocation}`,
+            });
+            await writeOutbox(tx, "asset.moved", {
+              assetId, action: input.action, quantity: input.quantity,
+              fromLocation: asset.location, toLocation: input.toLocation, reservationId: input.reservationId ?? null,
+            });
+            const newNet = input.action === "CHECK_OUT" ? net + input.quantity : input.action === "CHECK_IN" ? net - input.quantity : net;
+            return { updated, movement, newNet };
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
 
-    const dto: AssetWithAvailability = {
-      ...assetToDto(out.updated),
-      checkedOutQuantity: out.newNet,
-      lastMovedAt: out.movement.at.toISOString(),
-    };
-    return ok({ asset: dto, movement: assetMovementToDto(out.movement) }, "asset.scanned");
+        const dto: AssetWithAvailability = {
+          ...assetToDto(out.updated),
+          checkedOutQuantity: out.newNet,
+          lastMovedAt: out.movement.at.toISOString(),
+        };
+        return ok({ asset: dto, movement: assetMovementToDto(out.movement) }, "asset.scanned");
+      } catch (e) {
+        if (isSerializationConflict(e) && attempt < SCAN_ATTEMPTS - 1) continue;
+        throw e;
+      }
+    }
+    // Unreachable: the loop returns on success or rethrows on the final attempt.
+    throw APIError.internal();
   }
 
   /** F16 — the per-asset movement ledger, newest first (paginated). */
   async movements(assetId: string, page = 1, pageSize = 50): Promise<ListResponse<AssetMovement>> {
     const asset = await prisma.asset.findUnique({ where: { id: assetId } });
     if (!asset) throw APIError.notFound();
-    const size = Math.min(Math.max(1, pageSize), 100);
+    // Clamp to safe bounds: a malformed/negative/fractional page must never reach
+    // Prisma as a negative or non-integer `skip` (which 500s), and pageSize is capped.
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const size = Math.min(Math.max(1, Math.floor(Number.isFinite(pageSize) ? pageSize : 50)), 100);
     const [rows, total] = await Promise.all([
-      prisma.assetMovement.findMany({ where: { assetId }, orderBy: { at: "desc" }, skip: (page - 1) * size, take: size }),
+      prisma.assetMovement.findMany({ where: { assetId }, orderBy: { at: "desc" }, skip: (safePage - 1) * size, take: size }),
       prisma.assetMovement.count({ where: { assetId } }),
     ]);
-    return okList(rows.map(assetMovementToDto), total, page, size, "asset.movements.success");
+    return okList(rows.map(assetMovementToDto), total, safePage, size, "asset.movements.success");
   }
 
   async create(actor: Actor, input: AssetInput): Promise<ServiceResponse<Asset>> {
