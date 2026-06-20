@@ -236,6 +236,50 @@ paths:
         "200": { $ref: "#/components/responses/AssetCreated" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # ── F16: QR/NFC asset tracking ───────────────────────────────────────────────
+  /private/assets/{id}/scan:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    post:
+      tags: [assets]
+      summary: Record a QR/NFC scan (OPS+) — appends a movement + updates live location
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/AssetScanInput" } }
+      responses:
+        "201":
+          description: Scan recorded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { $ref: "#/components/schemas/AssetScanResult" } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /private/assets/{id}/movements:
+    parameters: [{ $ref: "#/components/parameters/PathId" }]
+    get:
+      tags: [assets]
+      summary: Asset movement ledger (newest first, paginated)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200":
+          description: Movement history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties: { data: { type: array, items: { $ref: "#/components/schemas/AssetMovement" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # ── requests ───────────────────────────────────────────────────────────────
   /private/requests:
     get:
@@ -793,6 +837,40 @@ components:
         - type: object
           properties:
             availableQuantity: { type: integer, description: total − Σ overlapping holds }
+            checkedOutQuantity: { type: integer, description: "F16 — net units currently checked out (Σ CHECK_OUT − Σ CHECK_IN)" }
+            lastMovedAt: { type: string, format: date-time }
+
+    # ── AssetMovement (F16 — QR/NFC tracking, aggregate-with-movement) ────────────
+    AssetMovementAction: { type: string, enum: [CHECK_OUT, CHECK_IN, RELOCATE] }
+    AssetMovement:
+      type: object
+      required: [id, assetId, action, quantity, toLocation, at]
+      properties:
+        id: { type: string }
+        assetId: { type: string }
+        action: { $ref: "#/components/schemas/AssetMovementAction" }
+        quantity: { type: integer, minimum: 1 }
+        fromLocation: { type: string, nullable: true }
+        toLocation: { type: string }
+        reservationId: { type: string, nullable: true }
+        actorId: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        at: { type: string, format: date-time }
+    AssetScanInput:
+      type: object
+      required: [action, quantity, toLocation]
+      properties:
+        action: { $ref: "#/components/schemas/AssetMovementAction" }
+        quantity: { type: integer, minimum: 1 }
+        toLocation: { type: string }
+        reservationId: { type: string }
+        note: { type: string }
+    AssetScanResult:
+      type: object
+      required: [asset, movement]
+      properties:
+        asset: { $ref: "#/components/schemas/AssetWithAvailability" }
+        movement: { $ref: "#/components/schemas/AssetMovement" }
 
     # ── EventRequest ─────────────────────────────────────────────────────────────
     Requirements:

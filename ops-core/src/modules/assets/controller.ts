@@ -22,4 +22,18 @@ export class AssetsController {
   static async update(req: Request, _res: Response) {
     return assetsService.update(req.actor!, req.params.id as string, req.body);
   }
+
+  @controlledResponse("post")
+  static async scan(req: Request, _res: Response) {
+    return assetsService.scan(req.actor!, req.params.id as string, req.body);
+  }
+
+  @controlledResponse("get")
+  static async movements(req: Request, _res: Response) {
+    return assetsService.movements(
+      req.params.id as string,
+      req.query.page ? Number(req.query.page) : undefined,
+      req.query.pageSize ? Number(req.query.pageSize) : undefined,
+    );
+  }
 }

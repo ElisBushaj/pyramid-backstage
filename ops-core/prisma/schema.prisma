@@ -48,6 +48,14 @@ enum AssetStatus {
   RETIRED
 }
 
+// F16 — a QR/NFC scan is one of these. CHECK_OUT/CHECK_IN move units away/back;
+// RELOCATE just changes where they sit. Aggregate-with-movement (ADR-0011).
+enum AssetMovementAction {
+  CHECK_OUT
+  CHECK_IN
+  RELOCATE
+}
+
 enum EventType {
   CONFERENCE
   EXHIBITION
@@ -166,8 +174,28 @@ model Asset {
   updatedAt     DateTime    @updatedAt
 
   reservationAssets ReservationAsset[]
+  movements         AssetMovement[]
 
   @@index([type, status])
+}
+
+// F16 — the QR/NFC movement ledger. `location` on Asset is the live current location;
+// this is the append-only history of how it got there. See docs/02-domain/ASSET_TRACKING.md.
+model AssetMovement {
+  id            String              @id @default(uuid())
+  assetId       String
+  action        AssetMovementAction
+  quantity      Int
+  fromLocation  String?
+  toLocation    String
+  reservationId String?
+  actorId       String?
+  note          String?
+  at            DateTime            @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, at])
 }
 
 // ─────────────────────────────────────────────────────────── requests

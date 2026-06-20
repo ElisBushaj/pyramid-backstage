@@ -7,7 +7,7 @@ last_updated: 2026-06-20
 # F16 — Tasks
 
 ### F16-T01 — AssetMovement model + migration + AssetMovementAction enum
-- Status: not_started
+- Status: done
 - Depends on: F03-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -17,7 +17,7 @@ last_updated: 2026-06-20
   - `prisma generate` regenerates the client; tsc clean.
 
 ### F16-T02 — POST /private/assets/:id/scan (OPS+): one tx → movement + live location + audit + outbox; over-checkout guard
-- Status: not_started
+- Status: done
 - Depends on: F16-T01, F09-T02
 - Estimate: 0.75d
 - Acceptance:
@@ -29,7 +29,7 @@ last_updated: 2026-06-20
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F16-T03 — GET /private/assets/:id/movements (paginated) + live-location rollup on GET /private/assets
-- Status: not_started
+- Status: done
 - Depends on: F16-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -39,7 +39,7 @@ last_updated: 2026-06-20
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F16-T04 — contract: openapi.yaml AssetMovement + scan + movements; type mirrors; mock-ops-core handlers
-- Status: not_started
+- Status: done
 - Depends on: F16-T02, F16-T03
 - Estimate: 0.5d
 - Acceptance:
@@ -69,7 +69,7 @@ last_updated: 2026-06-20
   - Build green.
 
 ### F16-T07 — tests: scan happy path, over-checkout guard, audit+outbox, movements history, idempotent replay
-- Status: not_started
+- Status: done
 - Depends on: F16-T02, F16-T03
 - Estimate: 0.5d
 - Acceptance:

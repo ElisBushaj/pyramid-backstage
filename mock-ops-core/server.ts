@@ -161,6 +161,12 @@ const db = {
   reservations: [] as Reservation[],
   quotes: [] as Quote[],
   tasks: [] as Task[],
+  // F16 — QR/NFC movement ledger (aggregate-with-movement).
+  movements: [] as Array<{
+    id: string; assetId: string; action: string; quantity: number;
+    fromLocation: string | null; toLocation: string; reservationId: string | null;
+    actorId: string | null; note: string | null; at: string;
+  }>,
 };
 
 let seq = 0;
@@ -563,6 +569,42 @@ app.get('/api/v1/private/assets', (req: Request, res: Response) => {
     return { ...a, availableQuantity: availableQuantity(a, window, undefined, at) };
   });
   ok(res, data, 'assets.list.success');
+});
+
+// ── F16: POST /private/assets/:id/scan — record a movement + update live location ──
+app.post('/api/v1/private/assets/:id/scan', (req: Request, res: Response) => {
+  const asset = db.assets.find((a) => a.id === req.params.id);
+  if (!asset) return fail(res, 404, 'not_found', 'asset.not_found');
+  const b = req.body ?? {};
+  const fields: Record<string, string> = {};
+  if (!['CHECK_OUT', 'CHECK_IN', 'RELOCATE'].includes(b.action)) fields.action = 'validation.enum';
+  if (!Number.isInteger(b.quantity) || b.quantity < 1) fields.quantity = 'validation.min';
+  if (!b.toLocation) fields.toLocation = 'validation.required';
+  if (Object.keys(fields).length) return validation(res, fields);
+
+  const net = db.movements
+    .filter((m) => m.assetId === asset.id)
+    .reduce((n, m) => n + (m.action === 'CHECK_OUT' ? m.quantity : m.action === 'CHECK_IN' ? -m.quantity : 0), 0);
+  if (b.action === 'CHECK_OUT' && net + b.quantity > asset.totalQuantity) return validation(res, { quantity: 'asset.scan.over_checkout' });
+  if (b.action === 'CHECK_IN' && b.quantity > net) return validation(res, { quantity: 'asset.scan.over_checkin' });
+
+  const movement = {
+    id: `mv_${db.movements.length + 1}`, assetId: asset.id, action: b.action, quantity: b.quantity,
+    fromLocation: asset.location, toLocation: b.toLocation, reservationId: b.reservationId ?? null,
+    actorId: null, note: b.note ?? null, at: new Date().toISOString(),
+  };
+  db.movements.push(movement);
+  asset.location = b.toLocation;
+  const newNet = b.action === 'CHECK_OUT' ? net + b.quantity : b.action === 'CHECK_IN' ? net - b.quantity : net;
+  ok(res, { asset: { ...asset, checkedOutQuantity: Math.max(0, newNet), lastMovedAt: movement.at }, movement }, 'asset.scanned', 201);
+});
+
+// ── F16: GET /private/assets/:id/movements — the ledger, newest first ──────────────
+app.get('/api/v1/private/assets/:id/movements', (req: Request, res: Response) => {
+  const asset = db.assets.find((a) => a.id === req.params.id);
+  if (!asset) return fail(res, 404, 'not_found', 'asset.not_found');
+  const data = db.movements.filter((m) => m.assetId === asset.id).sort((a, b) => b.at.localeCompare(a.at));
+  ok(res, data, 'asset.movements.success');
 });
 
 // ── POST /private/requests — create a structured event request ─────────────────
