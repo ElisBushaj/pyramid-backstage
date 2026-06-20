@@ -1,9 +1,21 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
 
-/** Prisma surfaces serialization failures / deadlocks as P2034 (and P2037). */
+/**
+ * True when the DB aborted a transaction for a serialization conflict / deadlock.
+ * Prisma surfaces these natively as P2034/P2037, but a conflict raised inside a raw
+ * `$queryRaw ... FOR UPDATE` (how the hold / scan / approval paths take row locks)
+ * comes back through the driver adapter wrapped as P2010 — meta.driverAdapterError
+ * "TransactionWriteConflict", message carrying Postgres SQLSTATE 40001 (or 40P01
+ * deadlock). Treat all of these as the same retryable conflict so the loser re-runs
+ * against the winner's committed state (a clean 409/422), never a 500.
+ */
 export function isSerializationError(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && (e.code === "P2034" || e.code === "P2037");
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (e.code === "P2034" || e.code === "P2037") return true;
+  const driverName = (e.meta as { driverAdapterError?: { name?: string } } | undefined)?.driverAdapterError?.name;
+  if (driverName === "TransactionWriteConflict") return true;
+  return e.code === "P2010" && /\b40001\b|\b40P01\b|could not serialize|deadlock detected/i.test(e.message);
 }
 
 /**
