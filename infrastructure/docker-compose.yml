@@ -123,6 +123,8 @@ services:
       - ../ops-core/src:/app/src
       - ../ops-core/prisma:/app/prisma
       - ops_core_node_modules:/app/node_modules
+      # F14 seed reads the space catalog at /docs/03-data/spaces.catalog.json.
+      - ../docs:/docs:ro
     environment:
       NODE_ENV: development
       PORT: 4000
