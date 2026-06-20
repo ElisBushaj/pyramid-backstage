@@ -22,6 +22,11 @@ interface ListParams {
 
 class RequestsService {
   async create(actor: Actor, input: EventRequestInput): Promise<ServiceResponse<EventRequest>> {
+    // F15 — a PARTNER submits straight into the approval queue (PROPOSED); staff
+    // capture a DRAFT they go on to plan. A partner can't reach DRAFT→PROPOSED via
+    // a hold (that route is staff-only), so a DRAFT partner request would be a
+    // dead-end the manager queue never surfaces. ADR-0010 / F15 SPEC.
+    const status = actor.role === "PARTNER" ? "PROPOSED" : "DRAFT";
     const row = await prisma.$transaction(async (tx) => {
       const created = await tx.eventRequest.create({
         data: {
@@ -33,7 +38,7 @@ class RequestsService {
           eventType: input.eventType,
           preferredDates: input.preferredDates as unknown as Prisma.InputJsonValue,
           ...(input.requirements ? { requirements: input.requirements as unknown as Prisma.InputJsonValue } : {}),
-          status: "DRAFT",
+          status,
           createdById: actor.id,
         },
       });
