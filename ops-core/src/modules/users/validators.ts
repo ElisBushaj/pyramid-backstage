@@ -1,7 +1,9 @@
 import { body, type ValidationChain } from "express-validator";
 import { ValidationHelpers } from "../../utils/validation.utils";
 
-const ROLES = ["ADMIN", "MANAGER", "OPS", "VIEWER"] as const;
+// Full role ladder incl. PARTNER (F15 / ADR-0010). Mirrors Role in types/api/auth.ts;
+// omitting PARTNER here made it un-creatable/un-assignable via /admin/users.
+const ROLES = ["ADMIN", "MANAGER", "OPS", "VIEWER", "PARTNER"] as const;
 
 export const createUserValidators: ValidationChain[] = [
   ValidationHelpers.email("email"),
