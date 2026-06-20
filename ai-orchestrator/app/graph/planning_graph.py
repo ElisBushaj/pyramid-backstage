@@ -30,6 +30,7 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from ..intake import parse_event_request
 from ..ops_core_client import OpsCoreClient, OpsCoreConflict
 from ..schemas import (
     Conflict,
@@ -64,12 +65,14 @@ class PlanState(TypedDict, total=False):
     ops: OpsCoreClient
     request_id: str
     intake: EventRequestInput | None
+    nl_text: str
 
     # ── hydrated from the request ──────────────────────────────────────────────
     request_obj: EventRequest | None
     windows: list[DateRange]
     chosen_window: DateRange | None
     attendees: int | None
+    event_type: str | None
     layout: str | None
     av_needed: bool
     reserved_assets: list[ReservedAsset]
@@ -83,6 +86,9 @@ class PlanState(TypedDict, total=False):
     alternatives: list[dict[str, Any]]
     feasible: bool
     narrative: str
+    bundle: list[dict[str, Any]]
+    warnings: list[str]
+    map_state: list[dict[str, Any]]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -91,12 +97,15 @@ class PlanState(TypedDict, total=False):
 async def parse_intake(state: PlanState) -> dict[str, Any]:
     """Normalize the request into structured state.
 
-    Phase A: if ``intake`` is set, create the request in ops-core; otherwise
-    hydrate from an existing ``request_id``. Pick the first preferred window.
-    (Phase B replaces the structured-intake assumption with the NL parser.)
+    NL text (``nl_text``) -> ``EventRequestInput`` via the parser (Phase B), or a
+    pre-structured ``intake``; then create the request in ops-core. If a
+    ``request_id`` is given instead, hydrate the existing request. Pick the first
+    preferred window.
     """
     ops = state["ops"]
     intake = state.get("intake")
+    if intake is None and state.get("nl_text"):
+        intake = await parse_event_request(state["nl_text"])
     if intake is not None:
         req = await ops.create_request(intake)
     else:
@@ -113,6 +122,7 @@ async def parse_intake(state: PlanState) -> dict[str, Any]:
         "windows": windows,
         "chosen_window": windows[0] if windows else None,
         "attendees": req.expectedAttendees,
+        "event_type": req.eventType,
         "layout": requirements.layout if requirements else None,
         "av_needed": bool(requirements.avNeeded) if requirements else False,
     }
@@ -297,7 +307,12 @@ async def alternatives(state: PlanState) -> dict[str, Any]:
 
 
 async def assemble_plan(state: PlanState) -> dict[str, Any]:
-    """Compose the narrative AROUND injected values — never free-generate a number."""
+    """Compose the OperationalPlan + narrative, with Phase C spatial enrichment.
+
+    Numbers stay injected, never free-generated (#2). On the happy path we add the
+    space BUNDLE (complementary spaces from the catalog) + circulation warnings +
+    the floor-map state; on the conflict path we narrate the conflict + alternative.
+    """
     feasible = bool(state.get("feasible"))
     space = state.get("space")
     quote = state.get("quote")
@@ -307,19 +322,48 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
     win = state.get("chosen_window")
     attendees = state.get("attendees")
     layout = state.get("layout") or "flexible layout"
+    event_type = state.get("event_type") or "OTHER"
+
+    bundle: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    map_state: list[dict[str, Any]] = []
+    primary_slug: str | None = None
+    try:
+        from ..venue import get_venue
+
+        venue = get_venue()
+        primary = venue.by_name(space.name) if space else None
+        primary_slug = primary["slug"] if primary else None
+        if feasible and primary_slug:
+            bundle = venue.propose_bundle(event_type=event_type, primary_slug=primary_slug)
+            warnings = venue.circulation_warnings([primary_slug] + [b["slug"] for b in bundle])
+    except Exception:
+        bundle, warnings, primary_slug = [], [], None
 
     if feasible and space is not None:
+        if primary_slug:
+            map_state.append({"slug": primary_slug, "status": "main"})
+            for b in bundle:
+                map_state.append(
+                    {"slug": b["slug"], "status": "circulation" if b["isCirculation"] else "bundle"}
+                )
         date = win.start[:10] if win else "the requested date"
-        if quote is not None:
-            money = f"{quote.totalMinor:,} ALL incl. VAT"
-        else:
-            money = "a quote on request"
+        money = f"{quote.totalMinor:,} ALL incl. VAT" if quote is not None else "a quote on request"
+        bundle_txt = ""
+        if bundle:
+            parts = ", ".join(
+                f"{b['name']} ({b['reason']})" if b.get("reason") else b["name"] for b in bundle
+            )
+            bundle_txt = f" Plus {parts}."
         conflict_note = "No conflicts." if not conflicts else f"{len(conflicts)} conflict(s) flagged."
+        warn_txt = (" Heads-up: " + " ".join(warnings)) if warnings else ""
         narrative = (
-            f"{space.name} on {date}, {layout} for {attendees}. "
-            f"{len(tasks)} setup/teardown task(s) queued. Total {money}. {conflict_note}"
+            f"{space.name} on {date}, {layout} for {attendees}.{bundle_txt} "
+            f"{len(tasks)} setup/teardown task(s) queued. Total {money}. {conflict_note}{warn_txt}"
         )
     else:
+        if primary_slug:
+            map_state.append({"slug": primary_slug, "status": "conflict"})
         reason = (
             conflicts[0].detail
             if conflicts
@@ -328,7 +372,13 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
         alt_txt = (" " + alts[0]["detail"]) if alts else ""
         narrative = f"Not feasible as requested: {reason}{alt_txt}"
 
-    return {"feasible": feasible, "narrative": narrative}
+    return {
+        "feasible": feasible,
+        "narrative": narrative,
+        "bundle": bundle,
+        "warnings": warnings,
+        "map_state": map_state,
+    }
 
 
 # ═════════════════════════════════════════════════════════════════════════════

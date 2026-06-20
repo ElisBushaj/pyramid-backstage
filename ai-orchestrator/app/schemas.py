@@ -323,6 +323,10 @@ class OperationalPlan(BaseModel):
     conflicts: list[Conflict] = Field(default_factory=list)
     # Free DateRange windows / candidate spaces to fall back to when infeasible.
     alternatives: list[dict[str, Any]] = Field(default_factory=list)
+    # Phase C — spatial intelligence (the AI's own enrichment, not ops-core's).
+    bundle: list[dict[str, Any]] = Field(default_factory=list)  # complementary spaces
+    warnings: list[str] = Field(default_factory=list)  # circulation/access notes
+    mapState: list[dict[str, Any]] = Field(default_factory=list)  # {slug,status} for the floor-map
     narrative: str
 
 

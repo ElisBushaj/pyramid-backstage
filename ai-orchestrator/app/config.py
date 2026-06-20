@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     CHROMA_URL: str = "http://localhost:8001"
 
+    # ── Venue knowledge (the space catalog the AI reasons over) ──────────────
+    # Defaults to the copy bundled in app/data; override to point elsewhere
+    # (e.g. the canonical docs/03-data/spaces.catalog.json).
+    CATALOG_PATH: str | None = None
+
     # ── HTTP / CORS ─────────────────────────────────────────────────────────
     # Comma-separated origins allowed to call this service (the frontend).
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
