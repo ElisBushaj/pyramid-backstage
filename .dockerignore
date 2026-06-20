@@ -27,6 +27,8 @@
 .github
 **/*.md
 docs
+# …except the shared space catalog the ops-core prod image bakes in for the seed.
+!docs/03-data/spaces.catalog.json
 
 # Test / coverage artifacts
 **/coverage
