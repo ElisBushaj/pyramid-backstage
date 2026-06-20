@@ -504,7 +504,7 @@
   "floorMap": {
     "title": "Harta e katit",
     "floor": "Kati",
-    "aria": "Harta radiale e katit {floor}",
+    "aria": "Harta radiale e katit {{floor}}",
     "legend": {
       "main": "Hapësira kryesore",
       "bundle": "Paketë",

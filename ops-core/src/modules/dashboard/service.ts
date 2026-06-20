@@ -14,7 +14,7 @@ class DashboardService {
     const [thisWeek, lastWeek, inUse, totalSpaces, pending, lowStock] = await Promise.all([
       prisma.eventRequest.count({ where: { createdAt: { gte: weekAgo } } }),
       prisma.eventRequest.count({ where: { createdAt: { gte: twoWeeksAgo, lt: weekAgo } } }),
-      prisma.reservation.findMany({ where: { status: { in: ["HELD", "CONFIRMED"] } }, distinct: ["spaceId"], select: { spaceId: true } }),
+      prisma.reservation.findMany({ where: { OR: [{ status: "CONFIRMED" }, { status: "HELD", expiresAt: { gt: now } }] }, distinct: ["spaceId"], select: { spaceId: true } }),
       prisma.space.count({ where: { status: "ACTIVE" } }),
       prisma.eventRequest.count({ where: { status: "PROPOSED" } }),
       prisma.$queryRaw<Array<{ low: number }>>`

@@ -72,7 +72,7 @@ export function useHold(requestId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: ReservationInput) => api.post<Reservation>('/private/reservations', { body, idempotency: true }),
-    onSuccess: () => invalidateRequest(qc, requestId),
+    onSuccess: () => { invalidateRequest(qc, requestId); invalidateInventoryViews(qc) },
   })
 }
 
@@ -110,7 +110,7 @@ export function useApprove(requestId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.post<EventRequest>(`/private/requests/${requestId}/approve`, { idempotency: true }),
-    onSuccess: () => { invalidateRequest(qc, requestId); qc.invalidateQueries({ queryKey: q('dashboard') }) },
+    onSuccess: () => { invalidateRequest(qc, requestId); invalidateInventoryViews(qc) },
   })
 }
 
@@ -118,7 +118,7 @@ export function useReject(requestId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (reason: string) => api.post<EventRequest>(`/private/requests/${requestId}/reject`, { body: { reason }, idempotency: true }),
-    onSuccess: () => invalidateRequest(qc, requestId),
+    onSuccess: () => { invalidateRequest(qc, requestId); invalidateInventoryViews(qc) },
   })
 }
 
@@ -157,8 +157,8 @@ export function useScanAsset(id: string) {
   return useMutation({
     mutationFn: (body: AssetScanInput) => api.post<AssetScanResult>(`/private/assets/${id}/scan`, { body, idempotency: true }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: q('assets') })
       qc.invalidateQueries({ queryKey: q('asset-movements', id) })
+      invalidateInventoryViews(qc)
     },
   })
 }
@@ -192,4 +192,14 @@ export function useUpdateUser() {
 function invalidateRequest(qc: ReturnType<typeof useQueryClient>, id: string) {
   qc.invalidateQueries({ queryKey: q('request', id) })
   qc.invalidateQueries({ queryKey: q('requests') })
+}
+
+// A booking-loop write (hold/approve/reject/scan) changes the live, server-computed
+// conflict set + windowed availability; invalidate every derived view together so the
+// always-mounted conflict badge, FloorMap and dashboard KPIs never go stale.
+function invalidateInventoryViews(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: q('conflicts') })
+  qc.invalidateQueries({ queryKey: q('spaces') })
+  qc.invalidateQueries({ queryKey: q('assets') })
+  qc.invalidateQueries({ queryKey: q('dashboard') })
 }

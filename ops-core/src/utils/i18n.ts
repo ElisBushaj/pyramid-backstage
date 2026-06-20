@@ -22,7 +22,7 @@ export function translate(
   let str = resolved ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+      str = str.split(`{${k}}`).join(String(v));
     }
   }
   return str;

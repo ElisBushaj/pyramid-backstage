@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router'
+import RootLayout from './RootLayout'
 import RootError from './RootError'
 import { RequireAuth } from '@/components/shell/RequireAuth'
 import { AppShell } from '@/components/shell/AppShell'
@@ -23,6 +24,12 @@ import Users from '@/pages/Users'
 import Calendar from '@/pages/Calendar'
 
 export const router = createBrowserRouter([
+  {
+    // Root layout: mounts <ScrollRestoration/> + the route-level Suspense fallback once
+    // for the whole tree (without this parent, RootLayout was dead and scroll never restored).
+    element: <RootLayout />,
+    errorElement: <RootError />,
+    children: [
   { path: '/login', element: <Login />, errorElement: <RootError /> },
   {
     // F15 — the external partner portal (PARTNER only; PortalShell bounces staff to /).
@@ -63,6 +70,8 @@ export const router = createBrowserRouter([
       { path: 'audit', element: <Audit /> },
       { path: 'settings/users', element: <Users /> },
       { path: '*', element: <RootError /> },
+    ],
+  },
     ],
   },
 ])

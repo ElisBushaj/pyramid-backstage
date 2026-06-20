@@ -79,6 +79,9 @@ export default function Intake() {
     for (const f of REQUIRED_FIELDS) {
       if (!String(form[f]).trim()) errs[f] = t(`intake.required.${f}`)
     }
+    if (!errs.start && !errs.end && form.start && form.end && new Date(form.start) >= new Date(form.end)) {
+      errs.end = t('intake.invalid.end')
+    }
     return errs
   }, [touched, form, t])
 
@@ -95,7 +98,8 @@ export default function Intake() {
     e.preventDefault()
     setTouched(true)
     const missing = REQUIRED_FIELDS.some((f) => !String(form[f]).trim())
-    if (missing) return
+    const badRange = !!form.start && !!form.end && new Date(form.start) >= new Date(form.end)
+    if (missing || badRange) return
 
     const body: EventRequestInput = {
       title: form.title.trim(),

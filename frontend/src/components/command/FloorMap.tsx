@@ -123,7 +123,10 @@ export function FloorMapPanel({ spaces, title, className }: { spaces: FloorMapSp
     for (const [f, n] of counts) if (n > bestN) { best = f; bestN = n }
     return best
   }, [spaces, slugFloor])
-  const [floor, setFloor] = useState<number>(defaultFloor)
+  // `floor` stays null until the user picks one, so the view follows defaultFloor as the
+  // async space data arrives (a useState initializer runs only once, on first mount).
+  const [floor, setFloor] = useState<number | null>(null)
+  const activeFloor = floor ?? defaultFloor
 
   const legend: FloorStatus[] = ['main', 'bundle', 'conflict', 'circulation']
 
@@ -136,7 +139,7 @@ export function FloorMapPanel({ spaces, title, className }: { spaces: FloorMapSp
             <button
               key={f}
               onClick={() => setFloor(f)}
-              className={cn('rounded-[6px] px-2.5 py-1 text-[12px] font-[600] tabular-nums', floor === f ? 'bg-accent text-text-on-accent' : 'text-text-secondary hover:bg-surface-sunken')}
+              className={cn('rounded-[6px] px-2.5 py-1 text-[12px] font-[600] tabular-nums', activeFloor === f ? 'bg-accent text-text-on-accent' : 'text-text-secondary hover:bg-surface-sunken')}
             >
               {t('floorMap.floor')} {f}
             </button>
@@ -145,7 +148,7 @@ export function FloorMapPanel({ spaces, title, className }: { spaces: FloorMapSp
       </div>
 
       <div className="mx-auto max-w-[340px]">
-        <FloorMap floor={floor} spaces={spaces} />
+        <FloorMap floor={activeFloor} spaces={spaces} />
       </div>
 
       <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
@@ -182,7 +185,9 @@ export function deriveFloorStatuses(
       out.set(adj.slug, adj.isCirculation ? 'circulation' : 'bundle')
     }
   }
-  const conflictIds = opts.conflictSpaceIds ?? opts.plan?.conflicts?.map((c) => c.spaceId).filter(Boolean) as string[] | undefined
+  const conflictIds = (opts.conflictSpaceIds && opts.conflictSpaceIds.length)
+    ? opts.conflictSpaceIds
+    : (opts.plan?.conflicts?.map((c) => c.spaceId).filter(Boolean) as string[] | undefined)
   for (const cid of conflictIds ?? []) {
     const cs = byId.get(cid)
     if (cs?.slug) out.set(cs.slug, 'conflict')

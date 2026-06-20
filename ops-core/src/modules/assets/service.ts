@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { APIError } from "../../errors";
 import { ok, okList, type ServiceResponse, type ListResponse, type Actor } from "../../types";
@@ -8,6 +9,7 @@ import type {
 import { writeAudit } from "../audit/audit.writer";
 import { writeOutbox } from "../events/outbox.writer";
 import { assetAvailability, assetHeldQuantities } from "../../services/availability";
+import { runSerializable } from "../../utils/tx";
 
 type AssetRow = { id: string; name: string; type: string; totalQuantity: number; location: string; status: string };
 
@@ -99,7 +101,10 @@ class AssetsService {
     if (!asset) throw APIError.notFound();
     if (!Number.isInteger(input.quantity) || input.quantity < 1) throw APIError.validation({ quantity: "validation.min" });
 
-    const out = await prisma.$transaction(async (tx) => {
+    const out = await runSerializable(async (tx) => {
+      // Lock the asset row so the net-out read and the movement write can't interleave
+      // with a concurrent scan (which would let two CHECK_OUTs exceed totalQuantity).
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM "Asset" WHERE id = ${assetId} FOR UPDATE`);
       const grouped = await tx.assetMovement.groupBy({ by: ["assetId", "action"], where: { assetId }, _sum: { quantity: true } });
       const net = this.netFromGroups(grouped).get(assetId) ?? 0;
       if (input.action === "CHECK_OUT" && net + input.quantity > asset.totalQuantity) {
@@ -174,8 +179,16 @@ class AssetsService {
       }
     }
 
+    // Whitelist updatable columns — never pass req.body straight to Prisma.
+    const data: Prisma.AssetUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.type !== undefined) data.type = input.type;
+    if (input.totalQuantity !== undefined) data.totalQuantity = input.totalQuantity;
+    if (input.location !== undefined) data.location = input.location;
+    if (input.status !== undefined) data.status = input.status;
+
     const row = await prisma.$transaction(async (tx) => {
-      const updated = await tx.asset.update({ where: { id }, data: input });
+      const updated = await tx.asset.update({ where: { id }, data });
       await writeAudit(tx, {
         actor, action: "asset.update", entityType: "Asset", entityId: id,
         before: { totalQuantity: existing.totalQuantity, status: existing.status },

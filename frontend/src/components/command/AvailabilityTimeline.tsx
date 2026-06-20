@@ -1,4 +1,4 @@
-import { forwardRef, useId, useState } from 'react'
+import { forwardRef, useState } from 'react'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -30,7 +30,9 @@ const SPAN = END_H - START_H // 12
 
 /** % offset along the track for a given decimal hour. */
 function pos(h: number): number {
-  return ((h - START_H) / SPAN) * 100
+  // Clamp to the visible axis so a reservation (or its buffer) outside 08:00–20:00
+  // renders at the edge instead of a negative / >100% offset.
+  return Math.max(0, Math.min(100, ((h - START_H) / SPAN) * 100))
 }
 
 const HOUR_TICKS = Array.from(
@@ -136,8 +138,9 @@ export interface AvailabilityTimelineProps
 
 /** Format a decimal hour (14.5 → "14:30"). */
 function fmtHour(h: number): string {
-  const hh = Math.floor(h)
-  const mm = Math.round((h - hh) * 60)
+  const total = Math.round(h * 60)
+  const hh = Math.floor(total / 60)
+  const mm = total % 60
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
 
@@ -412,7 +415,6 @@ export const AvailabilityTimeline = forwardRef<
   HTMLDivElement,
   AvailabilityTimelineProps
 >(({ lanes = SAMPLE_TIMELINE_LANES, className, ...props }, ref) => {
-  const titleId = useId()
   return (
     <div ref={ref} className={className} {...props}>
       <Legend />
@@ -420,7 +422,6 @@ export const AvailabilityTimeline = forwardRef<
         className="relative overflow-visible rounded-md border border-border-subtle pt-6"
         role="grid"
         aria-label="Availability timeline"
-        aria-describedby={titleId}
       >
         {lanes.map((lane, i) => (
           <Lane

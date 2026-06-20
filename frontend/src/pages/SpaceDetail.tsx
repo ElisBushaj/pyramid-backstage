@@ -110,7 +110,7 @@ export default function SpaceDetail() {
         {/* Details */}
         <section className="min-w-[300px] flex-1 rounded-lg border border-border-subtle p-5">
           <h2 className="mb-3.5 text-[15px] font-[600] text-text-primary">{t('spaces.details')}</h2>
-          <DetailRow label={t('spaces.dayRate')} value={`${formatMinor(space.dayRateMinor, locale)} ${space.currency}`} />
+          <DetailRow label={t('spaces.dayRate')} value={formatMinor(space.dayRateMinor, locale)} />
           <DetailRow label={t('spaces.setupBuffer')} value={`${space.setupBufferMinutes} ${t('spaces.minutes')}`} />
           <DetailRow label={t('spaces.teardownBuffer')} value={`${space.teardownBufferMinutes} ${t('spaces.minutes')}`} />
           <div className="pt-3.5">

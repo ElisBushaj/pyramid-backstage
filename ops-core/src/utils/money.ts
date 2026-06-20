@@ -22,7 +22,7 @@ export function lineItem(
   return { label, kind, qty, unitPriceMinor, subtotalMinor: qty * unitPriceMinor };
 }
 
-/** Round half-up to a whole minor unit. */
+/** Round to a whole minor unit. Ties round toward +∞ (Math.round); inputs are non-negative. */
 export function roundMinor(n: number): number {
   return Math.round(n);
 }

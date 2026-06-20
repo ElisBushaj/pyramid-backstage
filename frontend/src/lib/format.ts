@@ -31,5 +31,9 @@ export function formatRelative(iso?: string | null, locale: Loc = 'en'): string 
 
 export function formatDateRange(start?: string | null, end?: string | null, locale: Loc = 'en'): string {
   if (!start || !end) return '—'
-  return `${formatDateTime(start, locale)} – ${formatTime(end, locale)}`
+  const s = new Date(start)
+  const e = new Date(end)
+  const sameDay = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate()
+  // A window crossing midnight must show the end date too, else it reads as ending earlier the same day.
+  return `${formatDateTime(start, locale)} – ${sameDay ? formatTime(end, locale) : formatDateTime(end, locale)}`
 }

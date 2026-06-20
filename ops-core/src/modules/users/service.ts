@@ -19,17 +19,25 @@ class UsersService {
       throw APIError.validation({ email: "user.email_taken" });
     }
     const passwordHash = await hashPassword(input.password);
-    const user = await prisma.$transaction(async (tx) => {
-      const u = await tx.user.create({
-        data: { email, name: input.name, passwordHash, role: input.role ?? "VIEWER", isActive: input.isActive ?? true },
+    try {
+      const user = await prisma.$transaction(async (tx) => {
+        const u = await tx.user.create({
+          data: { email, name: input.name, passwordHash, role: input.role ?? "VIEWER", isActive: input.isActive ?? true },
+        });
+        await writeAudit(tx, {
+          actor, action: "user.create", entityType: "User", entityId: u.id,
+          after: { email: u.email, name: u.name, role: u.role, isActive: u.isActive },
+        });
+        return u;
       });
-      await writeAudit(tx, {
-        actor, action: "user.create", entityType: "User", entityId: u.id,
-        after: { email: u.email, name: u.name, role: u.role, isActive: u.isActive },
-      });
-      return u;
-    });
-    return ok(userToDto(user), "user.created");
+      return ok(userToDto(user), "user.created");
+    } catch (e) {
+      // Lost the email-uniqueness race → map the unique violation to the 422 contract.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        throw APIError.validation({ email: "user.email_taken" });
+      }
+      throw e;
+    }
   }
 
   async update(actor: Actor, id: string, input: Partial<UserInput>): Promise<ServiceResponse<User>> {

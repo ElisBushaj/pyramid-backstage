@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { APIError } from "../../errors";
 import { ok, type ServiceResponse, type Actor } from "../../types";
@@ -125,8 +126,26 @@ class SpacesService {
   async update(actor: Actor, id: string, input: Partial<SpaceInput>): Promise<ServiceResponse<Space>> {
     const existing = await prisma.space.findUnique({ where: { id } });
     if (!existing) throw APIError.notFound();
-    const { map, ...rest } = input;
-    const data = { ...rest, ...(map !== undefined ? { map: map as object } : {}) };
+    // Whitelist updatable columns — never spread req.body (it would mass-assign
+    // currency, or any stray scalar). Mirrors the explicit field list in create().
+    const data: Prisma.SpaceUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.floor !== undefined) data.floor = input.floor;
+    if (input.kind !== undefined) data.kind = input.kind;
+    if (input.capacities !== undefined) data.capacities = input.capacities as Prisma.InputJsonValue;
+    if (input.dayRateMinor !== undefined) data.dayRateMinor = input.dayRateMinor;
+    if (input.features !== undefined) data.features = input.features;
+    if (input.setupBufferMinutes !== undefined) data.setupBufferMinutes = input.setupBufferMinutes;
+    if (input.teardownBufferMinutes !== undefined) data.teardownBufferMinutes = input.teardownBufferMinutes;
+    const status = (input as { status?: "ACTIVE" | "INACTIVE" }).status;
+    if (status !== undefined) data.status = status;
+    if (input.slug !== undefined) data.slug = input.slug;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.zone !== undefined) data.zone = input.zone;
+    if (input.isCirculation !== undefined) data.isCirculation = input.isCirculation;
+    if (input.adjacent !== undefined) data.adjacent = input.adjacent;
+    if (input.map !== undefined) data.map = input.map as unknown as Prisma.InputJsonValue;
+    if (input.ceilingCm !== undefined) data.ceilingCm = input.ceilingCm;
     const row = await prisma.$transaction(async (tx) => {
       const updated = await tx.space.update({ where: { id }, data });
       await writeAudit(tx, {

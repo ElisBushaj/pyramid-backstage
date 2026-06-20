@@ -82,6 +82,7 @@ describe("F05-T06 property: asset allocation never exceeds totalQuantity", () =>
     const space = await seedSpace({ setupBufferMinutes: 0, teardownBufferMinutes: 0 });
     const TOTAL = 100;
     const chairs = await seedAsset({ totalQuantity: TOTAL });
+    const accepted: Array<{ start: Date; end: Date; qty: number }> = [];
 
     for (let i = 0; i < 30; i++) {
       const cs = Math.floor(rng() * 200);
@@ -94,15 +95,23 @@ describe("F05-T06 property: asset allocation never exceeds totalQuantity", () =>
       if (conflicts.length === 0) {
         const req = await seedRequest();
         await seedReservation({ space, requestId: req.id, start, end, status: "CONFIRMED", assets: [{ assetId: chairs.id, quantity: qty }] });
+        accepted.push({ start, end, qty });
       }
     }
+    // Oracle: compute the TRUE overlapping demand from the accepted holds (buffers are 0,
+    // so effective == event window) and assert the engine never admitted more than TOTAL,
+    // AND that availability == TOTAL − that overlapping demand. (Asserting only 0≤a≤TOTAL is
+    // a tautology — Math.max(0, total−Σ) is always in range even if the engine under-counts.)
     for (let i = 0; i < 25; i++) {
       const cs = Math.floor(rng() * 200);
       const cd = 1 + Math.floor(rng() * 6);
-      const avail = await assetAvailability([{ id: chairs.id, totalQuantity: TOTAL, status: "ACTIVE" }], at(cs), at(cs + cd));
-      const a = avail.get(chairs.id)!;
-      expect(a).toBeGreaterThanOrEqual(0);
-      expect(a).toBeLessThanOrEqual(TOTAL);
+      const probe = { start: at(cs), end: at(cs + cd) };
+      const trueOverlap = accepted
+        .filter((h) => overlaps({ start: h.start, end: h.end }, probe))
+        .reduce((s, h) => s + h.qty, 0);
+      expect(trueOverlap, "engine admitted overlapping holds whose demand exceeds total").toBeLessThanOrEqual(TOTAL);
+      const avail = await assetAvailability([{ id: chairs.id, totalQuantity: TOTAL, status: "ACTIVE" }], probe.start, probe.end);
+      expect(avail.get(chairs.id)!).toBe(TOTAL - trueOverlap);
     }
   });
 });

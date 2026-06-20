@@ -31,6 +31,8 @@ describe("F06-T06 concurrency: the serializable tx + row locks kill the TOCTOU r
     const held = await prisma.reservationAsset.aggregate({ _sum: { quantity: true }, where: { assetId: chairs.id, reservation: { status: "HELD" } } });
     expect(held._sum.quantity ?? 0).toBeLessThanOrEqual(10);
     expect(await prisma.reservation.count({ where: { status: "HELD" } })).toBe(1);
+    // no partial loser row: the rolled-back hold left no orphan ReservationAsset behind
+    expect(await prisma.reservationAsset.count({ where: { assetId: chairs.id } })).toBe(1);
   });
 
   it("two parallel holds for one SPACE window → exactly one wins, the other 409 SPACE_DOUBLE_BOOKED", async () => {

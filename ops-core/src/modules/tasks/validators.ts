@@ -14,5 +14,5 @@ export const persistTasksValidators: ValidationChain[] = [
 
 export const updateTaskValidators: ValidationChain[] = [
   body("status").optional().isIn(STATUSES).withMessage("validation.enum"),
-  body("assigneeId").optional({ values: "null" }).custom((v) => v === null || /^[0-9a-f-]{36}$/i.test(String(v))).withMessage("validation.uuid"),
+  body("assigneeId").optional({ values: "null" }).isUUID().withMessage("validation.uuid"),
 ];

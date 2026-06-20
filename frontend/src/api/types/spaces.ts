@@ -66,4 +66,12 @@ export interface SpaceInput {
   dayRateMinor: number
   setupBufferMinutes?: number
   teardownBufferMinutes?: number
+  // Catalog-extension fields (F14) — optional via the API; primarily seed-populated.
+  slug?: string
+  category?: SpaceCategory
+  zone?: string
+  isCirculation?: boolean
+  adjacent?: string[]
+  map?: SpaceMap
+  ceilingCm?: number
 }

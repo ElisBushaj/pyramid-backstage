@@ -93,6 +93,9 @@ async function request<T>(
     })
   }
 
+  // A 2xx with an empty/non-JSON body (payload === null) has no envelope — return
+  // undefined rather than dereferencing null.data, which would throw a TypeError.
+  if (payload === null) return undefined as T
   const envelope = payload as ServiceResponse<T>
   return envelope.data
 }
