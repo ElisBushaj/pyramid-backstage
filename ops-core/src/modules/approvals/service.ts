@@ -33,11 +33,16 @@ class ApprovalsService {
       const now = new Date();
       for (const h of holds) {
         if (h.expiresAt && h.expiresAt.getTime() <= now.getTime()) {
+          // The lease lapsed. Re-detect against live state: a real clash means the slot
+          // is gone → 409 {conflicts} so the AI can re-plan; an empty result is pure
+          // contention (nobody took it) → 429 retryable, never a degenerate
+          // conflict-with-no-conflicts and never a stale confirm.
           const conflicts = await detectConflicts({
             spaceId: h.spaceId, start: h.start, end: h.end,
             requestedAssets: h.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })),
             excludeReservationId: h.id, tx,
           });
+          if (conflicts.length === 0) throw APIError.rateLimited();
           throw APIError.conflict(conflicts, "reservation.expired");
         }
       }
