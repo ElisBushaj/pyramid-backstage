@@ -25,6 +25,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "demo:verify": "vitest run src/__tests__/demo.test.ts"
   },
   "dependencies": {
@@ -55,6 +56,7 @@
     "@types/pg": "^8.11.0",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^3.2.6",
     "cross-env": "^7.0.3",
     "nodemon": "^3.1.0",
     "pino-pretty": "^13.0.0",

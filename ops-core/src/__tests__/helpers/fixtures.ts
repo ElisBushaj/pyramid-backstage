@@ -46,6 +46,88 @@ export function seedRequest(over: Partial<{ title: string; status: "DRAFT" | "PR
   });
 }
 
+/** Insert a quote row directly (test fixture). Money defaults are self-consistent (net+vat=total). */
+export function seedQuote(over: {
+  requestId: string;
+  status?: "DRAFT" | "SENT" | "ACCEPTED" | "EXPIRED";
+  version?: number;
+  netMinor?: number;
+  vatRate?: number;
+  vatMinor?: number;
+  totalMinor?: number;
+  lineItems?: unknown;
+  expiresAt?: Date | null;
+}) {
+  const netMinor = over.netMinor ?? 100000;
+  const vatRate = over.vatRate ?? 0.2;
+  const vatMinor = over.vatMinor ?? Math.round(netMinor * vatRate);
+  return prisma.quote.create({
+    data: {
+      requestId: over.requestId,
+      lineItems: (over.lineItems ?? [{ label: "Hall", kind: "SPACE", qty: 1, unitPriceMinor: netMinor, subtotalMinor: netMinor }]) as never,
+      netMinor,
+      vatRate,
+      vatMinor,
+      totalMinor: over.totalMinor ?? netMinor + vatMinor,
+      status: over.status ?? "DRAFT",
+      version: over.version ?? 1,
+      expiresAt: over.expiresAt !== undefined ? over.expiresAt : new Date(Date.now() + 14 * 86_400_000),
+    },
+  });
+}
+
+/** Insert a task row directly (test fixture). */
+export function seedTask(over: {
+  requestId: string;
+  title?: string;
+  phase?: "SETUP" | "TEARDOWN";
+  owner?: string | null;
+  assigneeId?: string | null;
+  dueOffsetHours?: number | null;
+  dueAt?: Date | null;
+  status?: "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
+}) {
+  return prisma.task.create({
+    data: {
+      requestId: over.requestId,
+      title: over.title ?? `Task ${uniq()}`,
+      phase: over.phase ?? "SETUP",
+      owner: over.owner ?? null,
+      assigneeId: over.assigneeId ?? null,
+      dueOffsetHours: over.dueOffsetHours ?? null,
+      dueAt: over.dueAt ?? null,
+      status: over.status ?? "TODO",
+    },
+  });
+}
+
+/** Insert an asset-movement ledger row directly (F16 test fixture). */
+export function seedAssetMovement(over: {
+  assetId: string;
+  action?: "CHECK_OUT" | "CHECK_IN" | "RELOCATE";
+  quantity?: number;
+  fromLocation?: string | null;
+  toLocation?: string;
+  reservationId?: string | null;
+  actorId?: string | null;
+  note?: string | null;
+  at?: Date;
+}) {
+  return prisma.assetMovement.create({
+    data: {
+      assetId: over.assetId,
+      action: over.action ?? "CHECK_OUT",
+      quantity: over.quantity ?? 1,
+      fromLocation: over.fromLocation ?? "Storage -1",
+      toLocation: over.toLocation ?? "Blue Hall",
+      reservationId: over.reservationId ?? null,
+      actorId: over.actorId ?? null,
+      note: over.note ?? null,
+      ...(over.at ? { at: over.at } : {}),
+    },
+  });
+}
+
 /** Insert a reservation row directly with computed effective windows (test fixture). */
 export async function seedReservation(args: {
   space: { id: string; setupBufferMinutes: number; teardownBufferMinutes: number };

@@ -73,3 +73,42 @@ export async function loginAs(role: Role): Promise<Client> {
 export function anon() {
   return request(app);
 }
+
+/** F17 — a client that authenticates with the service token and forwards an acting staff user. */
+export class ServiceClient {
+  constructor(
+    private actingUserId: string,
+    private actingRole: Role,
+    private token = process.env.OPS_CORE_SERVICE_TOKEN ?? "test-service-token",
+  ) {}
+  private headers(t: Test): Test {
+    return t
+      .set("Authorization", `Bearer ${this.token}`)
+      .set("X-Acting-User-Id", this.actingUserId)
+      .set("X-Acting-User-Role", this.actingRole);
+  }
+  get(url: string): Test {
+    return this.headers(anon().get(url));
+  }
+  post(url: string, idem = randomUUID()): Test {
+    return this.headers(anon().post(url)).set("Idempotency-Key", idem);
+  }
+  patch(url: string, idem = randomUUID()): Test {
+    return this.headers(anon().patch(url)).set("Idempotency-Key", idem);
+  }
+}
+
+/** Audit rows for an entity, oldest-first (the order the writer appends them). */
+export function auditEntriesFor(entityType: string, entityId: string) {
+  return prisma.auditEntry.findMany({ where: { entityType, entityId }, orderBy: { at: "asc" } });
+}
+
+/** Outbox rows for a subject, oldest-first. */
+export function outboxFor(subject: string) {
+  return prisma.outboxEvent.findMany({ where: { subject }, orderBy: { createdAt: "asc" } });
+}
+
+/** Outbox rows not yet published (the relay backlog). */
+export function unpublishedOutbox() {
+  return prisma.outboxEvent.findMany({ where: { publishedAt: null }, orderBy: { createdAt: "asc" } });
+}

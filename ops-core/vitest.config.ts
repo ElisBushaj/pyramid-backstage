@@ -12,5 +12,22 @@ export default defineConfig({
     // so files must not run concurrently against it. The suite is small enough
     // that serial file execution is fast.
     fileParallelism: false,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary", "json-summary", "html"],
+      reportsDirectory: "./coverage",
+      // Only the deterministic business logic — services, engines, controllers,
+      // middlewares, utils. Bootstrap/config/route-wiring/scripts are excluded;
+      // they are exercised end-to-end but carry no branch logic worth gating on.
+      include: [
+        "src/modules/**/*.ts",
+        "src/services/**/*.ts",
+        "src/controllers/**/*.ts",
+        "src/middlewares/**/*.ts",
+        "src/utils/**/*.ts",
+        "src/errors/**/*.ts",
+      ],
+      exclude: ["**/*.test.ts", "**/*.spec.ts", "**/*.d.ts", "src/**/routes.ts", "src/**/*.routes.ts"],
+    },
   },
 });
