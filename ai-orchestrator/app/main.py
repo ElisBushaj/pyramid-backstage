@@ -27,9 +27,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
+from .chat import handle_chat
 from .config import settings
 from .graph import build_planning_graph
 from .ops_core_client import OpsCoreClient
+from .planning import build_operational_plan
 from .schemas import (
     ChatRequest,
     ChatResponse,
@@ -88,25 +90,11 @@ async def health() -> HealthResponse:
 async def chat(req: ChatRequest) -> ChatResponse:
     """Conversational copilot (stateful via ``sessionId``).
 
-    SCAFFOLD: returns a canned, well-formed ChatResponse. The real implementation
-    (Alvin) loads conversation state from Redis (keyed by ``sessionId``), runs the
-    copilot — which gathers intake and, once it has enough, invokes the planning
-    graph on ``app.state.graph`` to attach an ``OperationalPlan`` — and emits
-    ``proposedActions`` for anything that would commit. ``requiresApproval`` gates
-    those. See ``docs/02-domain/AI_ORCHESTRATION.md`` and the A00 backlog.
-
-    TODO (A00): replace the canned body with the copilot + graph run.
+    Gathers intake across turns (in-memory session); once it has enough, runs the
+    planning DAG and attaches the ``OperationalPlan`` + ``proposedActions`` gated
+    by ``requiresApproval`` — the AI proposes; a human + ops-core authorize (#3).
     """
-    return ChatResponse(
-        reply=(
-            "Thanks — I've noted your request. (Scaffold: the AI copilot is not "
-            "wired yet. Once it is, I'll match a hall, check availability, and "
-            "draft a plan for your approval.)"
-        ),
-        plan=None,
-        proposedActions=[],
-        requiresApproval=True,
-    )
+    return await handle_chat(req.sessionId, req.message, ops=app.state.ops, graph=app.state.graph)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -124,6 +112,7 @@ class PlanRequest(EventRequestInput):
     # bare ``{"requestId": "req_8x2"}`` validates. The real handler validates
     # properly per branch (existing-request vs full-intake).
     requestId: str | None = None
+    text: str | None = None  # raw NL brief -> parsed to EventRequestInput
     title: str | None = None  # type: ignore[assignment]
     organizerName: str | None = None  # type: ignore[assignment]
     expectedAttendees: int | None = None  # type: ignore[assignment]
@@ -144,6 +133,8 @@ async def plan(req: PlanRequest) -> OperationalPlan:
     state: dict = {"ops": app.state.ops}
     if req.requestId:
         state["request_id"] = req.requestId
+    elif req.text:
+        state["nl_text"] = req.text
     else:
         state["intake"] = EventRequestInput(
             title=req.title or "Untitled event",
@@ -157,17 +148,7 @@ async def plan(req: PlanRequest) -> OperationalPlan:
         )
 
     result = await app.state.graph.ainvoke(state)
-    return OperationalPlan(
-        requestId=result.get("request_id") or (req.requestId or "req_unknown"),
-        feasible=bool(result.get("feasible")),
-        space=result.get("space"),
-        reservation=result.get("reservation"),
-        quote=result.get("quote"),
-        tasks=result.get("tasks") or [],
-        conflicts=result.get("conflicts") or [],
-        alternatives=result.get("alternatives") or [],
-        narrative=result.get("narrative") or "",
-    )
+    return build_operational_plan(result, req.requestId)
 
 
 def run() -> None:
