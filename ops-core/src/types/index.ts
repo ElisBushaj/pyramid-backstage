@@ -55,7 +55,7 @@ export function okList<T>(
 export interface Actor {
   id: string;
   name: string;
-  role: "ADMIN" | "MANAGER" | "OPS" | "VIEWER";
+  role: "ADMIN" | "MANAGER" | "OPS" | "VIEWER" | "PARTNER";
 }
 
 declare global {
@@ -64,6 +64,9 @@ declare global {
     interface Request {
       actor?: Actor;
       locale: "al" | "en";
+      // F17 — true when the actor was resolved via the AI service token (bearer), not a
+      // session cookie. CSRF is a cookie-auth defense, so service-token calls are exempt.
+      serviceAuth?: boolean;
     }
   }
 }

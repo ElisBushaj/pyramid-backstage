@@ -2,6 +2,10 @@ import { createBrowserRouter } from 'react-router'
 import RootError from './RootError'
 import { RequireAuth } from '@/components/shell/RequireAuth'
 import { AppShell } from '@/components/shell/AppShell'
+import { PortalShell } from '@/components/shell/PortalShell'
+import PortalRequests from '@/pages/portal/PortalRequests'
+import PortalNewRequest from '@/pages/portal/PortalNewRequest'
+import Approvals from '@/pages/Approvals'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import Requests from '@/pages/Requests'
@@ -11,6 +15,7 @@ import Spaces from '@/pages/Spaces'
 import SpaceDetail from '@/pages/SpaceDetail'
 import Inventory from '@/pages/Inventory'
 import AssetDetail from '@/pages/AssetDetail'
+import Scanner from '@/pages/Scanner'
 import Tasks from '@/pages/Tasks'
 import Conflicts from '@/pages/Conflicts'
 import Audit from '@/pages/Audit'
@@ -19,6 +24,20 @@ import Calendar from '@/pages/Calendar'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login />, errorElement: <RootError /> },
+  {
+    // F15 — the external partner portal (PARTNER only; PortalShell bounces staff to /).
+    path: '/portal',
+    element: (
+      <RequireAuth>
+        <PortalShell />
+      </RequireAuth>
+    ),
+    errorElement: <RootError />,
+    children: [
+      { index: true, element: <PortalRequests /> },
+      { path: 'new', element: <PortalNewRequest /> },
+    ],
+  },
   {
     path: '/',
     element: (
@@ -37,7 +56,9 @@ export const router = createBrowserRouter([
       { path: 'spaces/:id', element: <SpaceDetail /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'inventory/:id', element: <AssetDetail /> },
+      { path: 'scan', element: <Scanner /> },
       { path: 'tasks', element: <Tasks /> },
+      { path: 'approvals', element: <Approvals /> },
       { path: 'conflicts', element: <Conflicts /> },
       { path: 'audit', element: <Audit /> },
       { path: 'settings/users', element: <Users /> },

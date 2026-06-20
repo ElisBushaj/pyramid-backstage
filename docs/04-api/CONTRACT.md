@@ -43,7 +43,19 @@ Every success response is wrapped:
 | `POST /requests/:id/reject` | Reject + reason (MANAGER+) | `EventRequest` |
 | `GET /audit?requestId` | Decision / change history | `AuditEntry[]` |
 
-The AI's own endpoints (`POST /chat`, `POST /plan` → `OperationalPlan`) live on the Python side and are documented in [`docs/02-domain/AI_ORCHESTRATION.md`](../02-domain/AI_ORCHESTRATION.md). They are **not** part of `ops-core`.
+The AI's own endpoints (`POST /chat`, `POST /plan` → `OperationalPlan`) live on the Python side. Their formal shapes are in [`AI_CONTRACT.md`](./AI_CONTRACT.md); the domain rationale is [`docs/02-domain/AI_ORCHESTRATION.md`](../02-domain/AI_ORCHESTRATION.md). They are **not** part of `ops-core` and **not** in `openapi.yaml`.
+
+### Additive endpoints (F14–F19)
+
+These extend the surface above, additively. Full specs in the cited features.
+
+| Endpoint | Purpose | Returns |
+|---|---|---|
+| `GET /spaces` (extended) | Same shape, now carrying the catalog-extension fields (`slug`, `category`, `zone`, `isCirculation`, `adjacent[]`, `map`, `ceilingCm`) — all nullable, backfilled | `SpaceWithAvailability[]` ([F14](../06-features/F14-space-catalog/SPEC.md)) |
+| `POST /assets/:id/scan` | Record a QR/NFC scan — appends an `AssetMovement` and updates live `Asset.location` (OPS+) | `AssetMovement` ([F16](../06-features/F16-asset-tracking/SPEC.md)) |
+| `GET /assets/:id/movements` | The movement ledger for one asset | `AssetMovement[]` ([F16](../06-features/F16-asset-tracking/SPEC.md)) |
+
+Space extension fields are detailed in [ADR-0013](../08-decisions/0013-space-catalog-extension-fields.md); asset tracking in [`docs/02-domain/ASSET_TRACKING.md`](../02-domain/ASSET_TRACKING.md) / [ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md).
 
 ## Auth tiers
 
@@ -52,4 +64,17 @@ Routes mount under `/api/v1/{public,private,admin}`:
 - `private` — any authenticated staff (VIEWER+). The whole tool surface lives here.
 - `admin` — `ADMIN` role (staff/user management).
 
+The role rank is `PARTNER < VIEWER < OPS < MANAGER < ADMIN`. **`PARTNER`** sits *below* `VIEWER`: an external organizer who may **create** and **read their own** event requests (row-scoped by `EventRequest.createdById`) and nothing else. Partner-facing routes are a narrow slice of `private` gated to the partner's own rows; the broader staff tool surface stays `VIEWER+`. Locked in [ADR-0010](../08-decisions/0010-partner-role-and-approval-chain.md); see [`docs/02-domain/PARTNER_PORTAL.md`](../02-domain/PARTNER_PORTAL.md). Approval stays the single-step F10 `MANAGER+` decision — the partner portal removes email, not the approval gate.
+
 Role gates beyond the tier (e.g. approvals require `MANAGER+`, inventory writes require `OPS+`) are enforced per-route with `requireRole`. See [docs/01-architecture/SECURITY.md](../01-architecture/SECURITY.md).
+
+### Service-token security scheme (AI caller)
+
+Beyond the `pb_session` cookie, `ops-core` accepts one machine-to-machine scheme for the AI service. A caller presenting a valid `OPS_CORE_SERVICE_TOKEN` is recognized as `ai-orchestrator` and must forward the acting human via two headers:
+
+| Header | Meaning |
+|---|---|
+| `X-Acting-User-Id` | The id of the human driving the conversation — becomes `req.actor` / `AuditEntry.actorId`, so partner reads still filter on `createdById`. |
+| `X-Acting-User-Role` | The forwarded role, clamped to a configurable **ceiling** (default `MANAGER`). A forwarded `ADMIN` is rejected/downgraded — the AI path can never reach the admin tier. |
+
+AI-initiated writes are therefore **never anonymous**: they always carry a real forwarded human (distinct from the reaper's `writeSystemAudit(actorId=null)`, which stays the only legitimately-anonymous writer). Locked in [ADR-0012](../08-decisions/0012-ai-ops-core-service-token-auth.md); the AI's outward surface is [`AI_CONTRACT.md`](./AI_CONTRACT.md).

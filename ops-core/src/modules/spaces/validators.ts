@@ -3,6 +3,18 @@ import { ValidationHelpers } from "../../utils/validation.utils";
 
 const LAYOUTS = ["THEATER", "CLASSROOM", "BANQUET", "RECEPTION", "CABARET", "BOARDROOM", "CUSTOM"];
 const KINDS = ["MAIN", "TRANSITIONAL"];
+const CATEGORIES = ["HALL", "BOX", "CORRIDOR", "ATRIUM", "ENTRANCE", "TERRACE", "TRANSITIONAL"];
+
+// Catalog-extension fields (F14) — optional on create + update; primarily seed-populated.
+const catalogFieldValidators = (): ValidationChain[] => [
+  body("slug").optional().isString().bail().isLength({ min: 1, max: 80 }).withMessage("validation.length"),
+  ValidationHelpers.optionalEnumOf("category", CATEGORIES),
+  body("zone").optional().isString().bail().isLength({ max: 40 }).withMessage("validation.length"),
+  body("isCirculation").optional().isBoolean().withMessage("validation.boolean").toBoolean(),
+  body("adjacent").optional().isArray().withMessage("validation.array"),
+  body("map").optional().isObject().withMessage("validation.object"),
+  ValidationHelpers.optionalIntMin("ceilingCm", 0),
+];
 
 const capacitiesValidator = (chain: ValidationChain) =>
   chain.isObject().withMessage("validation.object").bail().custom((caps: Record<string, unknown>) => {
@@ -36,6 +48,7 @@ export const createSpaceValidators: ValidationChain[] = [
   body("features").optional().isArray().withMessage("validation.array"),
   ValidationHelpers.optionalIntMin("setupBufferMinutes", 0),
   ValidationHelpers.optionalIntMin("teardownBufferMinutes", 0),
+  ...catalogFieldValidators(),
 ];
 
 export const updateSpaceValidators: ValidationChain[] = [
@@ -53,4 +66,5 @@ export const updateSpaceValidators: ValidationChain[] = [
   body("features").optional().isArray().withMessage("validation.array"),
   ValidationHelpers.optionalIntMin("setupBufferMinutes", 0),
   ValidationHelpers.optionalIntMin("teardownBufferMinutes", 0),
+  ...catalogFieldValidators(),
 ];

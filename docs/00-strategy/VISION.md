@@ -41,6 +41,10 @@ That split is also why the hard, must-be-correct half — the record — is the 
 
 When the demo lands, the close writes itself: an operator types a request, watches a feasible plan assemble itself, submits a colliding one and watches the AI catch it and offer a way out, approves the first as a manager, and points at the dashboard updating live — *"this replaces the emails, the spreadsheets, and the phone calls."*
 
+## Think beyond booking
+
+The booking loop is the spine, not the ceiling. The same record-plus-reasoning split unlocks the wider operational picture the [AADF Pyramid Challenge](../../New_Docs/) asks for — and the build is now extending toward it (Phase 5, [`ROADMAP.md`](./ROADMAP.md)). The request no longer has to come from staff: a **partner portal** lets external organizers file their own intake and watch it move through an **approval chain that removes email entirely** — the manager approves in one screen, not a thread. The plan the AI assembles becomes a **digital twin of the event's logistics**: a [floor map](../05-frontend/FLOOR_MAP.md) of the Pyramid's 19 spaces showing which halls are booked, which transitional corridors and atria the event spills into, and where a conflict bites. Equipment stops being a number in a spreadsheet — **QR/NFC tags** turn every asset into something you scan to know its live location, with a movement ledger that answers *"where are the chairs?"* without a phone call. And the reasoning layer graduates from a one-shot planner to a **copilot** that intakes a request in plain language, detects the clash, proposes the alternative, and — over time — predicts allocation before you ask. None of it changes the law: the record still authorizes, the numbers still come from ops-core, and every new surface degrades to a self-sufficient fallback so the demo never depends on the brain being live.
+
 ## What success looks like (the demo, abbreviated)
 
 1. **Type the messy request** → the AI returns *"yes, we can"* with a matched space, a VAT quote, reserved assets, remaining inventory, no conflict, and a setup task list.

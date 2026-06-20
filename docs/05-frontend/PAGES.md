@@ -17,14 +17,14 @@ States legend: `default · loading · empty · error · submitting · conflict �
 ## Overview
 | § | Route | Purpose | States | Consumes |
 |---|-------|---------|--------|----------|
-| 3.1 | `/` Dashboard | KPIs (events this week, spaces in use, low-stock, pending approvals) + live schedule strip + conflict alerts + recent activity | default, loading(skeleton KPIs+table), empty(no events), error | `GET /private/requests?status=`, `GET /private/spaces?start&end`, `GET /private/assets?start&end`, `GET /private/conflicts`, NATS `inventory.low`/`conflict.detected` |
+| 3.1 | `/` Dashboard | KPIs (events this week, spaces in use, low-stock, pending approvals) + live schedule strip + conflict alerts + recent activity + a building-wide **FloorMap** tile ("what's live in the building", [`FLOOR_MAP.md`](./FLOOR_MAP.md)) + the **"Where is it?"** asset-location widget | default, loading(skeleton KPIs+table), empty(no events), error | `GET /private/requests?status=`, `GET /private/spaces?start&end`, `GET /private/assets?start&end`, `GET /private/conflicts`, `GET /private/assets/:id/movements`, NATS `inventory.low`/`conflict.detected`/`asset.moved` |
 
 ## Pipeline
 | § | Route | Purpose | States | Consumes |
 |---|-------|---------|--------|----------|
 | 4.1 | `/requests` | Requests `DataTable` (status, organizer, attendees, dates, value) + filters | default, loading, empty, error | `GET /private/requests` |
 | 4.2 | `/requests/new` | **Intake** — choose: chat with copilot OR structured form (organizer, attendees, type, preferred dates, requirements) | default, submitting, validation-error, success→detail | `POST /chat` (AI) · `POST /private/requests` |
-| 4.3 | `/requests/:id` | **OperationalPlanView** — the headline. Narrative + SpaceCard + ReservationCard + QuoteTable + TaskBoard + ConflictBanner + AuditTimeline + status actions | default(feasible), default(not-feasible→alternatives), loading, conflict, submitting(approve/reject), success | `GET /private/requests/:id` (aggregate) · `POST /plan` (AI) |
+| 4.3 | `/requests/:id` | **OperationalPlanView** — the headline. Narrative + **FloorMap** + SpaceCard + ReservationCard + QuoteTable + TaskBoard + ConflictBanner + AuditTimeline + status actions. The `FloorMap` lights this request's `/plan` result (chosen/bundle/conflict/circulation); see [`FLOOR_MAP.md`](./FLOOR_MAP.md) | default(feasible), default(not-feasible→alternatives), loading, conflict, submitting(approve/reject), success | `GET /private/requests/:id` (aggregate) · `POST /plan` (AI) |
 | 4.4 | `/calendar` | `ScheduleCalendar` / `AvailabilityTimeline` across spaces (day/week), buffer zones visible, reservations by status | default, loading, empty, hover-popover | `GET /private/spaces`, `GET /private/spaces/:id/availability`, reservations via aggregate |
 
 ## Resources
@@ -41,6 +41,7 @@ States legend: `default · loading · empty · error · submitting · conflict �
 | 6.1 | `/tasks` | `TaskBoard` across events (SETUP / TEARDOWN lanes) or per request; assign + status | default, loading, empty, overdue, submitting | `GET/POST /private/requests/:id/tasks` |
 | 6.2 | `/conflicts` | Active conflicts list → each opens `ConflictBanner` with alternatives | default, empty(no conflicts — calm), loading | `GET /private/conflicts` |
 | 6.3 | Approvals (in `/requests/:id`) | Approve / reject with reason; role-gated (MANAGER+); VIEWER sees disabled + tooltip | default, submitting, success, forbidden(403) | `POST /private/requests/:id/approve` · `/reject` |
+| 6.4 | `/approvals` | **Pending Approvals queue** — `DataTable` of partner-submitted requests awaiting decision (organizer, attendees, dates, value, submitted-at); row → `/requests/:id` to approve/reject. The single-step queue that replaces email; role-gated (MANAGER+) | default, loading, empty(nothing pending — calm), submitting, forbidden(403) | `GET /private/requests?status=PROPOSED` · `POST /private/requests/:id/approve` · `/reject` |
 
 ## Record
 | § | Route | Purpose | States | Consumes |
@@ -56,6 +57,20 @@ States legend: `default · loading · empty · error · submitting · conflict �
 | § | Route | Purpose | States | Consumes |
 |---|-------|---------|--------|----------|
 | 9.1 | `/settings/users` | Staff `DataTable`: create/edit user, role (ADMIN/MANAGER/OPS/VIEWER), active toggle | default, loading, submitting, forbidden | `GET/POST /admin/users`, `PATCH /admin/users/:id` |
+
+## Partner Portal (PARTNER role)
+Row-scoped to the signed-in partner (`EventRequest.createdById`); a separate, stripped shell — no internal navigation, no staff data. See [`PARTNER_PORTAL.md`](../02-domain/PARTNER_PORTAL.md) and the routing guards in [`ROUTING.md`](./ROUTING.md).
+| § | Route | Purpose | States | Consumes |
+|---|-------|---------|--------|----------|
+| 10.1 | `/portal` | **Partner intake** — submit a request: organizer, attendees, type, preferred dates, requirements. Mirrors §4.2's structured form (partner-scoped); creates a `PROPOSED` request that lands in the staff queue (§6.4) | default, submitting, validation-error, success→my-requests | `POST /private/requests` (partner-scoped, `createdById = self`) |
+| 10.2 | `/portal/my-requests` | **My requests** — a timeline/list of only this partner's requests with status (DRAFT/PROPOSED/SCHEDULED/REJECTED), submitted-at, and the decision outcome when made; read-only | default, loading, empty(no requests — first-submit CTA), error | `GET /private/requests` (server-filtered to `createdById = self`, F15) |
+
+## Asset tracking (scanner + location)
+QR/NFC aggregate-with-movement; see [`ASSET_TRACKING.md`](../02-domain/ASSET_TRACKING.md).
+| § | Route | Purpose | States | Consumes |
+|---|-------|---------|--------|----------|
+| 11.1 | `/scan` | **Mobile Scanner** — camera scans a QR (encodes `assetId`) → confirm new location → record movement + update live `Asset.location`. Big-touch, single-purpose, designed at 390px (OPS+) | default(camera), scanning, asset-found(confirm location), submitting, success, error(no-camera / unknown code), forbidden(403) | `POST /private/assets/:id/scan` |
+| 11.2 | Where-is-it (Dashboard widget §3.1) + `/inventory/:id` | **"Where is it?"** — live `Asset.location` + a recent-movements ledger (from/to, actor, time); the dashboard widget surfaces high-value / recently-moved assets, updating on `asset.moved` | default, loading, empty(no movements), error | `GET /private/assets/:id`, `GET /private/assets/:id/movements`, NATS `asset.moved` |
 
 ## Demo path (maps 1:1 to "what success looks like")
 The pages above support the full demo, in order: **4.2 intake (chat)** → **4.3 plan (feasible)** → submit a colliding request → **8.1 conflict heads-up / 6.2 conflict + alternatives** → **4.3 approve (MANAGER)** → **3.1 dashboard updates live** → **7.1 audit shows the decision**. See [`docs/07-operations/DEMO_SCRIPT.md`](../07-operations/DEMO_SCRIPT.md).

@@ -3,6 +3,7 @@ import { ValidationHelpers } from "../../utils/validation.utils";
 
 const TYPES = ["SEATING", "TABLE", "MICROPHONE", "SCREEN", "PROJECTOR", "STAGE_UNIT", "LIGHTING", "OTHER"];
 const STATUSES = ["ACTIVE", "MAINTENANCE", "RETIRED"];
+const MOVEMENT_ACTIONS = ["CHECK_OUT", "CHECK_IN", "RELOCATE"];
 
 export const listAssetsValidators: ValidationChain[] = [
   ValidationHelpers.optionalEnumOf("type", TYPES, "query"),
@@ -25,4 +26,12 @@ export const updateAssetValidators: ValidationChain[] = [
   ValidationHelpers.optionalIntMin("totalQuantity", 0),
   body("location").optional().isString().bail().isLength({ min: 1, max: 120 }).withMessage("validation.length"),
   ValidationHelpers.optionalEnumOf("status", STATUSES),
+];
+
+export const scanAssetValidators: ValidationChain[] = [
+  ValidationHelpers.enumOf("action", MOVEMENT_ACTIONS),
+  ValidationHelpers.intMin("quantity", 1),
+  ValidationHelpers.requiredString("toLocation", "body", 120),
+  body("reservationId").optional().isUUID().withMessage("validation.uuid"),
+  body("note").optional().isString().bail().isLength({ max: 280 }).withMessage("validation.length"),
 ];

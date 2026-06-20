@@ -5,7 +5,10 @@ The inquiry that starts everything: "I'd like to organize a startup conference f
 ## Shape
 `title`, `organizerName`, `contactEmail/Phone`, `expectedAttendees`, `eventType`, `preferredDates[]` (one or more candidate windows), `requirements { layout, avNeeded, cateringNeeded, notes }`.
 
-Created either by a staff member (form) or by the AI from natural language (`POST /chat` → structured `EventRequestInput` → `POST /requests`). The AI only ever *proposes*; the request is created against this validated shape.
+Created by a staff member (form), by an external **partner** through the [partner portal](./PARTNER_PORTAL.md) (the new front door, replacing email/Excel), or by the AI from natural language (`POST /chat` → structured `EventRequestInput` → `POST /requests`). The AI only ever *proposes*; the request is created against this validated shape.
+
+## Ownership & row-scoping
+Every request carries `createdById`. Staff (`OPS+`) see all requests; a **`PARTNER`** sees only rows they created — `GET /requests` filters by `createdById`, and a foreign `GET /requests/:id` returns `404` (an unknown-other request is indistinguishable from a missing one). See [PARTNER_PORTAL.md](./PARTNER_PORTAL.md) and [F15 SPEC](../06-features/F15-partner-portal/SPEC.md).
 
 ## Lifecycle
 ```

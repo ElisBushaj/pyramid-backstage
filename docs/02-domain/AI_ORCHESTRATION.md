@@ -21,6 +21,16 @@ Python · FastAPI · LangGraph · Claude (Anthropic) · ChromaDB (RAG) · Redis 
 // out: OperationalPlan
 ```
 
+## Reasoning seams (what the AI advises on)
+Three advisory roles, all over the same [`/chat` + `/plan` surface](../04-api/AI_CONTRACT.md). The AI proposes; ops-core authorises and writes:
+
+- **Partner intake copilot** — turns a partner's natural-language brief into a validated `EventRequestInput` for the [partner portal](./PARTNER_PORTAL.md). Proposes the structured shape; the partner confirms; ops-core creates the request.
+- **Approval recommendation** — for a `MANAGER+` reviewing the approval queue, a per-request hint (feasible / conflicts / cost) drawn from the deterministic plan. A hint beside the decision, never the decision — the human still makes the F10 call.
+- **Asset-location reasoning** — reads the [movement ledger](./ASSET_TRACKING.md) to answer "where are this event's 180 chairs now, and can we get them to Blue Hall by 18:00". It proposes moves; ops-core writes them via the audited scan path.
+
+## AI → ops-core auth
+The orchestrator authenticates to ops-core with a **service token** (a system actor), and forwards the acting user via `X-Acting-User-Id` / `X-Acting-User-Role` headers so audit attribution and partner row-scoping stay correct — with a **forwarded-role ceiling** (the AI can never act above the user it claims to act for). Locked in [ADR-0012](../08-decisions/0012-ai-ops-core-service-token-auth.md); wired in [F17](../06-features/F17-ai-auth/SPEC.md) (auth) and [F18](../06-features/F18-ai-wiring/SPEC.md) (CopilotPanel wiring). The [`/chat` + `/plan` contract](../04-api/AI_CONTRACT.md) is the full surface.
+
 ## OperationalPlan (the headline artifact)
 ```jsonc
 { "requestId": "req_8x2", "feasible": true,

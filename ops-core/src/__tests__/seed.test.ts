@@ -4,11 +4,11 @@ import { runSeed, SEED } from "../scripts/seed";
 import { detectConflicts } from "../services/conflict";
 
 describe("demo seed (F12)", () => {
-  it("produces the deterministic dataset: 6 spaces, 6 assets, 4 users, 3 events", async () => {
+  it("produces the deterministic dataset: 19 spaces, 6 assets, 5 users, 3 events", async () => {
     await runSeed({ reset: true });
-    expect(await prisma.space.count()).toBe(6);
+    expect(await prisma.space.count()).toBe(19); // F14: expanded from the 19-space catalog
     expect(await prisma.asset.count()).toBe(6);
-    expect(await prisma.user.count()).toBe(4);
+    expect(await prisma.user.count()).toBe(5); // F15: + the demo PARTNER
     expect(await prisma.eventRequest.count()).toBe(3);
 
     // stable ids

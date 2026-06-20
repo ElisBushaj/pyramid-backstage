@@ -1,5 +1,5 @@
 /** Mirrors openapi.yaml User/UserInput/Role. Frontend mirrors in api/types/auth.ts. */
-export type Role = "ADMIN" | "MANAGER" | "OPS" | "VIEWER";
+export type Role = "ADMIN" | "MANAGER" | "OPS" | "VIEWER" | "PARTNER";
 
 export interface User {
   id: string;

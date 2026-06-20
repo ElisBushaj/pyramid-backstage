@@ -19,7 +19,7 @@ Two probes, matching the contract and the compose healthchecks ([INFRASTRUCTURE.
 
 ### The live event signal — NATS as a runtime view
 
-The same NATS stream that drives the dashboard ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)) is an **operational view**: subscribing to `request.created`, `reservation.held`, `reservation.confirmed`, `conflict.detected`, `request.approved`, `inventory.low` shows the system's activity in real time. The NATS monitor endpoint (`:8222`) exposes JetStream stream/consumer health. When NATS is degraded (`NATS_ENABLED=false`), this view is absent but the core loop is unaffected — its absence is itself a signal.
+The same NATS stream that drives the dashboard ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)) is an **operational view**: subscribing to `request.created`, `reservation.held`, `reservation.confirmed`, `conflict.detected`, `request.approved`, `inventory.low`, `asset.moved` shows the system's activity in real time. (`asset.moved` — emitted on every asset scan, [F16](../06-features/F16-asset-tracking/) — is what drives the "where is it" dashboard widget live.) The NATS monitor endpoint (`:8222`) exposes JetStream stream/consumer health. When NATS is degraded (`NATS_ENABLED=false`), this view is absent but the core loop is unaffected — its absence is itself a signal.
 
 ### The audit ledger — the decision record
 

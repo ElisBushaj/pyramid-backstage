@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router'
 import { Sparkles, CheckCircle2, ChevronRight } from 'lucide-react'
 import {
   useRequest,
+  usePlan,
   useMe,
   useApprove,
   useReject,
   useSpaces,
   useAssets,
 } from '@/api/hooks'
+import { FloorMapPanel, deriveFloorStatuses } from '@/components/command/FloorMap'
 import { APIError } from '@/api/api-error'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
@@ -40,6 +42,7 @@ export default function RequestDetail() {
   const { toast } = useToast()
   const locale = useLocaleStore((s) => s.locale)
   const { data, isLoading, isError, refetch } = useRequest(id)
+  const aiPlan = usePlan(id) // F18 — the AI's narrative; degrades to the templated one when absent
   const { data: me } = useMe()
   const { data: spaces } = useSpaces({})
   const { data: assets } = useAssets({})
@@ -159,8 +162,8 @@ export default function RequestDetail() {
         }
       />
 
-      {/* Copilot narrative — the headline of the plan view. */}
-      <PlanNarrative feasible={feasible} hasConflict={hasConflict} t={t} />
+      {/* Copilot narrative — the headline of the plan view (F18: live AI narrative when present). */}
+      <PlanNarrative feasible={feasible} hasConflict={hasConflict} t={t} aiNarrative={aiPlan.data?.narrative} />
 
       {/* Feasibility band: conflict → ConflictBanner + alternatives; else ready strip. */}
       {hasConflict ? (
@@ -190,6 +193,17 @@ export default function RequestDetail() {
         <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-subtle px-4 py-3 text-[13px] text-text-secondary">
           {t('plan.noReservation')}
         </div>
+      )}
+
+      {/* F19 — the plan, lit on the actual Pyramid: chosen space + bundle + any conflict. */}
+      {(reservation || hasConflict) && (
+        <FloorMapPanel
+          spaces={deriveFloorStatuses(spaces ?? [], {
+            chosenSpaceId: reservation?.spaceId,
+            conflictSpaceIds: allConflicts.map((c) => c.spaceId).filter((x): x is string => !!x),
+            plan: aiPlan.data,
+          })}
+        />
       )}
 
       <Tabs defaultValue="overview">
@@ -287,16 +301,21 @@ function PlanNarrative({
   feasible,
   hasConflict,
   t,
+  aiNarrative,
 }: {
   feasible: boolean
   hasConflict: boolean
   t: ReturnType<typeof useT>
+  aiNarrative?: string
 }) {
-  const body = hasConflict
-    ? t('plan.narrativeNotFeasible')
-    : feasible
-      ? t('plan.narrativeFeasible')
-      : t('plan.narrativePending')
+  // F18 — prefer the AI's deterministic narrative; fall back to the templated one.
+  const body = aiNarrative
+    ? aiNarrative
+    : hasConflict
+      ? t('plan.narrativeNotFeasible')
+      : feasible
+        ? t('plan.narrativeFeasible')
+        : t('plan.narrativePending')
   return (
     <section className="rounded-lg border border-[#DCE6FB] bg-[#F7F9FE] p-[18px_20px]">
       <div className="mb-2.5 flex items-center gap-2">

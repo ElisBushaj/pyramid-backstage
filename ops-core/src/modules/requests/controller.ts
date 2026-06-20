@@ -5,7 +5,7 @@ import { requestsService } from "./service";
 export class RequestsController {
   @controlledResponse("get")
   static async list(req: Request, _res: Response) {
-    return requestsService.list({
+    return requestsService.list(req.actor!, {
       status: req.query.status as string | undefined,
       q: req.query.q as string | undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
@@ -20,7 +20,7 @@ export class RequestsController {
 
   @controlledResponse("get")
   static async getAggregate(req: Request, _res: Response) {
-    return requestsService.getAggregate(req.params.id as string);
+    return requestsService.getAggregate(req.actor!, req.params.id as string);
   }
 
   @controlledResponse("patch")

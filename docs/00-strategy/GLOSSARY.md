@@ -12,9 +12,11 @@ owners: [elis]
 
 ## Domain entities
 
-**Space** — A bookable room or area of the Pyramid. Four **main halls** (`Blue`, `Orange`, `Green`, `Yellow`, on floors 0 / −1) plus **transitional areas** (`kind: TRANSITIONAL` — entrance, corridors) that events spill into. Carries `capacities` (a layout → seated-count map), `features`, `dayRateMinor`, and per-space `setupBufferMinutes`/`teardownBufferMinutes`. ([docs/02-domain/SPACES.md](../02-domain/SPACES.md))
+**Space** — A bookable room or area of the Pyramid. Four **main halls** (`Blue`, `Orange`, `Green`, `Yellow`, on floors 0 / −1) plus **transitional areas** (`kind: TRANSITIONAL` — entrance, corridors, atria, terrace) that events spill into. Carries `capacities` (a layout → seated-count map), `features`, `dayRateMinor`, and per-space `setupBufferMinutes`/`teardownBufferMinutes`. The full **19-space catalog** ([docs/03-data/spaces.catalog.json](../03-data/spaces.catalog.json)) is the superset the `F14` expansion seeds — rows 1–6 authoritative (matching the seed exactly), rows 7–19 new. It adds catalog-extension fields per space: `slug`, `category` (`HALL`/`BOX`/`CORRIDOR`/`ATRIUM`/`ENTRANCE`/`TERRACE`/`TRANSITIONAL`), `zone`, `isCirculation`, `adjacent[]` (a slug graph), `map` (`{floor, ring, sectorFrom?, sectorTo?}` — circulation/center spaces carry no sector), and `ceilingCm`. ([docs/02-domain/SPACES.md](../02-domain/SPACES.md))
 
 **Asset** — Operational equipment tracked as an **aggregate count** (not per physical unit): `type` (`SEATING`, `TABLE`, `MICROPHONE`, `SCREEN`, `PROJECTOR`, `STAGE_UNIT`, `LIGHTING`, `OTHER`), `totalQuantity`, `location`, `status` (`ACTIVE`/`MAINTENANCE`/`RETIRED`). `MAINTENANCE`/`RETIRED` report zero availability. ([docs/02-domain/ASSETS.md](../02-domain/ASSETS.md))
+
+**AssetMovement / scan / live location** — The `F16` asset-tracking trail. An asset's **live location** is `Asset.location`, kept current by **scanning**: a QR/NFC tag encodes the `assetId`, and `POST /private/assets/:id/scan` records an **`AssetMovement`** ledger row (`{ assetId, fromLocation?, toLocation, actorId, at }`) *and* updates `Asset.location` in one transaction. Tracking is **aggregate-with-movement**, not per-unit serialized identity — the count stays aggregate; the ledger answers *"where is it?"*. `GET /private/assets/:id/movements` reads the history. ([docs/02-domain/ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md))
 
 **EventRequest** — The inquiry that starts everything: `title`, `organizerName`, contact PII, `expectedAttendees`, `eventType`, `preferredDates[]` (one or more candidate windows), `requirements`. Created by staff (form) or by the AI from natural language (validated into `EventRequestInput` first). Lifecycle: `DRAFT → PROPOSED → APPROVED → SCHEDULED → COMPLETED`, or `→ REJECTED`. Transitions are guarded; an illegal move → `409 invalid_transition`. ([docs/02-domain/REQUESTS.md](../02-domain/REQUESTS.md))
 
@@ -35,6 +37,10 @@ A `409 { conflicts }` carries the full `Conflict[]` so the AI can explain *why* 
 **OperationalPlan** — The headline artifact the AI returns: a `RequestAggregate`'s worth of structured data (`space`, `reservation`, `quote`, `tasks`, `conflicts`, `alternatives`) plus a generated **`narrative`** whose numbers are injected from ops-core responses, never free-generated. `feasible: false` populates `alternatives`. Lives on the AI side; ops-core supplies the data. ([docs/02-domain/AI_ORCHESTRATION.md](../02-domain/AI_ORCHESTRATION.md))
 
 **RequestAggregate** — The single read payload the operational-plan page renders: `request + reservation + quote + tasks + conflicts + audit`. Returned by `GET /requests/:id`.
+
+**Space bundle / circulation** — Two catalog concepts from the `F14` expansion. A **bundle** is a pre-composed set of spaces for an event archetype — a `conference`/`exhibition`/`gala` template pairing a main hall with the transitional spaces (atria, corridors, terrace) it naturally spills into. **Circulation** is the movement layer: spaces with `isCirculation: true` (corridors, atria, the entrance) connect halls via the `adjacent[]` slug graph and are governed by `circulationRules`. `bundleTemplates` and `circulationRules` ship as a **frontend constant** — no contract endpoint. ([docs/02-domain/SPACES.md](../02-domain/SPACES.md))
+
+**FloorMap / digital twin** — The radial map of a Pyramid floor that renders the plan as a **digital twin of the event's logistics** — which halls are booked, which circulation spaces the event uses, and where a conflict bites. Driven by the catalog `map` field behind the prop contract `<FloorMap floor spaces={[{slug, status}]} />`, where `status ∈ free | main | bundle | conflict | circulation`. Elis ships a **v1** (radial layout from the catalog) as the self-sufficient fallback; a **v2** (real-plan SVG hotspots) is post-demo polish, and Alvin may later swap in his own behind the same prop contract. ([docs/05-frontend/FLOOR_MAP.md](../05-frontend/FLOOR_MAP.md))
 
 ## Time & correctness
 
@@ -58,16 +64,19 @@ A `409 { conflicts }` carries the full `Conflict[]` so the AI can explain *why* 
 
 ## Roles (RBAC)
 
-The ladder `ADMIN > MANAGER > OPS > VIEWER` ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md)):
+The ladder `ADMIN > MANAGER > OPS > VIEWER > PARTNER` ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md), [ADR-0010](../08-decisions/0010-partner-role-and-approval-chain.md)):
 
 | Role | Can |
 |------|-----|
+| **PARTNER** | External organizer — file and read **own** event requests only (row-scoped by `EventRequest.createdById`). The least-privileged role; below `VIEWER`. |
 | **VIEWER** | Read the whole tool surface. |
 | **OPS** | VIEWER + inventory/space writes, create requests, hold/confirm reservations, persist tasks. |
 | **MANAGER** | OPS + **approve / reject** requests. |
 | **ADMIN** | MANAGER + staff/user management. |
 
 `requireAuth` populates `req.actor = { id, name, role }` (the audit actor); `requireRole`/`requirePermission` gate beyond the route tier.
+
+**PARTNER role** — The `F15` external-organizer role, added **below `VIEWER`**. A partner sees only their own `EventRequest` rows (scoped by `createdById`) through the partner portal; an admin **approval queue** moves their intake forward, reusing the `F10` approve/reject (MANAGER+) as a **single-step** chain — which is what **removes the email/Excel/phone loop** for external requests. ([docs/02-domain/PARTNER_PORTAL.md](../02-domain/PARTNER_PORTAL.md), [ADR-0010](../08-decisions/0010-partner-role-and-approval-chain.md))
 
 ## Services & infra
 
@@ -82,6 +91,8 @@ The ladder `ADMIN > MANAGER > OPS > VIEWER` ([ADR-0003](../08-decisions/0003-ses
 **NATS (JetStream)** — The event backbone for the live dashboard + proactive AI; fed by the outbox. **Degradable** (`NATS_ENABLED=false` → REST-only). ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md))
 
 **`req.actor`** — The authenticated staff identity (`{ id, name, role }`) `requireAuth` attaches to a request; the audit actor on every mutation.
+
+**Service token / forwarded actor** — How the AI calls ops-core without a human session (`F17`). A **service token** authenticates the `ai-orchestrator` as a **system actor**; alongside it the AI forwards **`X-Acting-User-Id`** / **`X-Acting-User-Role`** headers naming the human on whose behalf it acts. ops-core resolves `req.actor` from the forwarded identity — so **audit stays attributed** and **partner row-scoping stays correct** — but enforces a **forwarded-role ceiling**: the acting role can never exceed what the service token is permitted to assert. The only new coupling stays the contract. ([ADR-0012](../08-decisions/0012-ai-ops-core-service-token-auth.md), [docs/04-api/AI_CONTRACT.md](../04-api/AI_CONTRACT.md))
 
 **`@controlledResponse(type)`** — The controller decorator that serializes the `ServiceResponse<T>` envelope, sets the status, and maps thrown `APIError`s to the error contract. Every controller method uses it. ([docs/04-api/CORE_PATTERNS.md](../04-api/CORE_PATTERNS.md))
 

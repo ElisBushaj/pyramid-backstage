@@ -53,6 +53,27 @@ When a parallel round is warranted (disjoint modules — e.g. `F02`/`F03`/`F04`)
 
 The Command Center is **not** hand-designed in this repo. It is generated from the Claude Design export (`CLAUDE_DESIGN/`) using the brief in [`docs/05-frontend/DESIGN_SYSTEM.md`](../05-frontend/DESIGN_SYSTEM.md), then built page-by-page against the frozen contract per [`docs/05-frontend/PAGES.md`](../05-frontend/PAGES.md). Whoever builds it conforms to the design system ([ADR-0007](../08-decisions/0007-tailwind-radix.md)) and verifies parity per [`docs/10-qa/DESIGN-PARITY.md`](../10-qa/DESIGN-PARITY.md). This phase begins after the export lands ([`ROADMAP.md`](./ROADMAP.md) Phase 2).
 
+## Beyond Booking (`F14`–`F19`) — the expansion lane split
+
+The post-`F13` expansion ([`ROADMAP.md`](./ROADMAP.md) Phase 5) keeps the same boundary: Elis owns the record + the face, Alvin owns the brain, they meet at the contract. The new seam is wider, so it is spelled out explicitly.
+
+**Elis owns** — the record and the frontend for the new surfaces:
+
+- **ops-core:** the `Space` catalog-extension fields + the 6→19 seed (`F14`), the `PARTNER` role + partner row-scoping (`F15`), the `AssetMovement` model + `POST …/scan` + `GET …/movements` (`F16`), and the service-token auth path (`F17`). All additive-only on [`ops-core/openapi.yaml`](../../ops-core/openapi.yaml).
+- **frontend:** the partner portal, the admin approvals queue, the mobile scanner + "where is it" widget, the AI wiring into `CopilotPanel` (with the degrade-to-canned fallback), and the **v1 `FloorMap`** (`F18`, `F19`).
+
+**Alvin owns** — the AI logic behind the contract: natural-language parse, RAG over `venue_facts`, the `/chat` copilot, and the deterministic `/plan` graph. He may later **swap in his own `FloorMap`** behind Elis's prop contract — Elis's v1 is the self-sufficient fallback, not the final word.
+
+**The seam** — the few touchpoints where the two lanes meet, each frozen as a contract:
+
+- the **`PARTNER` enum** value (added below `VIEWER`);
+- the **scan endpoint** `POST /private/assets/:id/scan`;
+- the **service-token header** + forwarded `X-Acting-User-Id`/`X-Acting-User-Role` (with the role ceiling);
+- the **`FloorMap` prop contract** `<FloorMap floor spaces={[{slug,status}]} />`;
+- the shared **[`docs/03-data/spaces.catalog.json`](../03-data/spaces.catalog.json)** (rows 1–6 authoritative; the catalog both lanes read).
+
+`bundleTemplates`/`circulationRules` ship as a frontend constant — no new contract endpoint. Everything else stays as it was: no code sharing across services, additive-only contract, one source of truth.
+
 ## The boundary, restated
 
 Elis's record never reasons; Alvin's brain never holds state; they meet only at the contract. The backlog executor moves the record forward one task at a time; the frontend is the face built from the design export. Four lanes, one contract, no code sharing across services — the architecture and the org chart agree.

@@ -25,6 +25,7 @@ export const MESSAGE_KEYS = [
   "validation.max",
   "validation.object",
   "validation.array",
+  "validation.boolean",
   "validation.length",
   "validation.email",
   "validation.enum",
@@ -54,6 +55,10 @@ export const MESSAGE_KEYS = [
   "asset.created",
   "asset.updated",
   "asset.update.below_holds",
+  "asset.scanned",
+  "asset.scan.over_checkout",
+  "asset.scan.over_checkin",
+  "asset.movements.success",
   // ── requests ───────────────────────────────────────────────────────────────
   "request.created.success",
   "request.aggregate.success",

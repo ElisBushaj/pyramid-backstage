@@ -34,7 +34,8 @@
     "audit": "Auditimi",
     "settings": "Cilësimet",
     "users": "Stafi",
-    "collapse": "Palos"
+    "collapse": "Palos",
+    "scan": "Skaneri"
   },
   "shell": {
     "searchPlaceholder": "Kërko ose nis një kërkesë…",
@@ -127,7 +128,11 @@
     "loadErrorTitle": "Paneli nuk u ngarkua",
     "loadErrorBody": "Lidhja me ops-core skadoi.",
     "emptyTitle": "Asnjë event këtë javë",
-    "emptyBody": "Kur kërkesat të miratohen dhe programohen, do të shfaqen këtu."
+    "emptyBody": "Kur kërkesat të miratohen dhe programohen, do të shfaqen këtu.",
+    "whereIsIt": "Ku ndodhet?",
+    "whereIsItSub": "Asetet aktualisht jashtë",
+    "nothingOut": "Çdo gjë është në vendndodhjen e vet.",
+    "unitsOut": "jashtë"
   },
   "requests": {
     "title": "Kërkesat",
@@ -298,7 +303,12 @@
     "colAvailability": "Disponueshmëria",
     "colInWindow": "Në dritare",
     "availableLower": "në dispozicion",
-    "heldLower": "të mbajtura"
+    "heldLower": "të mbajtura",
+    "movements": "Historiku i lëvizjeve",
+    "noMovements": "Ende asnjë lëvizje e regjistruar.",
+    "liveLocation": "Vendndodhja aktuale",
+    "checkedOut": "Jashtë",
+    "scan": "Skano"
   },
   "audit": {
     "title": "Auditimi",
@@ -347,7 +357,9 @@
     "placeholder": "A mund ta realizojmë këtë?",
     "unavailable": "Kopiloti me AI nuk është i lidhur në këtë version. Përdorni formularin e strukturuar për të planifikuar.",
     "send": "Dërgo",
-    "thinkingDefault": "Po kontrolloj disponueshmërinë…"
+    "thinkingDefault": "Po kontrolloj disponueshmërinë…",
+    "degradedReply": "Nuk jam i lidhur në këtë version, ndaj nuk mund të planifikoj drejtpërdrejt — përdor formularin dhe do të vazhdoj sapo shërbimi i AI të jetë aktiv.",
+    "proposedBody": "Shqyrto dhe konfirmo për të vazhduar. Kjo kërkon miratimin tënd."
   },
   "error": {
     "title": "Diçka shkoi keq",
@@ -427,5 +439,78 @@
   "reservation": {
     "leaseExpiresIn": "Rezervimi skadon për",
     "reservedAssets": "Asetet e rezervuara"
+  },
+  "scanner": {
+    "title": "Skaneri",
+    "subtitle": "Skano ose zgjidh një aset, pastaj regjistro hyrjen/daljen — vendndodhja përditësohet menjëherë.",
+    "findAsset": "Gjej një aset",
+    "searchPlaceholder": "Kërko asete…",
+    "selected": "U zgjodh",
+    "unknownCode": "Kod i panjohur",
+    "recorded": "Lëvizja u regjistrua",
+    "failed": "Skanimi dështoi",
+    "checkOut": "Dil",
+    "checkIn": "Hyr",
+    "relocate": "Zhvendos",
+    "out": "jashtë",
+    "noAsset": "Asnjë aset i zgjedhur",
+    "noAssetBody": "Skano një QR ose zgjidh një aset për të regjistruar një lëvizje.",
+    "currentlyOut": "Aktualisht jashtë",
+    "action": "Veprimi",
+    "quantity": "Sasia",
+    "toLocation": "Te vendndodhja",
+    "toLocationPlaceholder": "p.sh. Salla Blu",
+    "note": "Shënim",
+    "notePlaceholder": "Opsionale",
+    "record": "Regjistro lëvizjen",
+    "cameraUnsupported": "Skanimi me kamerë nuk disponohet këtu — zgjidh një aset më poshtë.",
+    "startCamera": "Skano me kamerë",
+    "stopCamera": "Ndalo kamerën",
+    "cameraHint": "Drejto kamerën nga QR-ja e asetit",
+    "history": "Historiku i lëvizjeve",
+    "emptyHistory": "Ende asnjë lëvizje"
+  },
+  "portal": {
+    "title": "Portali i Partnerëve",
+    "subtitle": "Dërgo dhe ndjek kërkesat e tua për evente",
+    "myRequests": "Kërkesat e mia",
+    "myRequestsSub": "Ndjek çdo kërkesë nga dërgimi deri te planifikimi.",
+    "newRequest": "Kërkesë e re",
+    "newRequestSub": "Na trego për eventin tënd — kontrollojmë mundësinë dhe përgatisim një propozim.",
+    "logout": "Dil",
+    "emptyTitle": "Ende asnjë kërkesë",
+    "emptyBody": "Dërgo kërkesën tënde të parë për të filluar.",
+    "rejected": "Nuk u miratua",
+    "submit": "Dërgo kërkesën",
+    "layoutAny": "Çdo skemë",
+    "fTitle": "Titulli i eventit",
+    "fOrganizer": "Organizatori",
+    "fEmail": "Email kontakti",
+    "fAttendees": "Pjesëmarrës të pritur",
+    "fEventType": "Lloji i eventit",
+    "fLayout": "Skema e preferuar",
+    "fStart": "Fillimi",
+    "fEnd": "Mbarimi",
+    "fAv": "Nevojitet AV / zëri",
+    "fAvSub": "Mikrofona, ekrane, projektorë"
+  },
+  "approvals": {
+    "title": "Miratime në pritje",
+    "subtitle": "Shqyrto kërkesat e propozuara dhe mirato ose refuzo.",
+    "emptyTitle": "Asgjë në pritje",
+    "emptyBody": "Nuk ka kërkesa në pritje për miratim.",
+    "aiSlot": "Rekomandimi i AI do të shfaqet këtu sapo kopiloti të lidhet."
+  },
+  "floorMap": {
+    "title": "Harta e katit",
+    "floor": "Kati",
+    "aria": "Harta radiale e katit {floor}",
+    "legend": {
+      "main": "Hapësira kryesore",
+      "bundle": "Paketë",
+      "conflict": "Konflikt",
+      "circulation": "Qasja e prekur"
+    },
+    "venueTitle": "Piramida — me një shikim"
   }
 }

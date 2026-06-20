@@ -2,7 +2,7 @@
 
 > **This is a generated dashboard.** Do not hand-edit. Regenerate via `node .planning/tasks.mjs regen` (the protocol in `CLAUDE.md` § "Status regeneration").
 
-**Last regenerated:** 2026-06-19 — Build in progress. 76/76 ops-core tasks done.
+**Last regenerated:** 2026-06-20 — Build in progress. 110/111 ops-core tasks done.
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Status | Count |
 |--------|-------|
-| done | 76 |
+| done | 110 |
 | in_progress | 0 |
 | blocked | 0 |
-| not_started | 10 |
-| **Total** | **86** |
+| not_started | 11 |
+| **Total** | **121** |
 
-> ops-core: **76/76 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
+> ops-core: **110/111 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
 
 ---
 
@@ -32,7 +32,7 @@ _(none)_
 
 ## Eligible-next tasks
 
-_(none — backlog complete or all remaining work is blocked.)_
+1. **F19-T05** — (v2, OPTIONAL, post-demo) real-plan SVG hotspot polygons _(deps: F19-T04)_
 
 
 
@@ -56,5 +56,11 @@ _(none — backlog complete or all remaining work is blocked.)_
 | F11 events | Foundation | 6 | 0 | 6 |
 | F12 seed | Integration | 4 | 0 | 4 |
 | F13 contract | Integration | 5 | 0 | 5 |
-| **ops-core subtotal** | | **76** | **0** | **76** |
+| F14 space-catalog | Foundation | 5 | 0 | 5 |
+| F15 partner-portal | Core | 6 | 0 | 6 |
+| F16 asset-tracking | Core | 7 | 0 | 7 |
+| F17 ai-auth | Integration | 6 | 0 | 6 |
+| F18 ai-wiring | Integration | 6 | 0 | 6 |
+| F19 floor-map | Integration | 4 | 1 | 5 |
+| **ops-core subtotal** | | **110** | **1** | **111** |
 | A00 ai-orchestrator | AI | 0 | 10 | 10 |

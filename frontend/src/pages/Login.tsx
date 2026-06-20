@@ -20,7 +20,8 @@ export default function Login() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    login.mutate({ email, password }, { onSuccess: () => navigate('/') })
+    // F15 — partners land in the portal; staff land in the Command Center.
+    login.mutate({ email, password }, { onSuccess: (user) => navigate(user.role === 'PARTNER' ? '/portal' : '/') })
   }
 
   return (

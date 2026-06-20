@@ -54,6 +54,18 @@ This is the core loop the whole system exists to serve (mapped beat-by-beat in [
 
 If a step is infeasible (a conflict on every `preferredDates[]` window), the plan comes back `feasible: false` with `alternatives` — *"Blue is taken; Orange seats 180 in theater and is free."*
 
+## The F14–F19 expansion
+
+Five additions extend the shape above without changing it — each rides the existing module pattern, contract-additive-only:
+
+- **Space catalog (F14).** The 6 seeded spaces grow to a 19-space catalog ([`docs/03-data/spaces.catalog.json`](../03-data/spaces.catalog.json)) with circulation/adjacency/map fields added to `Space` additively (nullable + backfill). This is what the FloorMap and the AI planner read.
+- **Partner portal (F15).** A `PARTNER` role **below** `VIEWER` with **row-scoped** intake — partners create requests and see **only their own** (`EventRequest.createdById`). The existing F10 MANAGER+ approve/reject becomes the admin queue that **removes email** from the loop ([SECURITY.md](./SECURITY.md), [docs/02-domain/PARTNER_PORTAL.md](../02-domain/PARTNER_PORTAL.md)).
+- **Asset movement (F16).** The `assets` module gains a **scan** endpoint and an `AssetMovement` ledger — QR encodes `assetId`, a scan records a movement + updates the live `Asset.location` (aggregate-with-movement, **not** per-unit serialized identity) ([docs/02-domain/ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md)).
+- **AI contract surface (F17/F18).** `POST /chat` (stateful copilot via `sessionId`) and `POST /plan` (the deterministic planner → `OperationalPlan`) become the wire into the now-live `CopilotPanel`. AI→ops-core auth is a **service token** (system actor) + forwarded acting-user headers, so audit and partner row-scoping stay correct ([SECURITY.md](./SECURITY.md), [docs/04-api/AI_CONTRACT.md](../04-api/AI_CONTRACT.md)).
+- **FloorMap (F19).** A frontend command module renders `/plan` output as a v1 radial map keyed off `Space.map` ([docs/05-frontend/FLOOR_MAP.md](../05-frontend/FLOOR_MAP.md)).
+
+**Self-sufficient by design:** the copilot degrades to a canned response and the FloorMap renders from the catalog alone, so the demo never depends on `ai-orchestrator` being live.
+
 ## Trust boundary
 
 **AI output is untrusted input.** Anything the AI proposes (`proposedActions`) is re-validated by `ops-core` server-side before it commits ([docs/02-domain/AI_ORCHESTRATION.md](../02-domain/AI_ORCHESTRATION.md), [SECURITY.md](./SECURITY.md)). A hallucinated total can't post (the server recomputes it); an impossible hold can't commit (the transaction aborts with `409`). Human approval gates anything that commits reservations or money.

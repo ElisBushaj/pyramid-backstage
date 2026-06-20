@@ -12,7 +12,7 @@ describe("GET /dashboard/stats (F13-T05)", () => {
     expect(res.status).toBe(200);
 
     expect(res.body.data.pendingApprovals.value).toBe(1); // E2 PROPOSED
-    expect(res.body.data.spacesInUse).toEqual({ inUse: 2, total: 6 }); // Blue (confirmed) + Green (held)
+    expect(res.body.data.spacesInUse).toEqual({ inUse: 2, total: 19 }); // Blue (confirmed) + Green (held); F14: 19-space catalog
     expect(res.body.data.eventsThisWeek.value).toBe(3); // 3 requests created during the seed
     expect(res.body.data.lowStockAssets.value).toBe(0);
   });

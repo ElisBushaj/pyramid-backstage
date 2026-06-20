@@ -15,6 +15,8 @@ owners: [elis]
 ```
 Bootstrap ──► 3-day ops-core build ──► Frontend build ──► ai-orchestrator (Alvin) ──► Production hardening
    ✅              (this build)          (post design export)     (Alvin's timeline)        (backlog)
+                                              │
+                                              └──► Phase 5 — Beyond Booking (F14–F19, post-F13 expansion)
 ```
 
 Each phase has an **exit gate** — the condition that must be true before the next phase is "allowed" to start. Gates are honest, not ceremonial: a phase that hasn't passed its gate is a phase whose downstream work is built on sand.
@@ -73,6 +75,23 @@ Each phase has an **exit gate** — the condition that must be true before the n
 
 ---
 
+## Phase 5 — Beyond Booking (`F14`–`F19`)
+
+**What:** a **post-`F13` expansion**, not a fresh 3-day build — the F00–F13 record ships first and stays the foundation. This phase pushes past the booking loop toward the wider operational picture the [AADF Pyramid Challenge](../../New_Docs/) brief and [`Pyramid_Backstage_Technical_Design.pdf`](../../Pyramid_Backstage_Technical_Design.pdf) describe, driven by Alvin's just-merged AI branch. Six features, all additive to the contract:
+
+- **`F14` Space catalog** — extend `Space` with the catalog-extension fields (`slug`, `category`, `zone`, `isCirculation`, `adjacent[]`, `map`, `ceilingCm`) from [`docs/03-data/spaces.catalog.json`](../03-data/spaces.catalog.json) and grow the seed from 6 to the full 19-space catalog (corridors, atria, entrance, terrace). Additive + nullable + backfill; rows 1–6 stay authoritative.
+- **`F15` Partner portal** — a `PARTNER` role below `VIEWER`, partner-scoped intake (row-scoped by `EventRequest.createdById`), and an admin approval queue that **removes email**. Reuses the existing `F10` approve/reject — single-step approval.
+- **`F16` Asset tracking** — QR/NFC tags encoding `assetId`; `POST /private/assets/:id/scan` records an `AssetMovement` + updates live `Asset.location`; `GET …/movements`; a mobile scanner UI + a "where is it" widget. Aggregate-with-movement, not per-unit identity.
+- **`F17` AI auth** — a **service token** (system actor) + forwarded acting-user headers (`X-Acting-User-Id` / `X-Acting-User-Role`) with a forwarded-role ceiling, so the AI can call ops-core while audit and partner row-scoping stay correct.
+- **`F18` AI wiring** — `POST /chat` (stateful copilot via `sessionId`) + `POST /plan` (the deterministic LangGraph planner → `OperationalPlan`) wired into the existing `CopilotPanel`, with a **degrade-to-canned** fallback.
+- **`F19` Floor map** — a v1 radial `FloorMap` built by Elis from the catalog `map` field, behind the prop contract `<FloorMap floor spaces={[{slug,status}]} />` (`status ∈ free|main|bundle|conflict|circulation`), rendering `/plan` output. v2 (real-plan SVG hotspots) is post-demo polish.
+
+**Gate (Definition of Done):** all `F14`–`F19` tasks `done`; `tsc` + tests green; the contract still **additive-only**; the headline plan demo, the **partner-no-email** intake→approval flow, and **QR live asset tracking** are each demonstrable end-to-end; and the **AI degrade** path (copilot → canned, map → v1) is verified, so the demo never depends on the brain being live. **Not** a re-run of the F00–F13 gate — that one stands.
+
+**Depends on:** Phase 1's gate (the record this expands), and the merged AI branch for `F17`/`F18`. `F14` is the keystone — the catalog feeds `F19`'s map and `F18`'s plan output.
+
+---
+
 ## Dependency summary
 
 | Phase | Blocked by | Unblocks |
@@ -82,6 +101,7 @@ Each phase has an **exit gate** — the condition that must be true before the n
 | 2 Frontend | Phase 0 (contract) + Phase 1 gate + design export | demo UI, QA design-parity |
 | 3 ai-orchestrator | Phase 0 (contract) for dev; Phase 1 gate for integration | the copilot demo beats |
 | 4 Hardening | Phase 1 (a working system to harden) | production launch |
+| 5 Beyond Booking (`F14`–`F19`) | Phase 1 gate + merged AI branch | partner-no-email intake, QR live tracking, the digital-twin floor map, copilot wiring |
 
 ## Cross-references
 

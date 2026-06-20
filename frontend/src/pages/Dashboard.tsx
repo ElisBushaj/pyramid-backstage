@@ -5,6 +5,7 @@ import {
   useConflicts,
   useDashboardStats,
   useRequests,
+  useSpaces,
 } from '@/api/hooks'
 import type { Conflict } from '@/api/types/_envelope'
 import { useT } from '@/i18n/useT'
@@ -13,6 +14,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { KPIStat } from '@/components/command/KPIStat'
+import { AssetLocationBoard } from '@/components/command/AssetLocationBoard'
+import { FloorMapPanel, deriveFloorStatuses } from '@/components/command/FloorMap'
 import { AvailabilityTimeline } from '@/components/command/AvailabilityTimeline'
 import { AuditTimeline } from '@/components/command/AuditTimeline'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
@@ -37,6 +40,11 @@ export default function Dashboard() {
   const { data: requests } = useRequests({ pageSize: 6 })
   const { data: conflicts } = useConflicts({})
   const { data: audit } = useAudit({ pageSize: 8 })
+  const { data: spaces } = useSpaces({})
+  // F19 — light any clashing spaces red on the venue map (the digital twin at a glance).
+  const floorStatuses = deriveFloorStatuses(spaces ?? [], {
+    conflictSpaceIds: (conflicts ?? []).map((c) => c.spaceId).filter((x): x is string => !!x),
+  })
 
   const today = formatToday(locale)
   const subtitle =
@@ -185,6 +193,11 @@ export default function Dashboard() {
         </div>
         <AvailabilityTimeline />
       </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
+        <FloorMapPanel spaces={floorStatuses} title={t('floorMap.venueTitle')} />
+        <AssetLocationBoard />
+      </div>
 
       <Card>
         <CardHeader>

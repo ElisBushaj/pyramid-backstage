@@ -24,10 +24,10 @@ Controllers never hand-roll a status code or an error shape; services never reac
 
 | Module | Owns | Tier / gate | Endpoints (see [contract](../04-api/CONTRACT.md)) |
 |---|---|---|---|
-| **auth** | Login, logout, session, `requireAuth` → `req.actor`, `requireRole`/`requirePermission`, admin user CRUD | `public` (login) + `private` (me/logout) + `admin` (users) | `POST /public/auth/login`, `/private/auth/{logout,me}`, `/admin/users*` |
-| **spaces** | Halls + transitional areas; capacities-per-layout, features, rate, buffers; matching + availability annotation | `private` (read), **OPS+** (write) | `GET/POST /private/spaces`, `PATCH /private/spaces/:id`, `GET /private/spaces/:id/availability` |
-| **assets** | Typed inventory, aggregate counts, location, status; windowed availability | `private` (read), **OPS+** (write) | `GET/POST /private/assets`, `PATCH /private/assets/:id` |
-| **requests** | `EventRequest` CRUD, the lifecycle state machine, the `RequestAggregate` read | `private`, **OPS+** to create | `GET/POST /private/requests`, `GET /private/requests/:id` |
+| **auth** | Login, logout, session, `requireAuth` → `req.actor` (session **or** service-token + forwarded actor), `requireRole`/`requirePermission`, admin user CRUD | `public` (login) + `private` (me/logout) + `admin` (users) | `POST /public/auth/login`, `/private/auth/{logout,me}`, `/admin/users*` |
+| **spaces** | Halls + transitional areas; capacities-per-layout, features, rate, buffers; **catalog-extension fields** (slug, category, zone, circulation, adjacency, map); matching + availability annotation | `private` (read), **OPS+** (write) | `GET/POST /private/spaces`, `PATCH /private/spaces/:id`, `GET /private/spaces/:id/availability` |
+| **assets** | Typed inventory, aggregate counts, location, status; windowed availability; **scan → movement ledger** (records an `AssetMovement`, updates live `Asset.location`) | `private` (read), **OPS+** (write + scan) | `GET/POST /private/assets`, `PATCH /private/assets/:id`, `POST /private/assets/:id/scan`, `GET /private/assets/:id/movements` |
+| **requests** | `EventRequest` CRUD, the lifecycle state machine, the `RequestAggregate` read; **`PARTNER` row-scoping** (`list`/`get` filter to `createdById` for partners) | `private`, **OPS+** to create (**PARTNER** creates + reads own) | `GET/POST /private/requests`, `GET /private/requests/:id` |
 | **reservations** | Hold/confirm/release; the serializable, row-locked decrement; leases | `private`, **OPS+** | `POST /private/reservations`, `/reservations/:id/{confirm,release}` |
 | **quotes** | Server-computed line items + VAT; versioning | `private`, **OPS+** | `POST /private/quotes` |
 | **tasks** | Persist setup/teardown lists, compute `dueAt`; read | `private`, **OPS+** to write | `GET/POST /private/requests/:id/tasks` |
@@ -36,6 +36,18 @@ Controllers never hand-roll a status code or an error shape; services never reac
 | **approvals** | `approve`/`reject` lifecycle transitions → confirm/release + emit | `private`, **MANAGER+** | `POST /private/requests/:id/{approve,reject}` |
 
 (Approvals and conflicts are thin surfaces over the requests/reservations services + the engines; they're called out separately because they have their own routes and role gates.)
+
+### The asset-movement subsystem (F16)
+
+Scanning lives **inside the assets module** — no new module. `POST /assets/:id/scan` (QR/NFC encodes only `assetId`) writes an `AssetMovement` row **and** updates the live `Asset.location` in **one transaction** alongside the audit + outbox entries — the same mutation discipline as every other write. `GET /assets/:id/movements` reads the ledger. This is **aggregate-with-movement**, not per-unit serialized identity: the ledger tracks *where the count is*, not which individual chair moved ([ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md), [docs/02-domain/ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md)). The scan emits `asset.moved` to the outbox, which drives the "where is it" dashboard widget live.
+
+### Partner row-scoping (F15)
+
+The `requests` service gains an actor-aware filter: when `req.actor.role === 'PARTNER'`, `list` and `get` constrain to `createdById === req.actor.id` — a partner literally cannot read another partner's request (a not-found, not a 403, to avoid leaking existence). All other roles see the full set. Intake itself is unchanged; only the read scope narrows. See [docs/02-domain/PARTNER_PORTAL.md](../02-domain/PARTNER_PORTAL.md) and [ADR-0010](../08-decisions/0010-partner-role-and-approval-chain.md).
+
+### The service-token auth path (F17)
+
+`requireAuth` gains a **second branch**. Today it resolves the `pb_session` cookie → `req.actor`. The new branch: a request bearing the `OPS_CORE_SERVICE_TOKEN` is the **AI as a system actor**, with the acting user supplied via `X-Acting-User-Id` / `X-Acting-User-Role` headers — so audit and partner row-scoping see the **real human behind the AI**, distinct from the `actorId=null` reaper system actor. The forwarded role is **ceiling-clamped** (a compromised AI cannot self-grant ADMIN). Details and the trust model in [SECURITY.md](./SECURITY.md) and [ADR-0012](../08-decisions/0012-ai-ops-core-service-token-auth.md).
 
 ## Cross-module engines (`src/services/`)
 
@@ -56,7 +68,7 @@ Not a feature in the user sense, but a cross-cutting mechanism every mutation to
 
 - **`OutboxEvent`** table — domain events written **in the same transaction** as the state change + `AuditEntry`.
 - **The relay** — polls unpublished `OutboxEvent` rows, publishes to NATS, stamps `publishedAt`. At-least-once; consumers idempotent.
-- **Subjects:** `request.created`, `reservation.held`, `reservation.confirmed`, `conflict.detected`, `request.approved`, `inventory.low`.
+- **Subjects:** `request.created`, `reservation.held`, `reservation.confirmed`, `conflict.detected`, `request.approved`, `inventory.low`, `asset.moved`.
 - **Degrade switch:** `NATS_ENABLED=false` runs REST-only.
 
 See [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md) and [docs/02-domain/AUDIT.md](../02-domain/AUDIT.md).
@@ -89,8 +101,21 @@ tasks  ◄── (dueAt from the reserved window)
 
 `auth` (`F01`) and the foundation (`F00`) underpin everything; the engines (`F05`) underpin reservations/availability; reservations (`F06`) underpin quotes/tasks/approvals. This is the build order in [`MASTER_PLAN.md`](../00-strategy/MASTER_PLAN.md) §2.
 
+## Frontend command modules (the F14–F19 surfaces)
+
+`ops-core` is the focus of this page, but the expansion lands matching **frontend command modules** under `frontend/src/components/command/` — the client-side counterparts to the new endpoints:
+
+| Frontend module | Renders | Reads |
+|---|---|---|
+| **FloorMap** (F19) | A v1 radial floor map (status per space: `free`/`main`/`bundle`/`conflict`/`circulation`) behind `<FloorMap floor spaces={[{slug,status}]} />` | `Space.map` (catalog) + `/plan` output. v2 (real-plan SVG hotspots) is post-demo. [docs/05-frontend/FLOOR_MAP.md](../05-frontend/FLOOR_MAP.md) |
+| **Partner portal** (F15) | Partner-scoped intake form + "my requests" list | row-scoped `/private/requests` |
+| **Scanner** (F16) | Mobile scan UI + a "where is it" dashboard widget | `POST /assets/:id/scan`, `GET /assets/:id/movements`, `asset.moved` live |
+| **CopilotPanel** (F18) | The now-live chat surface (degrades to a canned response if AI is down) | `POST /chat`, `POST /plan` via `VITE_AI_URL` |
+
+`bundleTemplates` and `circulationRules` ship as a **frontend constant**, not a contract endpoint ([docs/05-frontend/FLOOR_MAP.md](../05-frontend/FLOOR_MAP.md), [ADR-0014](../08-decisions/0014-floor-map-ownership-and-fidelity-tiers.md)).
+
 ## Cross-references
 
 - **Patterns (non-negotiable):** [`EXISTING_PATTERNS.md`](./EXISTING_PATTERNS.md), [`docs/04-api/CORE_PATTERNS.md`](../04-api/CORE_PATTERNS.md).
 - **The contract:** [`docs/04-api/CONTRACT.md`](../04-api/CONTRACT.md). **Per-feature work:** [`docs/06-features/`](../06-features/).
-- **Security model:** [`SECURITY.md`](./SECURITY.md).
+- **Security model:** [`SECURITY.md`](./SECURITY.md). **AI wire:** [`docs/04-api/AI_CONTRACT.md`](../04-api/AI_CONTRACT.md).

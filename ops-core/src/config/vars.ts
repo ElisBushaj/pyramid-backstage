@@ -43,6 +43,9 @@ export const vars = {
   frontendUrl: optional("FRONTEND_URL", "http://localhost:5173"),
   sessionSecret: isTest ? "test-secret" : required("SESSION_SECRET"),
   sessionTtlHours: int("SESSION_TTL_HOURS", 12),
+  // F17 — the AI (ai-orchestrator) authenticates with this shared secret and forwards the
+  // acting staff user via X-Acting-User-* headers. Empty = service-token auth disabled.
+  serviceToken: optional("OPS_CORE_SERVICE_TOKEN", ""),
   holdMinutesDefault: int("HOLD_MINUTES_DEFAULT", 30),
   vatRate: Number(optional("VAT_RATE", "0.20")),
   logLevel: optional("LOG_LEVEL", "debug"),

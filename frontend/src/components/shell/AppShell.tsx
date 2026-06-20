@@ -1,7 +1,7 @@
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   LayoutDashboard, FileText, CalendarDays, Building2, Boxes, ListChecks, AlertTriangle,
-  CheckCircle2, Clock, Users, Sparkles, Search, ChevronLeft, ChevronRight, Menu, LogOut,
+  CheckCircle2, Clock, Users, Sparkles, Search, ChevronLeft, ChevronRight, Menu, LogOut, QrCode,
 } from 'lucide-react'
 import { useMe, useLogout, useDashboardStats, useConflicts } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
@@ -33,6 +33,7 @@ const ROLE_INK: Record<Role, string> = {
   MANAGER: 'text-warning',
   OPS: 'text-success',
   VIEWER: 'text-text-tertiary',
+  PARTNER: 'text-text-tertiary',
 }
 
 export function AppShell() {
@@ -64,11 +65,12 @@ export function AppShell() {
     { title: t('nav.resources'), items: [
       { to: '/spaces', label: t('nav.spaces'), icon: Building2 },
       { to: '/inventory', label: t('nav.inventory'), icon: Boxes, badgeKey: 'inventory', badgeTone: 'danger' },
+      { to: '/scan', label: t('nav.scan'), icon: QrCode },
     ] },
     { title: t('nav.operations'), items: [
       { to: '/tasks', label: t('nav.tasks'), icon: ListChecks },
       { to: '/conflicts', label: t('nav.conflicts'), icon: AlertTriangle, badgeKey: 'conflicts', badgeTone: 'danger' },
-      { to: '/requests?status=PROPOSED', label: t('nav.approvals'), icon: CheckCircle2, badgeKey: 'approvals', badgeTone: 'neutral' },
+      { to: '/approvals', label: t('nav.approvals'), icon: CheckCircle2, badgeKey: 'approvals', badgeTone: 'neutral' },
     ] },
     { title: t('nav.record'), items: [{ to: '/audit', label: t('nav.audit'), icon: Clock }] },
   ]
@@ -83,6 +85,9 @@ export function AppShell() {
   }
 
   const live = meQuery.isError ? 'degraded' : 'connected'
+
+  // F15 — a partner has no staff surface; send them to their portal. (After all hooks.)
+  if (me && me.role === 'PARTNER') return <Navigate to="/portal" replace />
 
   return (
     <div className="flex min-h-screen bg-surface">

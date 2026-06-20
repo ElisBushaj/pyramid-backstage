@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FEAT_DIR = path.join(ROOT, "docs", "06-features");
-const TODAY = "2026-06-19";
+const TODAY = "2026-06-20";
 
 const FEATURES = fs.readdirSync(FEAT_DIR).filter((d) => /^(F\d\d|A00)/.test(d)).sort();
 
@@ -20,10 +20,10 @@ function featFile(dir) {
 }
 
 const PHASE = {
-  F00: "Foundation", F01: "Foundation", F09: "Foundation", F11: "Foundation",
+  F00: "Foundation", F01: "Foundation", F09: "Foundation", F11: "Foundation", F14: "Foundation",
   F02: "Domain", F03: "Domain", F04: "Domain",
-  F05: "Core", F06: "Core", F07: "Core", F08: "Core", F10: "Core",
-  F12: "Integration", F13: "Integration", A00: "AI",
+  F05: "Core", F06: "Core", F07: "Core", F08: "Core", F10: "Core", F15: "Core", F16: "Core",
+  F12: "Integration", F13: "Integration", F17: "Integration", F18: "Integration", F19: "Integration", A00: "AI",
 };
 const PHASE_ORDER = { Foundation: 0, Domain: 1, Core: 2, Integration: 3, AI: 4 };
 

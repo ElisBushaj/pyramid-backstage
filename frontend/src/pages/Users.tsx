@@ -30,6 +30,7 @@ const ROLE_TONE: Record<Role, BadgeTone> = {
   MANAGER: 'warning',
   OPS: 'info',
   VIEWER: 'neutral',
+  PARTNER: 'neutral',
 }
 
 function initials(name: string): string {
