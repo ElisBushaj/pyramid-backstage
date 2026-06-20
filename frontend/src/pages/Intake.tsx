@@ -14,6 +14,8 @@ import { FormField } from '@/components/ui/FormField'
 import { Switch } from '@/components/ui/Switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { CopilotPanel, type ChatMessageData } from '@/components/command/CopilotPanel'
+import { useCopilot } from '@/hooks/useCopilot'
+import { aiConfigured } from '@/api/ai'
 
 const EVENT_TYPES: EventRequestInput['eventType'][] = [
   'CONFERENCE',
@@ -50,6 +52,7 @@ export default function Intake() {
   const apiErr = create.error instanceof APIError ? create.error : undefined
 
   const [tab, setTab] = useState<'form' | 'chat'>('form')
+  const copilot = useCopilot() // F18 — live POST /chat, degrades to canned
   const [touched, setTouched] = useState(false)
   const [form, setForm] = useState<FormState>({
     title: '',
@@ -307,17 +310,27 @@ export default function Intake() {
           </Card>
         </TabsContent>
 
-        {/* CHAT — degrades to a clearly-non-live panel; POST /chat is not running */}
+        {/* CHAT — F18: live POST /chat; degrades to a canned panel when the AI is unreachable. */}
         <TabsContent value="chat" className="pt-6">
           <div className="flex max-w-[680px] flex-col gap-3">
-            <div className="flex items-start gap-2.5 rounded-control border border-border-subtle bg-surface-subtle px-3.5 py-3 text-[13px] leading-[19px] text-text-secondary">
-              <Info className="mt-px size-4 shrink-0 text-text-tertiary" strokeWidth={1.8} aria-hidden />
-              <span>{t('copilot.unavailable')}</span>
-            </div>
+            {(!aiConfigured() || copilot.degraded) && (
+              <div className="flex items-start gap-2.5 rounded-control border border-border-subtle bg-surface-subtle px-3.5 py-3 text-[13px] leading-[19px] text-text-secondary">
+                <Info className="mt-px size-4 shrink-0 text-text-tertiary" strokeWidth={1.8} aria-hidden />
+                <span>{t('copilot.unavailable')}</span>
+              </div>
+            )}
             <CopilotPanel
-              state="idle"
-              messages={seededTurns}
-              stateLabel={t('intake.chatOffline')}
+              state={copilot.state}
+              messages={copilot.messages.length ? copilot.messages : seededTurns}
+              inputValue={copilot.input}
+              onInputChange={copilot.setInput}
+              onSend={copilot.send}
+              proposedAction={copilot.proposedAction}
+              headsUp={copilot.headsUp}
+              onDismiss={copilot.dismiss}
+              onIgnore={copilot.ignore}
+              onRetry={copilot.retry}
+              stateLabel={copilot.degraded ? t('intake.chatOffline') : undefined}
               className="w-full"
             />
           </div>

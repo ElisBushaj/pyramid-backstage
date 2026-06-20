@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
+import { aiPlan, aiConfigured } from './ai'
+import type { OperationalPlan } from './types/ai'
 import type { User, UserInput } from './types/auth'
 import type { Space, SpaceInput, SpaceWithAvailability, SpaceAvailability } from './types/spaces'
 import type { Asset, AssetInput, AssetWithAvailability, AssetMovement, AssetScanInput, AssetScanResult } from './types/assets'
@@ -43,6 +45,11 @@ export const useRequests = (params: Query) =>
 
 export const useRequest = (id?: string) =>
   useQuery({ queryKey: q('request', id), queryFn: () => api.get<RequestAggregate>(`/private/requests/${id}`), enabled: !!id })
+
+// F18 — the AI's deterministic OperationalPlan for a known request. Gated on a configured
+// VITE_AI_URL; on error/unavailability the caller degrades to the ops-core-derived view.
+export const usePlan = (requestId?: string) =>
+  useQuery<OperationalPlan>({ queryKey: q('ai-plan', requestId), queryFn: () => aiPlan({ requestId: requestId! }), enabled: !!requestId && aiConfigured(), retry: false, staleTime: 30_000 })
 
 export function useCreateRequest() {
   const qc = useQueryClient()

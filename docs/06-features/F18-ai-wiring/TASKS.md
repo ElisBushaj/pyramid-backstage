@@ -7,7 +7,7 @@ last_updated: 2026-06-20
 # F18 — Tasks
 
 ### F18-T01 — frontend/src/api/ai.ts: VITE_AI_URL client for POST /chat + POST /plan with degrade
-- Status: not_started
+- Status: done
 - Depends on: F13-T02, F17-T01
 - Estimate: 0.75d
 - Acceptance:
@@ -18,7 +18,7 @@ last_updated: 2026-06-20
   - tsc clean; conforms to the FE client + hand-mirror conventions in `docs/04-api/TYPE_SHARING.md`.
 
 ### F18-T02 — frontend/src/api/types/ai.ts: hand-mirror the AI DTOs
-- Status: not_started
+- Status: done
 - Depends on: F13-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -27,7 +27,7 @@ last_updated: 2026-06-20
   - No runtime code — types only; tsc clean; conforms to `docs/04-api/TYPE_SHARING.md` (the FE hand-mirror tier, enforced by the contract test).
 
 ### F18-T03 — TanStack useChat/usePlan hooks + sessionId lifecycle + abort-on-unmount
-- Status: not_started
+- Status: done
 - Depends on: F18-T01, F18-T02
 - Estimate: 0.5d
 - Acceptance:
@@ -37,7 +37,7 @@ last_updated: 2026-06-20
   - tsc clean; conforms to the TanStack hook conventions already in `frontend/src/api/hooks.ts`.
 
 ### F18-T04 — wire CopilotPanel states to live data + requiresApproval gate + conflict re-plan loop
-- Status: not_started
+- Status: done
 - Depends on: F18-T03, F10-T01, F15-T05
 - Estimate: 1d
 - Acceptance:
@@ -48,7 +48,7 @@ last_updated: 2026-06-20
   - tsc clean; unit/component test asserts the state machine: thinking → plan-preview → proposed-action → (confirm calls approve) and plan-with-conflicts → heads-up → re-plan.
 
 ### F18-T05 — render OperationalPlan into RequestDetail (i18n narrative) + partner-intake reuse
-- Status: not_started
+- Status: done
 - Depends on: F18-T04
 - Estimate: 0.5d
 - Acceptance:
@@ -59,7 +59,7 @@ last_updated: 2026-06-20
   - tsc clean; conforms to `docs/04-api/TYPE_SHARING.md`.
 
 ### F18-T06 — degrade-to-canned fallback verified (manual + unit)
-- Status: not_started
+- Status: done
 - Depends on: F18-T04
 - Estimate: 0.25d
 - Acceptance:

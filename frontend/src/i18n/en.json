@@ -357,7 +357,9 @@
     "placeholder": "Can we make this happen?",
     "unavailable": "The AI copilot is not connected in this build. Use the structured form to plan.",
     "send": "Send",
-    "thinkingDefault": "Checking availability…"
+    "thinkingDefault": "Checking availability…",
+    "degradedReply": "I'm not connected in this build, so I can't plan live — use the structured form and I'll pick up once the AI service is running.",
+    "proposedBody": "Review and confirm to proceed. This requires your approval."
   },
   "error": {
     "title": "Something went wrong",

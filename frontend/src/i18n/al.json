@@ -357,7 +357,9 @@
     "placeholder": "A mund ta realizojmë këtë?",
     "unavailable": "Kopiloti me AI nuk është i lidhur në këtë version. Përdorni formularin e strukturuar për të planifikuar.",
     "send": "Dërgo",
-    "thinkingDefault": "Po kontrolloj disponueshmërinë…"
+    "thinkingDefault": "Po kontrolloj disponueshmërinë…",
+    "degradedReply": "Nuk jam i lidhur në këtë version, ndaj nuk mund të planifikoj drejtpërdrejt — përdor formularin dhe do të vazhdoj sapo shërbimi i AI të jetë aktiv.",
+    "proposedBody": "Shqyrto dhe konfirmo për të vazhduar. Kjo kërkon miratimin tënd."
   },
   "error": {
     "title": "Diçka shkoi keq",
