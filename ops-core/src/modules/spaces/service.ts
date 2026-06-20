@@ -16,6 +16,9 @@ type SpaceRow = {
   id: string; name: string; floor: number; kind: string; capacities: unknown;
   features: string[]; dayRateMinor: number; currency: string;
   setupBufferMinutes: number; teardownBufferMinutes: number; status: string;
+  // catalog-extension fields (F14)
+  slug?: string | null; category?: string | null; zone?: string | null;
+  isCirculation?: boolean; adjacent?: string[]; map?: unknown; ceilingCm?: number | null;
 };
 
 export function spaceToDto(row: SpaceRow): Space {
@@ -31,6 +34,14 @@ export function spaceToDto(row: SpaceRow): Space {
     setupBufferMinutes: row.setupBufferMinutes,
     teardownBufferMinutes: row.teardownBufferMinutes,
     status: row.status as Space["status"],
+    // catalog-extension fields (F14): undefined when absent so JSON stays lean.
+    slug: row.slug ?? undefined,
+    category: (row.category ?? undefined) as Space["category"],
+    zone: row.zone ?? undefined,
+    isCirculation: row.isCirculation ?? false,
+    adjacent: row.adjacent ?? [],
+    map: (row.map ?? undefined) as Space["map"],
+    ceilingCm: row.ceilingCm ?? undefined,
   };
 }
 
@@ -92,6 +103,14 @@ class SpacesService {
           dayRateMinor: input.dayRateMinor,
           setupBufferMinutes: input.setupBufferMinutes ?? 240,
           teardownBufferMinutes: input.teardownBufferMinutes ?? 120,
+          // catalog-extension fields (F14) — optional via the API; primarily seed-populated.
+          ...(input.slug !== undefined ? { slug: input.slug } : {}),
+          ...(input.category !== undefined ? { category: input.category } : {}),
+          ...(input.zone !== undefined ? { zone: input.zone } : {}),
+          ...(input.isCirculation !== undefined ? { isCirculation: input.isCirculation } : {}),
+          ...(input.adjacent !== undefined ? { adjacent: input.adjacent } : {}),
+          ...(input.map !== undefined ? { map: input.map as object } : {}),
+          ...(input.ceilingCm !== undefined ? { ceilingCm: input.ceilingCm } : {}),
         },
       });
       await writeAudit(tx, {
@@ -106,8 +125,10 @@ class SpacesService {
   async update(actor: Actor, id: string, input: Partial<SpaceInput>): Promise<ServiceResponse<Space>> {
     const existing = await prisma.space.findUnique({ where: { id } });
     if (!existing) throw APIError.notFound();
+    const { map, ...rest } = input;
+    const data = { ...rest, ...(map !== undefined ? { map: map as object } : {}) };
     const row = await prisma.$transaction(async (tx) => {
-      const updated = await tx.space.update({ where: { id }, data: input });
+      const updated = await tx.space.update({ where: { id }, data });
       await writeAudit(tx, {
         actor, action: "space.update", entityType: "Space", entityId: id,
         before: { name: existing.name, dayRateMinor: existing.dayRateMinor, status: existing.status },

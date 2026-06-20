@@ -16,6 +16,7 @@
   "validation.max": "Vlera është mbi maksimumin e lejuar.",
   "validation.object": "Duhet të jetë objekt.",
   "validation.array": "Duhet të jetë listë jo bosh.",
+  "validation.boolean": "Duhet të jetë e vërtetë ose e rreme.",
   "validation.length": "Gjatësia është jashtë intervalit të lejuar.",
   "validation.email": "Vendosni një email të vlefshëm.",
   "validation.enum": "Zgjidhni një nga vlerat e lejuara.",

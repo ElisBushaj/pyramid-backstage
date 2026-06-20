@@ -25,6 +25,7 @@ export const MESSAGE_KEYS = [
   "validation.max",
   "validation.object",
   "validation.array",
+  "validation.boolean",
   "validation.length",
   "validation.email",
   "validation.enum",

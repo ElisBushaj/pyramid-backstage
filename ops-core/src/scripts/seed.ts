@@ -10,6 +10,8 @@
  *
  * Refuses to create users / reset against NODE_ENV=production.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { prisma } from "../config/prisma";
 import { vars } from "../config/vars";
 import { hashPassword } from "../utils/password";
@@ -25,14 +27,27 @@ const id = (n: number, kind: string) => {
   return `${tag}0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 };
 
-const SPACES = [
-  { id: id(1, "space"), name: "Blue Hall", floor: 0, kind: "MAIN" as const, capacities: { THEATER: 220, CLASSROOM: 120, BANQUET: 160, RECEPTION: 300 }, features: ["stage", "av_builtin", "step_free"], dayRateMinor: 80000, setupBufferMinutes: 240, teardownBufferMinutes: 120 },
-  { id: id(2, "space"), name: "Orange Hall", floor: 0, kind: "MAIN" as const, capacities: { THEATER: 180, CLASSROOM: 100, BANQUET: 140, RECEPTION: 240 }, features: ["av_builtin", "step_free"], dayRateMinor: 70000, setupBufferMinutes: 240, teardownBufferMinutes: 120 },
-  { id: id(3, "space"), name: "Green Hall", floor: -1, kind: "MAIN" as const, capacities: { THEATER: 120, CLASSROOM: 70, BANQUET: 90, RECEPTION: 160 }, features: ["natural_light"], dayRateMinor: 55000, setupBufferMinutes: 180, teardownBufferMinutes: 90 },
-  { id: id(4, "space"), name: "Yellow Hall", floor: -1, kind: "MAIN" as const, capacities: { THEATER: 90, CLASSROOM: 50, BANQUET: 70, RECEPTION: 120 }, features: ["step_free"], dayRateMinor: 45000, setupBufferMinutes: 180, teardownBufferMinutes: 90 },
-  { id: id(5, "space"), name: "Entrance Atrium", floor: 0, kind: "TRANSITIONAL" as const, capacities: { RECEPTION: 250 }, features: ["natural_light", "step_free"], dayRateMinor: 30000, setupBufferMinutes: 120, teardownBufferMinutes: 60 },
-  { id: id(6, "space"), name: "Lower Corridor", floor: -1, kind: "TRANSITIONAL" as const, capacities: { RECEPTION: 120 }, features: [], dayRateMinor: 15000, setupBufferMinutes: 60, teardownBufferMinutes: 60 },
-];
+// The 19-space catalog is the single shared source (ops-core seed + AI venue_facts + FloorMap).
+// Rows 1-6 are byte-authoritative vs the original seed; 7-19 add transitional/upper spaces.
+// See docs/03-data/spaces.catalog.json + docs/08-decisions/0013-space-catalog-extension-fields.md.
+type CatalogSpace = {
+  id: string; slug: string; name: string; floor: number; kind: "MAIN" | "TRANSITIONAL";
+  category: string; zone: string; isCirculation: boolean;
+  capacities: Record<string, number>; features: string[];
+  dayRateMinor: number; setupBufferMinutes: number; teardownBufferMinutes: number;
+  adjacent: string[]; map: unknown; ceilingCm?: number;
+};
+const CATALOG_PATH = resolve(__dirname, "../../../docs/03-data/spaces.catalog.json");
+const CATALOG = JSON.parse(readFileSync(CATALOG_PATH, "utf8")) as { spaces: CatalogSpace[] };
+
+const SPACES = CATALOG.spaces.map((s) => ({
+  id: s.id, name: s.name, floor: s.floor, kind: s.kind,
+  capacities: s.capacities, features: s.features, dayRateMinor: s.dayRateMinor,
+  setupBufferMinutes: s.setupBufferMinutes, teardownBufferMinutes: s.teardownBufferMinutes,
+  slug: s.slug, category: s.category, zone: s.zone, isCirculation: s.isCirculation,
+  adjacent: s.adjacent, map: s.map as object,
+  ...(s.ceilingCm !== undefined ? { ceilingCm: s.ceilingCm } : {}),
+}));
 
 const ASSETS = [
   { id: id(1, "asset"), name: "Standard chair", type: "SEATING" as const, totalQuantity: 400, location: "Storage -1" },

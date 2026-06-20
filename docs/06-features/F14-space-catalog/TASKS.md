@@ -7,7 +7,7 @@ last_updated: 2026-06-20
 # F14 — Tasks
 
 ### F14-T01 — additive Space extension fields + Prisma migration
-- Status: not_started
+- Status: done
 - Depends on: F02-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -18,7 +18,7 @@ last_updated: 2026-06-20
   - `prisma generate` clean; tsc clean; conforms to [docs/04-api/CORE_PATTERNS.md](../../04-api/CORE_PATTERNS.md).
 
 ### F14-T02 — seed rewrite reads spaces.catalog.json (all 19 spaces, F12 fixture preserved)
-- Status: not_started
+- Status: done
 - Depends on: F14-T01, F12-T04
 - Estimate: 0.5d
 - Acceptance:
@@ -29,7 +29,7 @@ last_updated: 2026-06-20
   - tsc clean; the seed-determinism assertions pass.
 
 ### F14-T03 — extend the Space contract + DTO + FE mirror
-- Status: not_started
+- Status: done
 - Depends on: F14-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -40,7 +40,7 @@ last_updated: 2026-06-20
   - tsc clean; vitest passing; conforms to [docs/04-api/CORE_PATTERNS.md](../../04-api/CORE_PATTERNS.md).
 
 ### F14-T04 — bundleTemplates + circulationRules as a frontend constant
-- Status: not_started
+- Status: done
 - Depends on: F14-T03
 - Estimate: 0.25d
 - Acceptance:
@@ -50,7 +50,7 @@ last_updated: 2026-06-20
   - tsc clean (frontend build green).
 
 ### F14-T05 — verification: contract test + e2e + seed determinism + locale parity
-- Status: not_started
+- Status: done
 - Depends on: F14-T02, F14-T03, F14-T04
 - Estimate: 0.25d
 - Acceptance:

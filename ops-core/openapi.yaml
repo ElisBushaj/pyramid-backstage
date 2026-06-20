@@ -684,13 +684,25 @@ components:
           properties: { data: { $ref: "#/components/schemas/User" } }
 
     # ── Space ──────────────────────────────────────────────────────────────────
+    # Catalog-extension shapes (F14 / ADR-0013) — additive, optional on Space.
+    SpaceCategory:
+      type: string
+      enum: [HALL, BOX, CORRIDOR, ATRIUM, ENTRANCE, TERRACE, TRANSITIONAL]
+    SpaceMap:
+      type: object
+      description: Schematic radial placement for the FloorMap. Circulation cores omit sectors.
+      properties:
+        floor: { type: integer }
+        ring: { type: string, example: outer }
+        sectorFrom: { type: integer }
+        sectorTo: { type: integer }
     Space:
       type: object
       required: [id, name, floor, kind, capacities, dayRateMinor, currency]
       properties:
         id: { type: string, example: space_blue }
         name: { type: string, example: Blue Hall }
-        floor: { type: integer, enum: [0, -1], example: 0 }
+        floor: { type: integer, enum: [0, -1, 3], example: 0 }
         kind: { $ref: "#/components/schemas/SpaceKind" }
         capacities:
           description: Layout → seated capacity. A space need not support every layout.
@@ -706,6 +718,14 @@ components:
         setupBufferMinutes: { type: integer, default: 120, example: 240 }
         teardownBufferMinutes: { type: integer, default: 120, example: 120 }
         status: { type: string, enum: [ACTIVE, INACTIVE], default: ACTIVE }
+        # Catalog-extension fields (F14) — promoted from docs/03-data/spaces.catalog.json.
+        slug: { type: string, example: blue_hall }
+        category: { $ref: "#/components/schemas/SpaceCategory" }
+        zone: { type: string, example: F0-N }
+        isCirculation: { type: boolean, default: false }
+        adjacent: { type: array, items: { type: string }, description: Slugs of physically-touching spaces }
+        map: { $ref: "#/components/schemas/SpaceMap" }
+        ceilingCm: { type: integer, example: 270 }
     SpaceInput:
       type: object
       properties:
@@ -717,6 +737,13 @@ components:
         dayRateMinor: { type: integer }
         setupBufferMinutes: { type: integer }
         teardownBufferMinutes: { type: integer }
+        slug: { type: string }
+        category: { $ref: "#/components/schemas/SpaceCategory" }
+        zone: { type: string }
+        isCirculation: { type: boolean }
+        adjacent: { type: array, items: { type: string } }
+        map: { $ref: "#/components/schemas/SpaceMap" }
+        ceilingCm: { type: integer }
     SpaceWithAvailability:
       allOf:
         - $ref: "#/components/schemas/Space"

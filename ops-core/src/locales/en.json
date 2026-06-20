@@ -16,6 +16,7 @@
   "validation.max": "Value is above the allowed maximum.",
   "validation.object": "Must be an object.",
   "validation.array": "Must be a non-empty list.",
+  "validation.boolean": "Must be true or false.",
   "validation.length": "Length is out of the allowed range.",
   "validation.email": "Enter a valid email address.",
   "validation.enum": "Choose one of the allowed values.",

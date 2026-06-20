@@ -135,12 +135,23 @@ model Space {
   setupBufferMinutes    Int         @default(240)
   teardownBufferMinutes Int         @default(120)
   status                SpaceStatus @default(ACTIVE)
+  // Catalog-extension fields (F14 / ADR-0013): promoted additively from
+  // docs/03-data/spaces.catalog.json. Consumed by the AI venue_facts + the FloorMap.
+  // Nullable/defaulted so the migration is additive; rows 1-6 stay byte-authoritative.
+  slug                  String?     @unique
+  category              String?     // HALL | BOX | CORRIDOR | ATRIUM | ENTRANCE | TERRACE | TRANSITIONAL
+  zone                  String?
+  isCirculation         Boolean     @default(false)
+  adjacent              String[]    @default([])
+  map                   Json?       // { floor, ring, sectorFrom?, sectorTo? } — schematic radial placement
+  ceilingCm             Int?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
   reservations Reservation[]
 
   @@index([status])
+  @@index([category])
 }
 
 // ─────────────────────────────────────────────────────────── assets
