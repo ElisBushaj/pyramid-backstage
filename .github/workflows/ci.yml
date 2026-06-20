@@ -1,11 +1,12 @@
 # Pyramid Backstage CI.
 #
 # Three independent jobs:
-#   ops-core    — Node 20, install, `tsc --noEmit`, unit tests (Vitest).
-#   frontend    — Node 20, install, `tsc -b`, production build.
-#   integration — Postgres 17 + NATS 2 service containers; runs Prisma
-#                 migrations then the ops-core integration tests against a
-#                 real database (no DB mocks — see CLAUDE.md).
+#   ops-core       — Node 20, install, generate Prisma client, `tsc --noEmit`.
+#   frontend       — Node 20, install, `tsc -b`, production build.
+#   ops-core-tests — Postgres 17 + NATS + Redis service containers; runs Prisma
+#                    migrations then the FULL ops-core Vitest suite against a
+#                    real database (no DB mocks — see CLAUDE.md). The suite is
+#                    DB-backed throughout, so it needs the services to run at all.
 #
 # Test env is hardcoded below (no secrets) — everything points at the
 # service-container ports GitHub Actions exposes on the runner's localhost.
@@ -27,7 +28,7 @@ env:
 
 jobs:
   ops-core:
-    name: ops-core — typecheck + unit tests
+    name: ops-core — typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,15 +45,15 @@ jobs:
 
       - name: Generate Prisma client
         working-directory: ops-core
+        # Prisma 7 resolves DATABASE_URL eagerly from prisma.config.ts at generate
+        # time. No DB is contacted — a dummy URL just satisfies the config loader.
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npx prisma generate
 
       - name: Typecheck
         working-directory: ops-core
         run: npx tsc --noEmit
-
-      - name: Unit tests
-        working-directory: ops-core
-        run: npx vitest run
 
   frontend:
     name: frontend — typecheck + build
@@ -80,8 +81,8 @@ jobs:
         working-directory: frontend
         run: pnpm build
 
-  integration:
-    name: ops-core — integration tests (real Postgres + NATS)
+  ops-core-tests:
+    name: ops-core — tests (real Postgres + NATS + Redis)
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: "postgresql://pyramid:pyramid@localhost:5432/pyramid_test"
@@ -107,7 +108,11 @@ jobs:
           --health-timeout 5s
           --health-retries 20
       nats:
-        image: nats:2
+        # alpine, not bare `nats:2`: the default image is FROM scratch (no shell /
+        # no wget) so the wget healthcheck can never run and the service container
+        # never reports healthy — failing "Initialize containers". Same fix the
+        # docker-compose files already carry.
+        image: nats:2-alpine
         ports:
           - 4222:4222
           - 8222:8222
@@ -147,8 +152,6 @@ jobs:
         working-directory: ops-core
         run: npx prisma generate
 
-      - name: Run integration tests
+      - name: Run test suite
         working-directory: ops-core
-        env:
-          INTEGRATION: "1"
         run: npx vitest run
