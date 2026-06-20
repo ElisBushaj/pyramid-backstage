@@ -6,12 +6,6 @@
 #       ai-orchestrator, frontend. ai-orchestrator points at the REAL ops-core.
 #       This is the everyday "run everything" command.
 #
-#   docker compose --profile mock up
-#       Additionally starts `mock-ops-core` (the stateful contract mock on :4010).
-#       Point a service at it by overriding OPS_CORE_URL, e.g. for isolated AI dev:
-#           OPS_CORE_URL=http://mock-ops-core:4010/api/v1 docker compose --profile mock up
-#       Without `--profile mock`, mock-ops-core never starts (it carries a profile).
-#
 # Env: every value reads from `${VAR:-default}` so a bare `docker compose up`
 # works with zero .env file. Set ANTHROPIC_API_KEY (and other overrides) in a
 # root .env or export them before running.
@@ -184,23 +178,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    networks:
-      - pyramid_net
-    restart: unless-stopped
-
-  # ── mock-ops-core — stateful contract mock for isolated dev (opt-in) ────────
-  #   Only runs with `--profile mock`. Aim a service at it by overriding
-  #   OPS_CORE_URL=http://mock-ops-core:4010/api/v1 (see the header comment).
-  mock-ops-core:
-    build:
-      context: ../mock-ops-core
-      dockerfile: Dockerfile.dev
-    container_name: pyramid-mock-ops-core
-    profiles: ["mock"]
-    ports:
-      - "${MOCK_OPS_CORE_PORT:-4010}:4010"
-    environment:
-      PORT: 4010
     networks:
       - pyramid_net
     restart: unless-stopped

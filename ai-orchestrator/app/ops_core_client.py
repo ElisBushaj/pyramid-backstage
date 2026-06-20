@@ -11,11 +11,7 @@ This is REAL, working code (not a stub). It treats every ops-core endpoint in
     so the graph's deterministic conflict branch can ``except`` it,
   * raises ``OpsCoreError`` for any other non-2xx.
 
-Until ops-core is live, point ``OPS_CORE_URL`` at the stateful ``mock-ops-core``
-(:4010) — the mock honors the same envelope + the real 409 conflict path, so the
-conflict branch is genuinely testable in isolation.
-
-AUTH (F17): against the REAL ops-core every call carries a service token
+AUTH (F17): every call carries a service token
 (``Authorization: Bearer <OPS_CORE_SERVICE_TOKEN>``) plus the forwarded acting
 staff user (``X-Acting-User-Id`` / ``X-Acting-User-Role``), built from settings.
 An empty ``OPS_CORE_SERVICE_TOKEN`` (the mock) sends NO auth headers, so the mock
