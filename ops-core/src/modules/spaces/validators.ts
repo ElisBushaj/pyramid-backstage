@@ -37,6 +37,11 @@ export const listSpacesValidators: ValidationChain[] = [
 export const spaceAvailabilityValidators: ValidationChain[] = [
   ValidationHelpers.isoDate("start", "query", true),
   ValidationHelpers.isoDate("end", "query", true),
+  query("end").custom((end, { req }) => {
+    const start = (req.query as Record<string, unknown> | undefined)?.start;
+    if (start && end && Date.parse(String(start)) >= Date.parse(String(end))) throw new Error("validation.range");
+    return true;
+  }),
 ];
 
 export const createSpaceValidators: ValidationChain[] = [
@@ -55,7 +60,8 @@ export const updateSpaceValidators: ValidationChain[] = [
   body("name").optional().isString().bail().isLength({ min: 1, max: 120 }).withMessage("validation.length"),
   body("floor").optional().isInt().withMessage("validation.int").toInt(),
   ValidationHelpers.optionalEnumOf("kind", KINDS),
-  body("capacities").optional().custom((caps: Record<string, unknown>) => {
+  ValidationHelpers.optionalEnumOf("status", ["ACTIVE", "INACTIVE"]),
+  body("capacities").optional().isObject().withMessage("validation.object").bail().custom((caps: Record<string, unknown>) => {
     for (const [k, v] of Object.entries(caps ?? {})) {
       if (!LAYOUTS.includes(k)) throw new Error("validation.enum");
       if (typeof v !== "number" || !Number.isInteger(v) || v <= 0) throw new Error("validation.min");

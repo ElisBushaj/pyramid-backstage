@@ -1,4 +1,5 @@
-import type { Quote, LineItem } from "../../types/api/quotes";
+import type { Quote, LineItem, QuoteStatus } from "../../types/api/quotes";
+import { effectiveStatus } from "./transitions";
 
 export interface QuoteRow {
   id: string;
@@ -25,7 +26,7 @@ export function quoteToDto(row: QuoteRow): Quote {
     vatRate: row.vatRate,
     vatMinor: row.vatMinor,
     totalMinor: row.totalMinor,
-    status: row.status as Quote["status"],
+    status: effectiveStatus(row.status as QuoteStatus, row.expiresAt),
     version: row.version,
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),

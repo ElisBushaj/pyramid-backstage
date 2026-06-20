@@ -1,5 +1,3 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "../../config/prisma";
 import { APIError } from "../../errors";
 import { ok, type ServiceResponse, type Actor } from "../../types";
 import type { EventRequest, RequestStatus } from "../../types/api/requests";
@@ -9,6 +7,7 @@ import { assertTransition } from "../requests/transitions";
 import { writeAudit } from "../audit/audit.writer";
 import { writeOutbox } from "../events/outbox.writer";
 import { eventRequestToDto } from "../requests/mapper";
+import { runSerializable } from "../../utils/tx";
 
 class ApprovalsService {
   /**
@@ -17,60 +16,65 @@ class ApprovalsService {
    * approval, return 409 {conflicts} and leave everything unchanged (re-plan).
    */
   async approve(actor: Actor, requestId: string): Promise<ServiceResponse<EventRequest>> {
-    const request = await prisma.eventRequest.findUnique({ where: { id: requestId } });
-    if (!request) throw APIError.notFound();
-    if (request.status !== "PROPOSED") {
-      throw APIError.invalidTransition(request.status, "APPROVED", "request.invalid_transition");
-    }
-
-    const holds = await prisma.reservation.findMany({ where: { requestId, status: "HELD" }, include: { assets: true } });
-    const now = new Date();
-    for (const h of holds) {
-      if (h.expiresAt && h.expiresAt.getTime() <= now.getTime()) {
-        const conflicts = await detectConflicts({
-          spaceId: h.spaceId, start: h.start, end: h.end,
-          requestedAssets: h.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })),
-          excludeReservationId: h.id,
-        });
-        throw APIError.conflict(conflicts, "reservation.expired");
-      }
-    }
-
     // guard both legal edges before mutating
     assertTransition("PROPOSED", "APPROVED");
     assertTransition("APPROVED", "SCHEDULED");
 
-    const updated = await prisma.$transaction(
-      async (tx) => {
-        for (const h of holds) await confirmReservationTx(tx, h, actor);
-        const u = await tx.eventRequest.update({ where: { id: requestId }, data: { status: "SCHEDULED" } });
-        await writeAudit(tx, {
-          actor, action: "request.approve", entityType: "EventRequest", entityId: requestId, requestId,
-          before: { status: "PROPOSED" }, after: { status: "SCHEDULED" },
-        });
-        await writeOutbox(tx, "request.approved", { requestId, confirmedReservations: holds.map((h) => h.id) });
-        return u;
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    const updated = await runSerializable(async (tx) => {
+      // Read + guard + confirm inside ONE serializable transaction: a hold reaped or a
+      // request transitioned between the read and the write can no longer slip through.
+      const request = await tx.eventRequest.findUnique({ where: { id: requestId } });
+      if (!request) throw APIError.notFound();
+      if (request.status !== "PROPOSED") {
+        throw APIError.invalidTransition(request.status, "APPROVED", "request.invalid_transition");
+      }
+
+      const holds = await tx.reservation.findMany({ where: { requestId, status: "HELD" }, include: { assets: true } });
+      const now = new Date();
+      for (const h of holds) {
+        if (h.expiresAt && h.expiresAt.getTime() <= now.getTime()) {
+          const conflicts = await detectConflicts({
+            spaceId: h.spaceId, start: h.start, end: h.end,
+            requestedAssets: h.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })),
+            excludeReservationId: h.id, tx,
+          });
+          throw APIError.conflict(conflicts, "reservation.expired");
+        }
+      }
+
+      for (const h of holds) await confirmReservationTx(tx, h, actor);
+      const cas = await tx.eventRequest.updateMany({ where: { id: requestId, status: "PROPOSED" }, data: { status: "SCHEDULED" } });
+      if (cas.count === 0) throw APIError.invalidTransition(request.status, "APPROVED", "request.invalid_transition");
+      const u = await tx.eventRequest.findUnique({ where: { id: requestId } });
+      await writeAudit(tx, {
+        actor, action: "request.approve", entityType: "EventRequest", entityId: requestId, requestId,
+        before: { status: "PROPOSED" }, after: { status: "SCHEDULED" },
+      });
+      await writeOutbox(tx, "request.approved", { requestId, confirmedReservations: holds.map((h) => h.id) });
+      return u!;
+    });
     return ok(eventRequestToDto(updated), "request.approved");
   }
 
   /** Reject (MANAGER+): reason required → release reservations → REJECTED, audited. */
   async reject(actor: Actor, requestId: string, reason: string): Promise<ServiceResponse<EventRequest>> {
-    const request = await prisma.eventRequest.findUnique({ where: { id: requestId } });
-    if (!request) throw APIError.notFound();
-    assertTransition(request.status as RequestStatus, "REJECTED"); // 409 if terminal
+    const updated = await runSerializable(async (tx) => {
+      // Re-read + guard + release inside the transaction so a concurrent approve/reject
+      // cannot both pass their guards and clobber each other's state.
+      const request = await tx.eventRequest.findUnique({ where: { id: requestId } });
+      if (!request) throw APIError.notFound();
+      assertTransition(request.status as RequestStatus, "REJECTED"); // 409 if terminal
 
-    const reservations = await prisma.reservation.findMany({ where: { requestId, status: { in: ["HELD", "CONFIRMED"] } } });
-    const updated = await prisma.$transaction(async (tx) => {
+      const reservations = await tx.reservation.findMany({ where: { requestId, status: { in: ["HELD", "CONFIRMED"] } } });
       for (const r of reservations) await releaseReservationTx(tx, r, actor);
-      const u = await tx.eventRequest.update({ where: { id: requestId }, data: { status: "REJECTED", rejectionReason: reason } });
+      const cas = await tx.eventRequest.updateMany({ where: { id: requestId, status: request.status }, data: { status: "REJECTED", rejectionReason: reason } });
+      if (cas.count === 0) throw APIError.invalidTransition(request.status, "REJECTED", "request.invalid_transition");
+      const u = await tx.eventRequest.findUnique({ where: { id: requestId } });
       await writeAudit(tx, {
         actor, action: "request.reject", entityType: "EventRequest", entityId: requestId, requestId, reason,
         before: { status: request.status }, after: { status: "REJECTED" },
       });
-      return u;
+      return u!;
     });
     return ok(eventRequestToDto(updated), "request.rejected");
   }

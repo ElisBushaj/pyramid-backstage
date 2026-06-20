@@ -45,7 +45,8 @@ export default function PortalRequests() {
 
 function RequestCard({ r, t, fmtDate }: { r: EventRequest; t: ReturnType<typeof useT>; fmtDate: (iso: string) => string }) {
   const rejected = r.status === 'REJECTED'
-  const currentIdx = STAGES.indexOf(r.status as (typeof STAGES)[number])
+  // COMPLETED is past the last visible stage — clamp so the stepper fills instead of blanking.
+  const currentIdx = r.status === 'COMPLETED' ? STAGES.length - 1 : STAGES.indexOf(r.status as (typeof STAGES)[number])
   const first = r.preferredDates?.[0]
 
   return (

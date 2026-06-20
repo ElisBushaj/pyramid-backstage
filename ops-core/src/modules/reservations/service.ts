@@ -27,8 +27,12 @@ export async function confirmReservationTx(
   reservation: { id: string; requestId: string; spaceId: string; status: string },
   actor: Actor,
 ) {
-  const u = await tx.reservation.update({ where: { id: reservation.id }, data: { status: "CONFIRMED", expiresAt: null }, include: { assets: true } });
-  await writeAudit(tx, { actor, action: "reservation.confirm", entityType: "Reservation", entityId: reservation.id, requestId: reservation.requestId, before: { status: reservation.status }, after: { status: "CONFIRMED" } });
+  // Compare-and-set: only a still-HELD row may be confirmed. A row reaped/released
+  // between the caller's read and this write → count 0 → 409, never a resurrection.
+  const cas = await tx.reservation.updateMany({ where: { id: reservation.id, status: "HELD" }, data: { status: "CONFIRMED", expiresAt: null } });
+  if (cas.count === 0) throw APIError.invalidTransition(reservation.status, "CONFIRMED", "reservation.invalid_transition");
+  const u = await tx.reservation.findUnique({ where: { id: reservation.id }, include: { assets: true } });
+  await writeAudit(tx, { actor, action: "reservation.confirm", entityType: "Reservation", entityId: reservation.id, requestId: reservation.requestId, before: { status: "HELD" }, after: { status: "CONFIRMED" } });
   await writeOutbox(tx, "reservation.confirmed", { reservationId: reservation.id, requestId: reservation.requestId, spaceId: reservation.spaceId });
   return u;
 }
@@ -39,10 +43,11 @@ export async function releaseReservationTx(
   reservation: { id: string; requestId: string; spaceId: string; status: string },
   actor: Actor,
 ) {
-  const u = await tx.reservation.update({ where: { id: reservation.id }, data: { status: "RELEASED", expiresAt: null } });
+  // Compare-and-set: skip a row already RELEASED so a concurrent release/reap is a no-op.
+  const cas = await tx.reservation.updateMany({ where: { id: reservation.id, status: { not: "RELEASED" } }, data: { status: "RELEASED", expiresAt: null } });
+  if (cas.count === 0) return;
   await writeAudit(tx, { actor, action: "reservation.release", entityType: "Reservation", entityId: reservation.id, requestId: reservation.requestId, before: { status: reservation.status }, after: { status: "RELEASED" } });
   await writeOutbox(tx, "reservation.released", { reservationId: reservation.id, requestId: reservation.requestId, spaceId: reservation.spaceId });
-  return u;
 }
 
 function isSerializationError(e: unknown): boolean {
@@ -126,8 +131,11 @@ class ReservationsService {
         throw e;
       }
     }
-    // Exhausted retries (all serialization failures) → re-detect once and report.
+    // Exhausted retries (all serialization failures). Re-detect once: a real conflict
+    // now means the winner took the slot → 409; otherwise it was pure contention →
+    // 429 retryable, and we don't emit a phantom conflict.detected with conflicts:[].
     const conflicts = await detectConflicts({ spaceId: input.spaceId, start, end, requestedAssets });
+    if (conflicts.length === 0) throw APIError.rateLimited();
     await this.emitConflictDetected(input.spaceId, input.requestId, conflicts, input.dateRange);
     throw APIError.conflict(conflicts, "reservation.conflict");
   }
@@ -167,12 +175,14 @@ class ReservationsService {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      const u = await tx.reservation.update({ where: { id }, data: { status: "CONFIRMED", expiresAt: null }, include: { assets: true } });
+      const cas = await tx.reservation.updateMany({ where: { id, status: "HELD" }, data: { status: "CONFIRMED", expiresAt: null } });
+      if (cas.count === 0) throw APIError.invalidTransition("RELEASED", "CONFIRMED", "reservation.invalid_transition");
+      const u = await tx.reservation.findUnique({ where: { id }, include: { assets: true } });
       await writeAudit(tx, { actor, action: "reservation.confirm", entityType: "Reservation", entityId: id, requestId: r.requestId, before: { status: "HELD" }, after: { status: "CONFIRMED" } });
       await writeOutbox(tx, "reservation.confirmed", { reservationId: id, requestId: r.requestId, spaceId: r.spaceId });
       return u;
     });
-    return ok(reservationToDto(updated), "reservation.confirmed");
+    return ok(reservationToDto(updated!), "reservation.confirmed");
   }
 
   async release(actor: Actor, id: string): Promise<ServiceResponse<Reservation>> {
@@ -181,12 +191,15 @@ class ReservationsService {
     if (r.status === "RELEASED") return ok(reservationToDto(r), "reservation.released"); // idempotent
 
     const updated = await prisma.$transaction(async (tx) => {
-      const u = await tx.reservation.update({ where: { id }, data: { status: "RELEASED", expiresAt: null }, include: { assets: true } });
-      await writeAudit(tx, { actor, action: "reservation.release", entityType: "Reservation", entityId: id, requestId: r.requestId, before: { status: r.status }, after: { status: "RELEASED" } });
-      await writeOutbox(tx, "reservation.released", { reservationId: id, requestId: r.requestId, spaceId: r.spaceId });
+      const cas = await tx.reservation.updateMany({ where: { id, status: { not: "RELEASED" } }, data: { status: "RELEASED", expiresAt: null } });
+      const u = await tx.reservation.findUnique({ where: { id }, include: { assets: true } });
+      if (cas.count > 0) {
+        await writeAudit(tx, { actor, action: "reservation.release", entityType: "Reservation", entityId: id, requestId: r.requestId, before: { status: r.status }, after: { status: "RELEASED" } });
+        await writeOutbox(tx, "reservation.released", { reservationId: id, requestId: r.requestId, spaceId: r.spaceId });
+      }
       return u;
     });
-    return ok(reservationToDto(updated), "reservation.released");
+    return ok(reservationToDto(updated!), "reservation.released");
   }
 
   /** F06-T05 reaper: flip lapsed HELD → RELEASED so abandoned holds free inventory. */

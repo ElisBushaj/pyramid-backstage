@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { aiChat, AIUnavailable } from '@/api/ai'
 import { useT } from '@/i18n/useT'
 import type { CopilotState, ChatMessageData, ProposedAction, ConflictHeadsUp } from '@/components/command/CopilotPanel'
@@ -9,7 +9,7 @@ import type { OperationalPlan } from '@/api/types/ai'
 // that spread straight onto <CopilotPanel/>.
 export function useCopilot() {
   const t = useT()
-  const sessionId = useRef<string>(crypto.randomUUID()).current
+  const [sessionId] = useState(() => crypto.randomUUID())
   const [messages, setMessages] = useState<ChatMessageData[]>([])
   const [input, setInput] = useState('')
   const [state, setState] = useState<CopilotState>('idle')

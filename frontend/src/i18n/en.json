@@ -504,7 +504,7 @@
   "floorMap": {
     "title": "Floor map",
     "floor": "Floor",
-    "aria": "Radial floor map of floor {floor}",
+    "aria": "Radial floor map of floor {{floor}}",
     "legend": {
       "main": "Main space",
       "bundle": "Bundle",

@@ -21,4 +21,6 @@ EXPOSE 4000
 # the schema (e.g. AssetMovement) leaves the container running a stale client and
 # ts-node crashes on `prisma.<newModel>`. The bind-mounted prisma/ dir is current,
 # so generating here always matches the live schema.
-CMD ["sh", "-c", "npx prisma generate && npm run dev:watch"]
+# `migrate deploy` is idempotent (no-ops when current) and is what makes a fresh DB
+# volume (or `docker compose down -v`) boot with the schema actually applied.
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run dev:watch"]

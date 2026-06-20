@@ -27,12 +27,19 @@ export async function runRelayPass(publisher: Publisher = publishEvent, batchSiz
 }
 
 let timer: ReturnType<typeof setInterval> | null = null;
+let running = false;
 
 export function startRelay(intervalMs = 1000): void {
   if (!vars.natsEnabled) return;
   stopRelay();
   timer = setInterval(() => {
-    void runRelayPass().catch((err) => logger.error({ err }, "[relay] pass failed"));
+    if (running) return; // a prior pass is still in flight — don't overlap (it would re-select the same rows)
+    running = true;
+    void runRelayPass()
+      .catch((err) => logger.error({ err }, "[relay] pass failed"))
+      .finally(() => {
+        running = false;
+      });
   }, intervalMs);
   timer.unref?.();
 }

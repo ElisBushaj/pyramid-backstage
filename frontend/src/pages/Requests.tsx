@@ -44,7 +44,6 @@ export default function Requests() {
       key: 'id',
       header: t('requests.idHeader'),
       width: '160px',
-      sortable: true,
       render: (r) => (
         <span className="truncate font-mono text-[13px] text-accent">{r.id}</span>
       ),

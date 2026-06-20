@@ -16,7 +16,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received — shutting down`);
-    server.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
     stopRelay();
     await closeNats();
     await prisma.$disconnect();

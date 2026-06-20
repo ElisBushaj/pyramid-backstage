@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../config/prisma";
 import { vars } from "../config/vars";
@@ -21,10 +22,17 @@ const SERVICE_ACTOR_CEILING: Actor["role"] = "MANAGER";
  * stay correct. The forwarded role may not exceed the user's real role nor the ceiling.
  * Returns null when no/!matching service token is presented (fall through to the cookie).
  */
+/** Constant-time string compare — avoids leaking the service token via timing. */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
+
 async function resolveServiceActor(req: Request): Promise<Actor | null> {
   const header = req.headers.authorization;
   if (!vars.serviceToken || !header?.startsWith("Bearer ")) return null;
-  if (header.slice("Bearer ".length).trim() !== vars.serviceToken) return null; // not our token → session path
+  if (!safeEqual(header.slice("Bearer ".length).trim(), vars.serviceToken)) return null; // not our token → session path
 
   const actingId = req.header("X-Acting-User-Id");
   const actingRole = req.header("X-Acting-User-Role") as Actor["role"] | undefined;

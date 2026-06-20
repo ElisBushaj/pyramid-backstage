@@ -108,8 +108,8 @@ export function ConfirmDialog({
           </span>
           <RD.Title className="text-[16px] font-[600] text-text-primary">{title}</RD.Title>
         </div>
-        <RD.Description className="mb-5 text-[14px] leading-[21px] text-text-secondary">
-          {description}
+        <RD.Description asChild>
+          <div className="mb-5 text-[14px] leading-[21px] text-text-secondary">{description}</div>
         </RD.Description>
         <div className="flex justify-end gap-2.5">
           <RD.Close asChild>
