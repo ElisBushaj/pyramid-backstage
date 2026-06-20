@@ -19,6 +19,7 @@ ops-core/prisma/migrations/dev.db*
 .env
 .env.*
 !.env.example
+!.env.prod.example
 
 # Python (ai-orchestrator)
 __pycache__/

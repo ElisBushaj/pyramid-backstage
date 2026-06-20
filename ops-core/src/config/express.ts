@@ -14,6 +14,11 @@ import apiRoutes from "../routes";
 export function createApp(): Express {
   const app = express();
 
+  // Behind the nginx reverse proxy in production: trust the first hop so
+  // req.ip / X-Forwarded-For resolve to the real client (correct rate-limit
+  // buckets + secure-cookie detection), not nginx's container IP.
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   app.use(cors({ origin: vars.frontendUrl, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
