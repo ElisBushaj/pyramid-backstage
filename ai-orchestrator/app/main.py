@@ -57,7 +57,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             from .intake import _anthropic
 
             await _anthropic().messages.create(
-                model=settings.FAST_MODEL, max_tokens=1, messages=[{"role": "user", "content": "hi"}]
+                model=settings.FAST_MODEL, max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
             )
         except Exception:
             pass

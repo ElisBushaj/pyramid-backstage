@@ -4,6 +4,7 @@ import { useT } from '@/i18n/useT'
 import { cn } from '@/lib/cn'
 import type { Space, SpaceMap } from '@/api/types/spaces'
 import type { OperationalPlan } from '@/api/types/ai'
+import { FLOOR_PLANS } from './floorplan.data'
 
 // F19 — v1 radial FloorMap / digital twin (ADR-0014). Renders the catalog `map` field
 // (16-axis ring) and colours each space by the AI plan status. Self-contained: geometry
@@ -53,6 +54,14 @@ export function FloorMap({ floor, spaces, className }: { floor: number; spaces: 
   const statusBy = useMemo(() => new Map(spaces.map((s) => [s.slug, s.status])), [spaces])
   const onFloor = all.filter((s) => s.floor === floor && s.map)
 
+  // v2 real-plan mode: when the floor has traced CAD linework + the spaces carry
+  // polygons, render the actual plan with rooms lit by status. Falls back to the v1
+  // radial schematic when the real-plan data isn't present (e.g. catalog not reseeded).
+  const plan = FLOOR_PLANS[String(floor)]
+  if (plan && onFloor.some((s) => s.map?.polygon?.length)) {
+    return <RealFloorMap floor={floor} onFloor={onFloor} statusBy={statusBy} className={className} />
+  }
+
   return (
     <svg viewBox="0 0 320 320" className={cn('w-full', className)} role="img" aria-label={t('floorMap.aria', { floor })}>
       {/* faint structural grid: rings + 16 axes */}
@@ -71,6 +80,76 @@ export function FloorMap({ floor, spaces, className }: { floor: number; spaces: 
   )
 }
 
+/** v2 — overlays the AI plan onto the REAL traced floor plan (FLOOR_PLANS linework +
+ * per-space polygons). Lit rooms (main/bundle/conflict/circulation) fill by status;
+ * free rooms stay as bare outlines so the CAD detail shows through. */
+function RealFloorMap({ floor, onFloor, statusBy, className }: {
+  floor: number
+  onFloor: Space[]
+  statusBy: Map<string, FloorStatus>
+  className?: string
+}) {
+  const t = useT()
+  const plan = FLOOR_PLANS[String(floor)]
+  return (
+    <svg viewBox={plan.viewBox} className={cn('w-full', className)} role="img" aria-label={t('floorMap.aria', { floor })}>
+      <defs>
+        {/* hatch for outdoor / "conditional" surfaces (the Floor-3 grand external stairs) */}
+        <pattern id="fm-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="7" height="7" fill="var(--surface-subtle, #F2F4F7)" />
+          <line x1="0" y1="0" x2="0" y2="7" stroke="var(--text-tertiary, #8A92A0)" strokeWidth="1.3" />
+        </pattern>
+      </defs>
+      {/* the real CAD linework: faint interior detail under darker structural walls */}
+      <path d={plan.detail} fill="none" stroke="var(--border-subtle, #E2E7EE)" strokeWidth={0.8} />
+      <path d={plan.structural} fill="none" stroke="var(--text-tertiary, #8A92A0)" strokeWidth={1.4} strokeLinejoin="round" />
+
+      {onFloor.map((s) => {
+        const poly = s.map?.polygon
+        if (!poly?.length) return null
+        const pts = poly.map(([x, y]) => `${x},${y}`).join(' ')
+
+        // Non-bookable (wc / technical / circulation / vestibule) — muted, non-interactive, no label.
+        if (s.map?.bookable === false) {
+          return (
+            <polygon key={s.id} points={pts} fill="var(--surface-sunken, #F7F8FA)" fillOpacity={0.45}
+              stroke="var(--border-subtle, #E2E7EE)" strokeWidth={0.8} strokeLinejoin="round" pointerEvents="none">
+              <title>{`${s.name} · not bookable`}</title>
+            </polygon>
+          )
+        }
+
+        const status = (statusBy.get(s.slug ?? '') ?? 'free') as FloorStatus
+        const st = STYLE[status]
+        const lit = status !== 'free'
+        const conditional = s.map?.bookable === 'conditional' // Floor-3 external stairs: outdoor, hatched
+        const cx = poly.reduce((a, [x]) => a + x, 0) / poly.length
+        const cy = poly.reduce((a, [, y]) => a + y, 0) / poly.length
+        return (
+          <g key={s.id}>
+            <polygon
+              points={pts}
+              fill={lit ? st.fill : conditional ? 'url(#fm-hatch)' : 'transparent'}
+              fillOpacity={status === 'main' ? 0.58 : lit ? 0.42 : conditional ? 0.5 : 0}
+              stroke={lit ? st.stroke : 'var(--border-default, #C9D2DE)'}
+              strokeWidth={lit ? 2.5 : 1}
+              strokeDasharray={conditional && !lit ? '5 3' : st.dash}
+              strokeLinejoin="round"
+            >
+              <title>{s.name}</title>
+            </polygon>
+            {lit && (
+              <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize={16} fontWeight={700} fill={st.text}>
+                {shortLabel(s.name)}
+              </text>
+            )}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 function SpaceShape({ space, map, status }: { space: Space; map: SpaceMap; status: FloorStatus }) {
   const st = STYLE[status]
   const labelOn = status !== 'free'
@@ -82,7 +161,7 @@ function SpaceShape({ space, map, status }: { space: Space; map: SpaceMap; statu
         <circle cx={C} cy={C} r={R_INNER - 4} fill={st.fill} stroke={st.stroke} strokeWidth={1.5} strokeDasharray={st.dash}>
           <title>{space.name}</title>
         </circle>
-        {labelOn && <text x={C} y={C} textAnchor="middle" dominantBaseline="middle" fontSize={9} fontWeight={600} fill={st.text}>{abbr(space.name)}</text>}
+        {labelOn && <text x={C} y={C} textAnchor="middle" dominantBaseline="middle" fontSize={9} fontWeight={600} fill={st.text}>{shortLabel(space.name)}</text>}
       </g>
     )
   }
@@ -98,13 +177,20 @@ function SpaceShape({ space, map, status }: { space: Space; map: SpaceMap; statu
       <path d={sectorPath(rIn, rOut, dStart, dEnd)} fill={st.fill} stroke={st.stroke} strokeWidth={1.5} strokeDasharray={st.dash} strokeLinejoin="round">
         <title>{space.name}</title>
       </path>
-      {labelOn && <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize={8.5} fontWeight={600} fill={st.text}>{abbr(space.name)}</text>}
+      {labelOn && <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize={8.5} fontWeight={600} fill={st.text}>{shortLabel(space.name)}</text>}
     </g>
   )
 }
 
 function abbr(name: string): string {
   return name.split(/\s|—|-/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+}
+
+// Short on-map label. Numbered rooms keep their FULL plan number (Space 1/13 → S1/S13,
+// Box 7 → B7) so they never collide; everything else falls back to initials.
+function shortLabel(name: string): string {
+  const m = name.match(/\b(Space|Box)\s+(\d+(?:\.\d+)?)/i)
+  return m ? `${m[1][0].toUpperCase()}${m[2]}` : abbr(name)
 }
 
 /** Embeddable panel: a floor switcher + legend around the renderer. Pages use this. */

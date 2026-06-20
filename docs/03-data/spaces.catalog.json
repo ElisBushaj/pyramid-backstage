@@ -1,410 +1,1976 @@
 {
   "$meta": {
-    "title": "Pyramid of Tirana -- space catalog",
-    "purpose": "Single shared source for the venue's bookable spaces. Feeds three consumers: ops-core Space seed (Elis), ai-orchestrator venue_facts/RAG (Alvin), and the floor-map UI (Elis).",
-    "source": "Derived from New_Docs floor plans (kati -1 / 0 / 3) + the existing ops-core seed. Radial building: central atrium of grand stairs -> ring corridors -> wedge rooms on 16 axes; terraced interior.",
+    "title": "Pyramid of Tirana -- space catalog (real floor model)",
+    "purpose": "Single shared source for the venue's spaces. Feeds ops-core Space seed, the AI matcher/venue_facts, and the floor-map UI.",
+    "source": "Architect-derived floor spec (Floors 0 / -1 / 3) from the CAD plans. Radial building, 16 axes, north at top, axis 1/1a = bottom = main entrance.",
     "conventions": {
-      "id": "UUID, ops-core scheme 50000000-0000-4000-8000-<n>; n=1..6 already seeded, n>=7 new.",
-      "enums_UPPER_SNAKE": true,
-      "money": "integer minor units (ALL)",
+      "geometry": "radial; map.bearing = compass deg (0=top/N, clockwise); map.level = finished-floor height in m vs the Floor-0 datum (+0.00).",
       "kind": [
         "MAIN",
         "TRANSITIONAL"
       ],
-      "category": [
-        "HALL",
-        "BOX",
-        "CORRIDOR",
-        "ATRIUM",
-        "ENTRANCE",
-        "TERRACE",
-        "TRANSITIONAL"
+      "map.spaceKind": [
+        "main_hall",
+        "annex_hall",
+        "perimeter_hall",
+        "mid_ring_hall",
+        "box",
+        "rim_room",
+        "outdoor_terrace",
+        "outdoor_stairs",
+        "circulation",
+        "circulation_feature",
+        "entrance_plaza",
+        "entrance_vestibule",
+        "wc",
+        "technical"
       ],
-      "capacities": "layout -> seated/standing capacity. Layout enum: THEATER, CLASSROOM, BANQUET, RECEPTION, CABARET, BOARDROOM, CUSTOM.",
-      "adjacent": "list of slugs that physically touch this space (for AI bundles + circulation reasoning).",
-      "map": "schematic floor-map placement (ring + 16-axis sector range). NOT surveyed geometry -- for the stylized radial map.",
-      "isCirculation": "true = booking this space affects access/egress for neighbours (corridors, atria)."
+      "map.bookable": "true | false | 'conditional' — HARD FILTER. The matcher must never return wc/technical/circulation/entrance_vestibule; 'conditional' (external stairs) is outdoor-only with crowd/weather handling.",
+      "capacities": "COMPUTED floor(areaApproxM2 / density) per layout; outdoor safety-capped (x0.6). Density m2/pax: standing/RECEPTION .8, THEATER 1.5, CLASSROOM 2.0, BANQUET 1.8, BOARDROOM 3.0, CABARET 2.2.",
+      "map.areaEstimated": "true = area/capacities are ~1:200-scale estimates (+/-20%); render with an 'estimated' affordance + allow edit."
     },
-    "field_ownership": {
-      "ops_core_seed_fields": [
-        "id",
-        "name",
-        "floor",
-        "kind",
-        "capacities",
-        "features",
-        "dayRateMinor",
-        "currency",
-        "setupBufferMinutes",
-        "teardownBufferMinutes",
-        "status"
-      ],
-      "catalog_extension_fields_AI_and_map_promote_to_ops_core_later_additive": [
-        "slug",
-        "category",
-        "zone",
-        "isCirculation",
-        "adjacent",
-        "map",
-        "ceilingCm"
-      ]
-    },
-    "caveats": "Rows 1-6 are authoritative (match seed.ts exactly). Rows 7-19: names/heights/structure are read from the plans; capacities, day rates, buffers, adjacency and map sectors are reasonable ESTIMATES for the demo, not surveyed facts. Color halls (Blue/Orange/Green/Yellow) are operational names; their exact plan-wedge mapping is unconfirmed.",
+    "caveats": "Ceiling heights + levels are read from the plans (reliable). AREAS + CAPACITIES are estimated (+/-20%) and editable. Colour halls (Blue/Orange/Green/Yellow) live on Floor -1, are NOT hardcoded — staff assign via brandColor later; M1-SPACE-1/10/13/9 flagged as likely candidates. Floors 1 & 2 not yet provided (central stairs imply them) — clean extension points. Some space ids (24-28, 50-54) are to-confirm.",
     "counts": {
-      "total": 19,
+      "total": 53,
+      "bookable": 34,
       "by_floor": {
-        "-1": 6,
-        "0": 9,
-        "3": 4
+        "-1": 23,
+        "0": 22,
+        "3": 8
       },
       "by_category": {
-        "ATRIUM": 3,
-        "BOX": 5,
-        "CORRIDOR": 2,
-        "ENTRANCE": 1,
-        "HALL": 6,
-        "TERRACE": 1,
-        "TRANSITIONAL": 1
+        "ATRIUM": 4,
+        "BOX": 15,
+        "CORRIDOR": 5,
+        "ENTRANCE": 3,
+        "HALL": 18,
+        "TERRACE": 2,
+        "TRANSITIONAL": 6
       }
     }
   },
   "spaces": [
     {
-      "id": "50000000-0000-4000-8000-000000000001",
-      "slug": "blue_hall",
-      "name": "Blue Hall",
-      "floor": 0,
-      "kind": "MAIN",
-      "category": "HALL",
-      "zone": "F0-N",
-      "isCirculation": false,
-      "capacities": {
-        "THEATER": 220,
-        "CLASSROOM": 120,
-        "BANQUET": 160,
-        "RECEPTION": 300
-      },
-      "features": [
-        "stage",
-        "av_builtin",
-        "step_free"
-      ],
-      "dayRateMinor": 80000,
-      "currency": "ALL",
-      "setupBufferMinutes": 240,
-      "teardownBufferMinutes": 120,
-      "status": "ACTIVE",
-      "adjacent": [
-        "orange_hall",
-        "north_foyer",
-        "entrance_atrium",
-        "central_atrium_f0",
-        "east_ring_corridor_f0"
-      ],
-      "map": {
-        "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 1,
-        "sectorTo": 3
-      },
-      "source": "ops-core seed (authoritative -- already in seed.ts)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000002",
-      "slug": "orange_hall",
-      "name": "Orange Hall",
-      "floor": 0,
-      "kind": "MAIN",
-      "category": "HALL",
-      "zone": "F0-E",
-      "isCirculation": false,
-      "capacities": {
-        "THEATER": 180,
-        "CLASSROOM": 100,
-        "BANQUET": 140,
-        "RECEPTION": 240
-      },
-      "features": [
-        "av_builtin",
-        "step_free"
-      ],
-      "dayRateMinor": 70000,
-      "currency": "ALL",
-      "setupBufferMinutes": 240,
-      "teardownBufferMinutes": 120,
-      "status": "ACTIVE",
-      "adjacent": [
-        "blue_hall",
-        "box_3_workshop",
-        "east_ring_corridor_f0",
-        "central_atrium_f0"
-      ],
-      "map": {
-        "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 4,
-        "sectorTo": 6
-      },
-      "source": "ops-core seed (authoritative -- already in seed.ts)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000003",
-      "slug": "green_hall",
-      "name": "Green Hall",
-      "floor": -1,
-      "kind": "MAIN",
-      "category": "HALL",
-      "zone": "F-1-N",
-      "isCirculation": false,
-      "capacities": {
-        "THEATER": 120,
-        "CLASSROOM": 70,
-        "BANQUET": 90,
-        "RECEPTION": 160
-      },
-      "features": [
-        "natural_light"
-      ],
-      "dayRateMinor": 55000,
-      "currency": "ALL",
-      "setupBufferMinutes": 180,
-      "teardownBufferMinutes": 90,
-      "status": "ACTIVE",
-      "adjacent": [
-        "yellow_hall",
-        "lower_gallery",
-        "lower_corridor",
-        "lower_atrium"
-      ],
-      "map": {
-        "floor": -1,
-        "ring": "outer",
-        "sectorFrom": 1,
-        "sectorTo": 3
-      },
-      "source": "ops-core seed (authoritative -- already in seed.ts)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000004",
-      "slug": "yellow_hall",
-      "name": "Yellow Hall",
-      "floor": -1,
-      "kind": "MAIN",
-      "category": "HALL",
-      "zone": "F-1-E",
-      "isCirculation": false,
-      "capacities": {
-        "THEATER": 90,
-        "CLASSROOM": 50,
-        "BANQUET": 70,
-        "RECEPTION": 120
-      },
-      "features": [
-        "step_free"
-      ],
-      "dayRateMinor": 45000,
-      "currency": "ALL",
-      "setupBufferMinutes": 180,
-      "teardownBufferMinutes": 90,
-      "status": "ACTIVE",
-      "adjacent": [
-        "green_hall",
-        "lower_gallery",
-        "lower_corridor"
-      ],
-      "map": {
-        "floor": -1,
-        "ring": "outer",
-        "sectorFrom": 4,
-        "sectorTo": 6
-      },
-      "source": "ops-core seed (authoritative -- already in seed.ts)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000005",
-      "slug": "entrance_atrium",
-      "name": "Entrance Atrium",
-      "floor": 0,
-      "kind": "TRANSITIONAL",
-      "category": "ENTRANCE",
-      "zone": "F0-S",
-      "isCirculation": true,
-      "capacities": {
-        "RECEPTION": 250
-      },
-      "features": [
-        "natural_light",
-        "step_free"
-      ],
-      "dayRateMinor": 30000,
-      "currency": "ALL",
-      "setupBufferMinutes": 120,
-      "teardownBufferMinutes": 60,
-      "status": "ACTIVE",
-      "adjacent": [
-        "blue_hall",
-        "central_atrium_f0",
-        "north_foyer"
-      ],
-      "map": {
-        "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 12,
-        "sectorTo": 14
-      },
-      "source": "ops-core seed (authoritative -- already in seed.ts)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000006",
-      "slug": "lower_corridor",
-      "name": "Lower Corridor",
-      "floor": -1,
-      "kind": "TRANSITIONAL",
-      "category": "CORRIDOR",
-      "zone": "F-1-ring",
-      "isCirculation": true,
-      "capacities": {
-        "RECEPTION": 120
-      },
-      "features": [],
-      "dayRateMinor": 15000,
-      "currency": "ALL",
-      "setupBufferMinutes": 60,
-      "teardownBufferMinutes": 60,
-      "status": "ACTIVE",
-      "adjacent": [
-        "green_hall",
-        "yellow_hall",
-        "lower_gallery",
-        "lower_atrium"
-      ],
-      "map": {
-        "floor": -1,
-        "ring": "corridor",
-        "sectorFrom": 1,
-        "sectorTo": 11
-      },
-      "source": "ops-core seed (authoritative -- already in seed.ts)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000007",
-      "slug": "central_atrium_f0",
-      "name": "Central Atrium (floor 0)",
+      "id": "50000000-0000-4000-8000-000000000020",
+      "slug": "box_1_4",
+      "name": "Central hall (grand stair atrium)",
       "floor": 0,
       "kind": "TRANSITIONAL",
       "category": "ATRIUM",
-      "zone": "F0-core",
+      "zone": "F0-N",
       "isCirculation": true,
-      "capacities": {
-        "RECEPTION": 200
-      },
+      "capacities": {},
       "features": [
-        "grand_stair",
-        "natural_light",
-        "step_free"
+        "circulation",
+        "low_ceiling"
       ],
-      "dayRateMinor": 35000,
+      "dayRateMinor": 0,
       "currency": "ALL",
-      "setupBufferMinutes": 120,
-      "teardownBufferMinutes": 90,
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
       "status": "ACTIVE",
-      "adjacent": [
-        "blue_hall",
-        "orange_hall",
-        "entrance_atrium",
-        "north_foyer",
-        "east_ring_corridor_f0",
-        "lower_atrium",
-        "upper_atrium"
-      ],
+      "adjacent": [],
       "map": {
         "floor": 0,
-        "ring": "center"
+        "bearing": 0,
+        "ring": "center",
+        "spaceKind": "circulation_feature",
+        "bookable": false,
+        "areaApproxM2": 120,
+        "areaEstimated": true,
+        "level": 0.0,
+        "ceilingMeters": 2.55,
+        "note": "Central core of radiating stair flights + planters.",
+        "polygon": [
+          [
+            500.0,
+            437.0
+          ],
+          [
+            509.7,
+            438.1
+          ],
+          [
+            519.1,
+            441.1
+          ],
+          [
+            527.5,
+            446.0
+          ],
+          [
+            534.8,
+            452.6
+          ],
+          [
+            540.6,
+            460.5
+          ],
+          [
+            544.6,
+            469.4
+          ],
+          [
+            546.6,
+            479.0
+          ],
+          [
+            546.6,
+            488.8
+          ],
+          [
+            544.6,
+            498.4
+          ],
+          [
+            540.6,
+            507.3
+          ],
+          [
+            534.8,
+            515.3
+          ],
+          [
+            527.5,
+            521.8
+          ],
+          [
+            519.1,
+            526.7
+          ],
+          [
+            509.7,
+            529.8
+          ],
+          [
+            500.0,
+            530.8
+          ],
+          [
+            490.3,
+            529.8
+          ],
+          [
+            480.9,
+            526.7
+          ],
+          [
+            472.5,
+            521.8
+          ],
+          [
+            465.2,
+            515.3
+          ],
+          [
+            459.4,
+            507.3
+          ],
+          [
+            455.4,
+            498.4
+          ],
+          [
+            453.4,
+            488.8
+          ],
+          [
+            453.4,
+            479.0
+          ],
+          [
+            455.4,
+            469.4
+          ],
+          [
+            459.4,
+            460.5
+          ],
+          [
+            465.2,
+            452.6
+          ],
+          [
+            472.5,
+            446.0
+          ],
+          [
+            480.9,
+            441.1
+          ],
+          [
+            490.3,
+            438.1
+          ]
+        ]
       },
-      "source": "floor plan (kati 0) + estimated attributes (hackathon)"
+      "ceilingCm": 255
     },
     {
-      "id": "50000000-0000-4000-8000-000000000008",
-      "slug": "east_ring_corridor_f0",
-      "name": "East Ring Corridor (floor 0)",
+      "id": "50000000-0000-4000-8000-000000000021",
+      "slug": "ring_inner_0",
+      "name": "Inner concourse",
       "floor": 0,
       "kind": "TRANSITIONAL",
       "category": "CORRIDOR",
-      "zone": "F0-ring",
+      "zone": "F0-N",
       "isCirculation": true,
-      "capacities": {
-        "RECEPTION": 80
-      },
+      "capacities": {},
       "features": [
-        "step_free"
+        "circulation"
       ],
-      "dayRateMinor": 12000,
+      "dayRateMinor": 0,
       "currency": "ALL",
       "setupBufferMinutes": 60,
-      "teardownBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
       "status": "ACTIVE",
-      "adjacent": [
-        "blue_hall",
-        "orange_hall",
-        "box_3_workshop",
-        "box_5_breakout",
-        "box_7_green_room",
-        "central_atrium_f0"
-      ],
+      "adjacent": [],
       "map": {
         "floor": 0,
+        "bearing": 0,
         "ring": "corridor",
-        "sectorFrom": 4,
-        "sectorTo": 9
-      },
-      "source": "floor plan (kati 0) + estimated attributes (hackathon)"
+        "spaceKind": "circulation",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": 0.0,
+        "note": "Inner ring corridor wrapping the central stair hall.",
+        "polygon": [
+          [
+            500.0,
+            398.0
+          ],
+          [
+            507.5,
+            398.3
+          ],
+          [
+            514.9,
+            399.3
+          ],
+          [
+            522.2,
+            400.9
+          ],
+          [
+            529.4,
+            403.2
+          ],
+          [
+            536.3,
+            406.0
+          ],
+          [
+            543.0,
+            409.5
+          ],
+          [
+            549.3,
+            413.5
+          ],
+          [
+            555.2,
+            418.1
+          ],
+          [
+            560.8,
+            423.2
+          ],
+          [
+            565.8,
+            428.7
+          ],
+          [
+            570.4,
+            434.6
+          ],
+          [
+            574.4,
+            441.0
+          ],
+          [
+            577.9,
+            447.6
+          ],
+          [
+            580.7,
+            454.5
+          ],
+          [
+            583.0,
+            461.7
+          ],
+          [
+            584.6,
+            469.0
+          ],
+          [
+            585.6,
+            476.4
+          ],
+          [
+            585.9,
+            483.9
+          ],
+          [
+            585.6,
+            491.4
+          ],
+          [
+            584.6,
+            498.8
+          ],
+          [
+            583.0,
+            506.2
+          ],
+          [
+            580.7,
+            513.3
+          ],
+          [
+            577.9,
+            520.2
+          ],
+          [
+            574.4,
+            526.9
+          ],
+          [
+            570.4,
+            533.2
+          ],
+          [
+            565.8,
+            539.1
+          ],
+          [
+            560.8,
+            544.7
+          ],
+          [
+            555.2,
+            549.7
+          ],
+          [
+            549.3,
+            554.3
+          ],
+          [
+            543.0,
+            558.3
+          ],
+          [
+            536.3,
+            561.8
+          ],
+          [
+            529.4,
+            564.7
+          ],
+          [
+            522.2,
+            566.9
+          ],
+          [
+            514.9,
+            568.5
+          ],
+          [
+            507.5,
+            569.5
+          ],
+          [
+            500.0,
+            569.8
+          ],
+          [
+            492.5,
+            569.5
+          ],
+          [
+            485.1,
+            568.5
+          ],
+          [
+            477.8,
+            566.9
+          ],
+          [
+            470.6,
+            564.7
+          ],
+          [
+            463.7,
+            561.8
+          ],
+          [
+            457.0,
+            558.3
+          ],
+          [
+            450.7,
+            554.3
+          ],
+          [
+            444.8,
+            549.7
+          ],
+          [
+            439.2,
+            544.7
+          ],
+          [
+            434.2,
+            539.1
+          ],
+          [
+            429.6,
+            533.2
+          ],
+          [
+            425.6,
+            526.9
+          ],
+          [
+            422.1,
+            520.2
+          ],
+          [
+            419.3,
+            513.3
+          ],
+          [
+            417.0,
+            506.2
+          ],
+          [
+            415.4,
+            498.8
+          ],
+          [
+            414.4,
+            491.4
+          ],
+          [
+            414.1,
+            483.9
+          ],
+          [
+            414.4,
+            476.4
+          ],
+          [
+            415.4,
+            469.0
+          ],
+          [
+            417.0,
+            461.7
+          ],
+          [
+            419.3,
+            454.5
+          ],
+          [
+            422.1,
+            447.6
+          ],
+          [
+            425.6,
+            441.0
+          ],
+          [
+            429.6,
+            434.6
+          ],
+          [
+            434.2,
+            428.7
+          ],
+          [
+            439.2,
+            423.2
+          ],
+          [
+            444.8,
+            418.1
+          ],
+          [
+            450.7,
+            413.5
+          ],
+          [
+            457.0,
+            409.5
+          ],
+          [
+            463.7,
+            406.0
+          ],
+          [
+            470.6,
+            403.2
+          ],
+          [
+            477.8,
+            400.9
+          ],
+          [
+            485.1,
+            399.3
+          ],
+          [
+            492.5,
+            398.3
+          ],
+          [
+            500.0,
+            398.0
+          ],
+          [
+            500.0,
+            421.4
+          ],
+          [
+            494.6,
+            421.7
+          ],
+          [
+            489.1,
+            422.4
+          ],
+          [
+            483.8,
+            423.6
+          ],
+          [
+            478.6,
+            425.2
+          ],
+          [
+            473.6,
+            427.3
+          ],
+          [
+            468.8,
+            429.8
+          ],
+          [
+            464.2,
+            432.7
+          ],
+          [
+            459.8,
+            436.0
+          ],
+          [
+            455.8,
+            439.7
+          ],
+          [
+            452.1,
+            443.7
+          ],
+          [
+            448.8,
+            448.1
+          ],
+          [
+            445.9,
+            452.7
+          ],
+          [
+            443.4,
+            457.5
+          ],
+          [
+            441.3,
+            462.5
+          ],
+          [
+            439.6,
+            467.7
+          ],
+          [
+            438.5,
+            473.1
+          ],
+          [
+            437.8,
+            478.5
+          ],
+          [
+            437.5,
+            483.9
+          ],
+          [
+            437.8,
+            489.4
+          ],
+          [
+            438.5,
+            494.8
+          ],
+          [
+            439.6,
+            500.1
+          ],
+          [
+            441.3,
+            505.3
+          ],
+          [
+            443.4,
+            510.3
+          ],
+          [
+            445.9,
+            515.2
+          ],
+          [
+            448.8,
+            519.8
+          ],
+          [
+            452.1,
+            524.1
+          ],
+          [
+            455.8,
+            528.1
+          ],
+          [
+            459.8,
+            531.8
+          ],
+          [
+            464.2,
+            535.1
+          ],
+          [
+            468.8,
+            538.0
+          ],
+          [
+            473.6,
+            540.5
+          ],
+          [
+            478.6,
+            542.6
+          ],
+          [
+            483.8,
+            544.3
+          ],
+          [
+            489.1,
+            545.5
+          ],
+          [
+            494.6,
+            546.2
+          ],
+          [
+            500.0,
+            546.4
+          ],
+          [
+            505.4,
+            546.2
+          ],
+          [
+            510.9,
+            545.5
+          ],
+          [
+            516.2,
+            544.3
+          ],
+          [
+            521.4,
+            542.6
+          ],
+          [
+            526.4,
+            540.5
+          ],
+          [
+            531.2,
+            538.0
+          ],
+          [
+            535.8,
+            535.1
+          ],
+          [
+            540.2,
+            531.8
+          ],
+          [
+            544.2,
+            528.1
+          ],
+          [
+            547.9,
+            524.1
+          ],
+          [
+            551.2,
+            519.8
+          ],
+          [
+            554.1,
+            515.2
+          ],
+          [
+            556.6,
+            510.3
+          ],
+          [
+            558.7,
+            505.3
+          ],
+          [
+            560.4,
+            500.1
+          ],
+          [
+            561.5,
+            494.8
+          ],
+          [
+            562.2,
+            489.4
+          ],
+          [
+            562.5,
+            483.9
+          ],
+          [
+            562.2,
+            478.5
+          ],
+          [
+            561.5,
+            473.1
+          ],
+          [
+            560.4,
+            467.7
+          ],
+          [
+            558.7,
+            462.5
+          ],
+          [
+            556.6,
+            457.5
+          ],
+          [
+            554.1,
+            452.7
+          ],
+          [
+            551.2,
+            448.1
+          ],
+          [
+            547.9,
+            443.7
+          ],
+          [
+            544.2,
+            439.7
+          ],
+          [
+            540.2,
+            436.0
+          ],
+          [
+            535.8,
+            432.7
+          ],
+          [
+            531.2,
+            429.8
+          ],
+          [
+            526.4,
+            427.3
+          ],
+          [
+            521.4,
+            425.2
+          ],
+          [
+            516.2,
+            423.6
+          ],
+          [
+            510.9,
+            422.4
+          ],
+          [
+            505.4,
+            421.7
+          ],
+          [
+            500.0,
+            421.4
+          ]
+        ]
+      }
     },
     {
-      "id": "50000000-0000-4000-8000-000000000009",
-      "slug": "box_7_green_room",
-      "name": "Box 7 -- Green Room",
+      "id": "50000000-0000-4000-8000-000000000022",
+      "slug": "ring_outer_0",
+      "name": "Outer concourse",
+      "floor": 0,
+      "kind": "TRANSITIONAL",
+      "category": "CORRIDOR",
+      "zone": "F0-N",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 0,
+        "ring": "corridor",
+        "spaceKind": "circulation",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": 0.0,
+        "note": "Outer ring corridor; box + wedge-space doors open here.",
+        "polygon": [
+          [
+            500.0,
+            335.5
+          ],
+          [
+            512.9,
+            336.1
+          ],
+          [
+            525.8,
+            337.8
+          ],
+          [
+            538.4,
+            340.6
+          ],
+          [
+            550.8,
+            344.5
+          ],
+          [
+            562.7,
+            349.4
+          ],
+          [
+            574.2,
+            355.4
+          ],
+          [
+            585.1,
+            362.3
+          ],
+          [
+            595.4,
+            370.2
+          ],
+          [
+            604.9,
+            379.0
+          ],
+          [
+            613.7,
+            388.5
+          ],
+          [
+            621.6,
+            398.8
+          ],
+          [
+            628.5,
+            409.7
+          ],
+          [
+            634.5,
+            421.2
+          ],
+          [
+            639.5,
+            433.2
+          ],
+          [
+            643.3,
+            445.5
+          ],
+          [
+            646.2,
+            458.1
+          ],
+          [
+            647.8,
+            471.0
+          ],
+          [
+            648.4,
+            483.9
+          ],
+          [
+            647.8,
+            496.8
+          ],
+          [
+            646.2,
+            509.7
+          ],
+          [
+            643.3,
+            522.3
+          ],
+          [
+            639.5,
+            534.7
+          ],
+          [
+            634.5,
+            546.6
+          ],
+          [
+            628.5,
+            558.1
+          ],
+          [
+            621.6,
+            569.0
+          ],
+          [
+            613.7,
+            579.3
+          ],
+          [
+            604.9,
+            588.9
+          ],
+          [
+            595.4,
+            597.6
+          ],
+          [
+            585.1,
+            605.5
+          ],
+          [
+            574.2,
+            612.4
+          ],
+          [
+            562.7,
+            618.4
+          ],
+          [
+            550.8,
+            623.4
+          ],
+          [
+            538.4,
+            627.3
+          ],
+          [
+            525.8,
+            630.1
+          ],
+          [
+            512.9,
+            631.8
+          ],
+          [
+            500.0,
+            632.3
+          ],
+          [
+            487.1,
+            631.8
+          ],
+          [
+            474.2,
+            630.1
+          ],
+          [
+            461.6,
+            627.3
+          ],
+          [
+            449.2,
+            623.4
+          ],
+          [
+            437.3,
+            618.4
+          ],
+          [
+            425.8,
+            612.4
+          ],
+          [
+            414.9,
+            605.5
+          ],
+          [
+            404.6,
+            597.6
+          ],
+          [
+            395.1,
+            588.9
+          ],
+          [
+            386.3,
+            579.3
+          ],
+          [
+            378.4,
+            569.0
+          ],
+          [
+            371.5,
+            558.1
+          ],
+          [
+            365.5,
+            546.6
+          ],
+          [
+            360.5,
+            534.7
+          ],
+          [
+            356.7,
+            522.3
+          ],
+          [
+            353.8,
+            509.7
+          ],
+          [
+            352.2,
+            496.8
+          ],
+          [
+            351.6,
+            483.9
+          ],
+          [
+            352.2,
+            471.0
+          ],
+          [
+            353.8,
+            458.1
+          ],
+          [
+            356.7,
+            445.5
+          ],
+          [
+            360.5,
+            433.2
+          ],
+          [
+            365.5,
+            421.2
+          ],
+          [
+            371.5,
+            409.7
+          ],
+          [
+            378.4,
+            398.8
+          ],
+          [
+            386.3,
+            388.5
+          ],
+          [
+            395.1,
+            379.0
+          ],
+          [
+            404.6,
+            370.2
+          ],
+          [
+            414.9,
+            362.3
+          ],
+          [
+            425.8,
+            355.4
+          ],
+          [
+            437.3,
+            349.4
+          ],
+          [
+            449.2,
+            344.5
+          ],
+          [
+            461.6,
+            340.6
+          ],
+          [
+            474.2,
+            337.8
+          ],
+          [
+            487.1,
+            336.1
+          ],
+          [
+            500.0,
+            335.5
+          ],
+          [
+            500.0,
+            358.9
+          ],
+          [
+            489.1,
+            359.4
+          ],
+          [
+            478.3,
+            360.8
+          ],
+          [
+            467.7,
+            363.2
+          ],
+          [
+            457.3,
+            366.5
+          ],
+          [
+            447.2,
+            370.7
+          ],
+          [
+            437.5,
+            375.7
+          ],
+          [
+            428.3,
+            381.5
+          ],
+          [
+            419.7,
+            388.2
+          ],
+          [
+            411.6,
+            395.5
+          ],
+          [
+            404.3,
+            403.6
+          ],
+          [
+            397.6,
+            412.2
+          ],
+          [
+            391.8,
+            421.4
+          ],
+          [
+            386.7,
+            431.1
+          ],
+          [
+            382.6,
+            441.2
+          ],
+          [
+            379.3,
+            451.6
+          ],
+          [
+            376.9,
+            462.2
+          ],
+          [
+            375.5,
+            473.0
+          ],
+          [
+            375.0,
+            483.9
+          ],
+          [
+            375.5,
+            494.8
+          ],
+          [
+            376.9,
+            505.6
+          ],
+          [
+            379.3,
+            516.3
+          ],
+          [
+            382.6,
+            526.7
+          ],
+          [
+            386.7,
+            536.7
+          ],
+          [
+            391.8,
+            546.4
+          ],
+          [
+            397.6,
+            555.6
+          ],
+          [
+            404.3,
+            564.2
+          ],
+          [
+            411.6,
+            572.3
+          ],
+          [
+            419.7,
+            579.6
+          ],
+          [
+            428.3,
+            586.3
+          ],
+          [
+            437.5,
+            592.1
+          ],
+          [
+            447.2,
+            597.2
+          ],
+          [
+            457.3,
+            601.3
+          ],
+          [
+            467.7,
+            604.6
+          ],
+          [
+            478.3,
+            607.0
+          ],
+          [
+            489.1,
+            608.4
+          ],
+          [
+            500.0,
+            608.9
+          ],
+          [
+            510.9,
+            608.4
+          ],
+          [
+            521.7,
+            607.0
+          ],
+          [
+            532.3,
+            604.6
+          ],
+          [
+            542.7,
+            601.3
+          ],
+          [
+            552.8,
+            597.2
+          ],
+          [
+            562.5,
+            592.1
+          ],
+          [
+            571.7,
+            586.3
+          ],
+          [
+            580.3,
+            579.6
+          ],
+          [
+            588.4,
+            572.3
+          ],
+          [
+            595.7,
+            564.2
+          ],
+          [
+            602.4,
+            555.6
+          ],
+          [
+            608.2,
+            546.4
+          ],
+          [
+            613.3,
+            536.7
+          ],
+          [
+            617.4,
+            526.7
+          ],
+          [
+            620.7,
+            516.3
+          ],
+          [
+            623.1,
+            505.6
+          ],
+          [
+            624.5,
+            494.8
+          ],
+          [
+            625.0,
+            483.9
+          ],
+          [
+            624.5,
+            473.0
+          ],
+          [
+            623.1,
+            462.2
+          ],
+          [
+            620.7,
+            451.6
+          ],
+          [
+            617.4,
+            441.2
+          ],
+          [
+            613.3,
+            431.1
+          ],
+          [
+            608.2,
+            421.4
+          ],
+          [
+            602.4,
+            412.2
+          ],
+          [
+            595.7,
+            403.6
+          ],
+          [
+            588.4,
+            395.5
+          ],
+          [
+            580.3,
+            388.2
+          ],
+          [
+            571.7,
+            381.5
+          ],
+          [
+            562.5,
+            375.7
+          ],
+          [
+            552.8,
+            370.7
+          ],
+          [
+            542.7,
+            366.5
+          ],
+          [
+            532.3,
+            363.2
+          ],
+          [
+            521.7,
+            360.8
+          ],
+          [
+            510.9,
+            359.4
+          ],
+          [
+            500.0,
+            358.9
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000023",
+      "slug": "box_2",
+      "name": "Box 2",
       "floor": 0,
       "kind": "MAIN",
       "category": "BOX",
-      "zone": "F0-E",
+      "zone": "F0-SW",
       "isCirculation": false,
       "capacities": {
-        "BOARDROOM": 14,
-        "CLASSROOM": 20
+        "BOARDROOM": 18,
+        "CLASSROOM": 27
       },
       "features": [
-        "enclosed"
+        "enclosed",
+        "near_entrance"
       ],
-      "dayRateMinor": 18000,
+      "dayRateMinor": 16000,
       "currency": "ALL",
       "setupBufferMinutes": 60,
       "teardownBufferMinutes": 60,
       "status": "ACTIVE",
       "adjacent": [
-        "east_ring_corridor_f0",
-        "orange_hall"
+        "box_3"
       ],
       "map": {
         "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 9,
-        "sectorTo": 9
+        "bearing": 243,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 55,
+        "areaEstimated": true,
+        "level": 0.3,
+        "ceilingMeters": 2.9,
+        "nearEntrance": "ENT-S",
+        "polygon": [
+          [
+            393.1,
+            558.2
+          ],
+          [
+            391.1,
+            555.3
+          ],
+          [
+            389.2,
+            552.3
+          ],
+          [
+            387.4,
+            549.2
+          ],
+          [
+            385.7,
+            546.2
+          ],
+          [
+            384.0,
+            543.0
+          ],
+          [
+            382.4,
+            539.8
+          ],
+          [
+            381.0,
+            536.6
+          ],
+          [
+            379.6,
+            533.4
+          ],
+          [
+            378.3,
+            530.1
+          ],
+          [
+            377.1,
+            526.7
+          ],
+          [
+            421.3,
+            511.3
+          ],
+          [
+            422.1,
+            513.4
+          ],
+          [
+            422.9,
+            515.6
+          ],
+          [
+            423.8,
+            517.6
+          ],
+          [
+            424.8,
+            519.7
+          ],
+          [
+            425.8,
+            521.7
+          ],
+          [
+            426.8,
+            523.7
+          ],
+          [
+            427.9,
+            525.7
+          ],
+          [
+            429.1,
+            527.7
+          ],
+          [
+            430.3,
+            529.6
+          ],
+          [
+            431.6,
+            531.5
+          ]
+        ]
       },
-      "source": "floor plan (kati 0) + estimated attributes (hackathon)",
+      "ceilingCm": 290
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000024",
+      "slug": "box_3",
+      "name": "Box 3",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F0-W",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 16,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "enclosed",
+        "av_rigging"
+      ],
+      "dayRateMinor": 16000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [
+        "box_2",
+        "box_4"
+      ],
+      "map": {
+        "floor": 0,
+        "bearing": 278,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.3,
+        "ceilingMeters": 3.38,
+        "note": "Tallest ceiling (3.38 m) — best for tall installations / AV trussing.",
+        "polygon": [
+          [
+            369.8,
+            483.5
+          ],
+          [
+            369.9,
+            479.9
+          ],
+          [
+            370.0,
+            476.4
+          ],
+          [
+            370.3,
+            472.8
+          ],
+          [
+            370.6,
+            469.3
+          ],
+          [
+            371.1,
+            465.8
+          ],
+          [
+            371.6,
+            462.3
+          ],
+          [
+            372.3,
+            458.8
+          ],
+          [
+            373.0,
+            455.3
+          ],
+          [
+            373.8,
+            451.9
+          ],
+          [
+            374.7,
+            448.5
+          ],
+          [
+            419.8,
+            461.2
+          ],
+          [
+            419.2,
+            463.4
+          ],
+          [
+            418.7,
+            465.6
+          ],
+          [
+            418.2,
+            467.8
+          ],
+          [
+            417.8,
+            470.1
+          ],
+          [
+            417.5,
+            472.3
+          ],
+          [
+            417.2,
+            474.6
+          ],
+          [
+            417.0,
+            476.8
+          ],
+          [
+            416.8,
+            479.1
+          ],
+          [
+            416.7,
+            481.4
+          ],
+          [
+            416.7,
+            483.6
+          ]
+        ]
+      },
+      "ceilingCm": 338
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000025",
+      "slug": "box_4",
+      "name": "Box 4",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F0-NW",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 18,
+        "CLASSROOM": 27
+      },
+      "features": [
+        "enclosed",
+        "low_ceiling"
+      ],
+      "dayRateMinor": 16000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [
+        "box_3",
+        "box_5"
+      ],
+      "map": {
+        "floor": 0,
+        "bearing": 308,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 55,
+        "areaEstimated": true,
+        "level": 0.75,
+        "ceilingMeters": 2.58,
+        "polygon": [
+          [
+            387.5,
+            418.4
+          ],
+          [
+            389.3,
+            415.4
+          ],
+          [
+            391.2,
+            412.4
+          ],
+          [
+            393.2,
+            409.5
+          ],
+          [
+            395.3,
+            406.6
+          ],
+          [
+            397.4,
+            403.8
+          ],
+          [
+            399.6,
+            401.0
+          ],
+          [
+            401.9,
+            398.3
+          ],
+          [
+            404.3,
+            395.7
+          ],
+          [
+            406.7,
+            393.1
+          ],
+          [
+            409.2,
+            390.6
+          ],
+          [
+            441.9,
+            424.2
+          ],
+          [
+            440.3,
+            425.8
+          ],
+          [
+            438.8,
+            427.4
+          ],
+          [
+            437.2,
+            429.1
+          ],
+          [
+            435.8,
+            430.9
+          ],
+          [
+            434.3,
+            432.6
+          ],
+          [
+            433.0,
+            434.4
+          ],
+          [
+            431.7,
+            436.3
+          ],
+          [
+            430.4,
+            438.1
+          ],
+          [
+            429.2,
+            440.1
+          ],
+          [
+            428.0,
+            442.0
+          ]
+        ]
+      },
+      "ceilingCm": 258
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000005",
+      "slug": "box_5",
+      "name": "Box 5",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F0-N",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 20,
+        "CLASSROOM": 30
+      },
+      "features": [
+        "enclosed",
+        "near_entrance"
+      ],
+      "dayRateMinor": 16000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [
+        "box_4",
+        "box_6"
+      ],
+      "map": {
+        "floor": 0,
+        "bearing": 2,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 60,
+        "areaEstimated": true,
+        "level": 0.75,
+        "ceilingMeters": 2.7,
+        "nearEntrance": "ENT-N",
+        "note": "Widest box; near North entrance — registration / welcome / main breakout.",
+        "polygon": [
+          [
+            486.8,
+            354.4
+          ],
+          [
+            490.4,
+            354.1
+          ],
+          [
+            493.9,
+            353.9
+          ],
+          [
+            497.5,
+            353.8
+          ],
+          [
+            501.0,
+            353.7
+          ],
+          [
+            504.5,
+            353.8
+          ],
+          [
+            508.1,
+            354.0
+          ],
+          [
+            511.6,
+            354.3
+          ],
+          [
+            515.1,
+            354.6
+          ],
+          [
+            518.7,
+            355.1
+          ],
+          [
+            522.2,
+            355.6
+          ],
+          [
+            514.2,
+            401.8
+          ],
+          [
+            511.9,
+            401.5
+          ],
+          [
+            509.7,
+            401.2
+          ],
+          [
+            507.4,
+            400.9
+          ],
+          [
+            505.2,
+            400.8
+          ],
+          [
+            502.9,
+            400.6
+          ],
+          [
+            500.6,
+            400.6
+          ],
+          [
+            498.4,
+            400.6
+          ],
+          [
+            496.1,
+            400.7
+          ],
+          [
+            493.8,
+            400.8
+          ],
+          [
+            491.6,
+            401.0
+          ]
+        ]
+      },
       "ceilingCm": 270
     },
     {
-      "id": "50000000-0000-4000-8000-000000000010",
-      "slug": "box_5_breakout",
-      "name": "Box 5 -- Breakout",
+      "id": "50000000-0000-4000-8000-000000000026",
+      "slug": "box_6",
+      "name": "Box 6",
       "floor": 0,
       "kind": "MAIN",
       "category": "BOX",
-      "zone": "F0-E",
+      "zone": "F0-NE",
       "isCirculation": false,
       "capacities": {
-        "BOARDROOM": 12,
-        "CLASSROOM": 18
+        "BOARDROOM": 18,
+        "CLASSROOM": 27
       },
       "features": [
         "enclosed"
@@ -415,327 +1981,6836 @@
       "teardownBufferMinutes": 60,
       "status": "ACTIVE",
       "adjacent": [
-        "east_ring_corridor_f0"
+        "box_5",
+        "box_7"
       ],
       "map": {
         "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 8,
-        "sectorTo": 8
+        "bearing": 55,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 55,
+        "areaEstimated": true,
+        "level": 1.2,
+        "ceilingMeters": 2.7,
+        "polygon": [
+          [
+            595.5,
+            395.5
+          ],
+          [
+            597.9,
+            398.1
+          ],
+          [
+            600.2,
+            400.8
+          ],
+          [
+            602.4,
+            403.6
+          ],
+          [
+            604.6,
+            406.4
+          ],
+          [
+            606.6,
+            409.2
+          ],
+          [
+            608.6,
+            412.2
+          ],
+          [
+            610.5,
+            415.2
+          ],
+          [
+            612.4,
+            418.2
+          ],
+          [
+            614.1,
+            421.3
+          ],
+          [
+            615.8,
+            424.4
+          ],
+          [
+            574.1,
+            445.8
+          ],
+          [
+            573.0,
+            443.8
+          ],
+          [
+            571.9,
+            441.9
+          ],
+          [
+            570.7,
+            439.9
+          ],
+          [
+            569.5,
+            438.0
+          ],
+          [
+            568.2,
+            436.1
+          ],
+          [
+            566.9,
+            434.3
+          ],
+          [
+            565.5,
+            432.5
+          ],
+          [
+            564.1,
+            430.7
+          ],
+          [
+            562.6,
+            429.0
+          ],
+          [
+            561.1,
+            427.3
+          ]
+        ]
       },
-      "source": "floor plan (kati 0) + estimated attributes (hackathon)",
       "ceilingCm": 270
     },
     {
-      "id": "50000000-0000-4000-8000-000000000011",
-      "slug": "box_3_workshop",
-      "name": "Box 3 -- Workshop",
+      "id": "50000000-0000-4000-8000-000000000027",
+      "slug": "box_7",
+      "name": "Box 7",
       "floor": 0,
       "kind": "MAIN",
       "category": "BOX",
       "zone": "F0-E",
       "isCirculation": false,
       "capacities": {
-        "CLASSROOM": 30,
-        "BOARDROOM": 16
-      },
-      "features": [
-        "enclosed",
-        "av_builtin"
-      ],
-      "dayRateMinor": 20000,
-      "currency": "ALL",
-      "setupBufferMinutes": 90,
-      "teardownBufferMinutes": 60,
-      "status": "ACTIVE",
-      "adjacent": [
-        "east_ring_corridor_f0",
-        "orange_hall"
-      ],
-      "map": {
-        "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 7,
-        "sectorTo": 7
-      },
-      "source": "floor plan (kati 0) + estimated attributes (hackathon)",
-      "ceilingCm": 338
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000012",
-      "slug": "north_foyer",
-      "name": "North Foyer (Space 30)",
-      "floor": 0,
-      "kind": "TRANSITIONAL",
-      "category": "TRANSITIONAL",
-      "zone": "F0-N",
-      "isCirculation": false,
-      "capacities": {
-        "RECEPTION": 120,
-        "CABARET": 60
-      },
-      "features": [
-        "natural_light",
-        "step_free"
-      ],
-      "dayRateMinor": 22000,
-      "currency": "ALL",
-      "setupBufferMinutes": 90,
-      "teardownBufferMinutes": 60,
-      "status": "ACTIVE",
-      "adjacent": [
-        "blue_hall",
-        "central_atrium_f0",
-        "entrance_atrium"
-      ],
-      "map": {
-        "floor": 0,
-        "ring": "outer",
-        "sectorFrom": 10,
-        "sectorTo": 11
-      },
-      "source": "floor plan (kati 0) + estimated attributes (hackathon)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000013",
-      "slug": "lower_gallery",
-      "name": "Lower Gallery (Space 12-13)",
-      "floor": -1,
-      "kind": "MAIN",
-      "category": "HALL",
-      "zone": "F-1-W",
-      "isCirculation": false,
-      "capacities": {
-        "RECEPTION": 200,
-        "BANQUET": 120,
-        "THEATER": 140,
-        "CUSTOM": 200
-      },
-      "features": [
-        "step_free"
-      ],
-      "dayRateMinor": 50000,
-      "currency": "ALL",
-      "setupBufferMinutes": 180,
-      "teardownBufferMinutes": 90,
-      "status": "ACTIVE",
-      "adjacent": [
-        "green_hall",
-        "yellow_hall",
-        "lower_corridor",
-        "lower_atrium"
-      ],
-      "map": {
-        "floor": -1,
-        "ring": "outer",
-        "sectorFrom": 7,
-        "sectorTo": 11
-      },
-      "source": "floor plan (kati -1) + estimated attributes (hackathon)"
-    },
-    {
-      "id": "50000000-0000-4000-8000-000000000014",
-      "slug": "box_1_boh",
-      "name": "Box 1 -- Back-of-house",
-      "floor": -1,
-      "kind": "MAIN",
-      "category": "BOX",
-      "zone": "F-1-W",
-      "isCirculation": false,
-      "capacities": {
-        "BOARDROOM": 10
+        "BOARDROOM": 13,
+        "CLASSROOM": 20
       },
       "features": [
         "enclosed"
       ],
-      "dayRateMinor": 12000,
+      "dayRateMinor": 16000,
       "currency": "ALL",
       "setupBufferMinutes": 60,
       "teardownBufferMinutes": 60,
       "status": "ACTIVE",
       "adjacent": [
-        "lower_corridor"
+        "box_6",
+        "box_8"
       ],
       "map": {
-        "floor": -1,
-        "ring": "outer",
-        "sectorFrom": 12,
-        "sectorTo": 12
+        "floor": 0,
+        "bearing": 82,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 40,
+        "areaEstimated": true,
+        "level": 1.2,
+        "ceilingMeters": 2.7,
+        "note": "Smallest / narrow — workshop or green room.",
+        "polygon": [
+          [
+            625.3,
+            448.5
+          ],
+          [
+            626.2,
+            451.9
+          ],
+          [
+            627.0,
+            455.3
+          ],
+          [
+            627.7,
+            458.8
+          ],
+          [
+            628.4,
+            462.3
+          ],
+          [
+            628.9,
+            465.8
+          ],
+          [
+            629.4,
+            469.3
+          ],
+          [
+            629.7,
+            472.8
+          ],
+          [
+            630.0,
+            476.4
+          ],
+          [
+            630.1,
+            479.9
+          ],
+          [
+            630.2,
+            483.5
+          ],
+          [
+            583.3,
+            483.6
+          ],
+          [
+            583.3,
+            481.4
+          ],
+          [
+            583.2,
+            479.1
+          ],
+          [
+            583.0,
+            476.8
+          ],
+          [
+            582.8,
+            474.6
+          ],
+          [
+            582.5,
+            472.3
+          ],
+          [
+            582.2,
+            470.1
+          ],
+          [
+            581.8,
+            467.8
+          ],
+          [
+            581.3,
+            465.6
+          ],
+          [
+            580.8,
+            463.4
+          ],
+          [
+            580.2,
+            461.2
+          ]
+        ]
       },
-      "source": "floor plan (kati -1) + estimated attributes (hackathon)",
-      "ceilingCm": 230
+      "ceilingCm": 270
     },
     {
-      "id": "50000000-0000-4000-8000-000000000015",
-      "slug": "lower_atrium",
-      "name": "Lower Atrium (floor -1)",
-      "floor": -1,
-      "kind": "TRANSITIONAL",
-      "category": "ATRIUM",
-      "zone": "F-1-core",
-      "isCirculation": true,
+      "id": "50000000-0000-4000-8000-000000000028",
+      "slug": "box_8",
+      "name": "Box 8",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F0-E",
+      "isCirculation": false,
       "capacities": {
-        "RECEPTION": 150
+        "BOARDROOM": 16,
+        "CLASSROOM": 25
       },
       "features": [
-        "grand_stair",
+        "enclosed"
+      ],
+      "dayRateMinor": 16000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [
+        "box_7",
+        "box_9"
+      ],
+      "map": {
+        "floor": 0,
+        "bearing": 111,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 1.2,
+        "ceilingMeters": 2.98,
+        "polygon": [
+          [
+            626.7,
+            513.6
+          ],
+          [
+            625.9,
+            517.1
+          ],
+          [
+            624.9,
+            520.5
+          ],
+          [
+            623.9,
+            523.9
+          ],
+          [
+            622.8,
+            527.2
+          ],
+          [
+            621.5,
+            530.6
+          ],
+          [
+            620.2,
+            533.9
+          ],
+          [
+            618.8,
+            537.1
+          ],
+          [
+            617.3,
+            540.3
+          ],
+          [
+            615.7,
+            543.5
+          ],
+          [
+            614.1,
+            546.6
+          ],
+          [
+            573.0,
+            524.1
+          ],
+          [
+            574.1,
+            522.0
+          ],
+          [
+            575.1,
+            520.0
+          ],
+          [
+            576.0,
+            518.0
+          ],
+          [
+            576.9,
+            515.9
+          ],
+          [
+            577.8,
+            513.8
+          ],
+          [
+            578.6,
+            511.6
+          ],
+          [
+            579.3,
+            509.5
+          ],
+          [
+            580.0,
+            507.3
+          ],
+          [
+            580.6,
+            505.1
+          ],
+          [
+            581.1,
+            502.9
+          ]
+        ]
+      },
+      "ceilingCm": 298
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000029",
+      "slug": "box_9",
+      "name": "Box 9",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F0-SE",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 16,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "enclosed",
+        "near_entrance"
+      ],
+      "dayRateMinor": 16000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [
+        "box_8"
+      ],
+      "map": {
+        "floor": 0,
+        "bearing": 121,
+        "ring": "boxRing",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 1.2,
+        "ceilingMeters": 2.98,
+        "nearEntrance": "ENT-S",
+        "polygon": [
+          [
+            619.7,
+            535.2
+          ],
+          [
+            618.2,
+            538.4
+          ],
+          [
+            616.7,
+            541.6
+          ],
+          [
+            615.1,
+            544.8
+          ],
+          [
+            613.4,
+            547.9
+          ],
+          [
+            611.6,
+            551.0
+          ],
+          [
+            609.7,
+            554.0
+          ],
+          [
+            607.8,
+            556.9
+          ],
+          [
+            605.7,
+            559.8
+          ],
+          [
+            603.6,
+            562.7
+          ],
+          [
+            601.5,
+            565.5
+          ],
+          [
+            564.9,
+            536.1
+          ],
+          [
+            566.3,
+            534.3
+          ],
+          [
+            567.7,
+            532.5
+          ],
+          [
+            569.0,
+            530.6
+          ],
+          [
+            570.2,
+            528.8
+          ],
+          [
+            571.4,
+            526.8
+          ],
+          [
+            572.6,
+            524.9
+          ],
+          [
+            573.6,
+            522.9
+          ],
+          [
+            574.7,
+            520.9
+          ],
+          [
+            575.7,
+            518.8
+          ],
+          [
+            576.6,
+            516.7
+          ]
+        ]
+      },
+      "ceilingCm": 298
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000030",
+      "slug": "space_21",
+      "name": "Space 21 — Entrance plaza",
+      "floor": 0,
+      "kind": "TRANSITIONAL",
+      "category": "ENTRANCE",
+      "zone": "F0-S",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 180,
+        "ring": "outer",
+        "spaceKind": "entrance_plaza",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "levelRange": [
+          -4.65,
+          0.0
+        ],
+        "stepped": true,
+        "note": "Main south entrance: a wide stepped plaza descending toward Floor -1.",
+        "polygon": [
+          [
+            570.4,
+            750.2
+          ],
+          [
+            556.5,
+            753.5
+          ],
+          [
+            542.5,
+            756.0
+          ],
+          [
+            528.4,
+            757.8
+          ],
+          [
+            514.2,
+            758.9
+          ],
+          [
+            500.0,
+            759.3
+          ],
+          [
+            485.8,
+            758.9
+          ],
+          [
+            471.6,
+            757.8
+          ],
+          [
+            457.5,
+            756.0
+          ],
+          [
+            443.5,
+            753.5
+          ],
+          [
+            429.6,
+            750.2
+          ],
+          [
+            465.4,
+            614.8
+          ],
+          [
+            472.2,
+            616.4
+          ],
+          [
+            479.1,
+            617.7
+          ],
+          [
+            486.0,
+            618.6
+          ],
+          [
+            493.0,
+            619.1
+          ],
+          [
+            500.0,
+            619.3
+          ],
+          [
+            507.0,
+            619.1
+          ],
+          [
+            514.0,
+            618.6
+          ],
+          [
+            520.9,
+            617.7
+          ],
+          [
+            527.8,
+            616.4
+          ],
+          [
+            534.6,
+            614.8
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000031",
+      "slug": "space_22",
+      "name": "Space 22 — SW terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-SW",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
+      },
+      "features": [
         "step_free"
       ],
       "dayRateMinor": 28000,
       "currency": "ALL",
       "setupBufferMinutes": 120,
-      "teardownBufferMinutes": 90,
+      "teardownBufferMinutes": 60,
       "status": "ACTIVE",
-      "adjacent": [
-        "green_hall",
-        "lower_corridor",
-        "lower_gallery",
-        "central_atrium_f0"
-      ],
+      "adjacent": [],
       "map": {
-        "floor": -1,
-        "ring": "center"
-      },
-      "source": "floor plan (kati -1) + estimated attributes (hackathon)"
+        "floor": 0,
+        "bearing": 215,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.3,
+        "note": "Wedge terrace / informal gathering & overflow.",
+        "polygon": [
+          [
+            389.9,
+            728.8
+          ],
+          [
+            379.1,
+            727.9
+          ],
+          [
+            370.0,
+            723.1
+          ],
+          [
+            361.4,
+            717.6
+          ],
+          [
+            353.3,
+            711.3
+          ],
+          [
+            344.8,
+            705.6
+          ],
+          [
+            343.5,
+            690.4
+          ],
+          [
+            330.1,
+            691.3
+          ],
+          [
+            303.0,
+            706.8
+          ],
+          [
+            321.9,
+            670.7
+          ],
+          [
+            351.4,
+            628.4
+          ],
+          [
+            406.7,
+            574.7
+          ],
+          [
+            410.2,
+            578.1
+          ],
+          [
+            413.8,
+            581.4
+          ],
+          [
+            417.5,
+            584.6
+          ],
+          [
+            421.4,
+            587.7
+          ],
+          [
+            425.3,
+            590.6
+          ],
+          [
+            429.4,
+            593.3
+          ],
+          [
+            433.6,
+            595.9
+          ],
+          [
+            437.8,
+            598.3
+          ],
+          [
+            442.2,
+            600.6
+          ],
+          [
+            446.6,
+            602.7
+          ]
+        ]
+      }
     },
     {
-      "id": "50000000-0000-4000-8000-000000000016",
-      "slug": "skyline_room",
-      "name": "Skyline Room (Space 31/34)",
-      "floor": 3,
+      "id": "50000000-0000-4000-8000-000000000032",
+      "slug": "space_23",
+      "name": "Space 23 — West terrace",
+      "floor": 0,
       "kind": "MAIN",
       "category": "HALL",
-      "zone": "F3-N",
+      "zone": "F0-W",
       "isCirculation": false,
       "capacities": {
-        "THEATER": 80,
-        "RECEPTION": 120,
-        "BANQUET": 70
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
       },
       "features": [
-        "natural_light",
-        "panoramic_view"
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 250,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.3,
+        "note": "Wedge terrace near the West annex link; gathering / catering overflow.",
+        "polygon": [
+          [
+            258.7,
+            627.7
+          ],
+          [
+            325.3,
+            579.3
+          ],
+          [
+            466.8,
+            500.4
+          ],
+          [
+            374.4,
+            540.7
+          ],
+          [
+            316.3,
+            558.7
+          ],
+          [
+            260.3,
+            571.2
+          ],
+          [
+            219.5,
+            574.2
+          ],
+          [
+            251.5,
+            553.7
+          ],
+          [
+            251.4,
+            543.7
+          ],
+          [
+            250.1,
+            534.1
+          ],
+          [
+            246.7,
+            524.9
+          ],
+          [
+            371.5,
+            504.7
+          ],
+          [
+            372.4,
+            509.6
+          ],
+          [
+            373.4,
+            514.3
+          ],
+          [
+            374.7,
+            519.1
+          ],
+          [
+            376.1,
+            523.8
+          ],
+          [
+            377.7,
+            528.4
+          ],
+          [
+            379.4,
+            533.0
+          ],
+          [
+            381.4,
+            537.5
+          ],
+          [
+            383.5,
+            542.0
+          ],
+          [
+            385.7,
+            546.3
+          ],
+          [
+            388.2,
+            550.6
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000033",
+      "slug": "space_29",
+      "name": "Space 29 — NE terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-NE",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 56,
+        "CABARET": 20,
+        "CLASSROOM": 22
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 50,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 45,
+        "areaEstimated": true,
+        "level": 0.5,
+        "polygon": [
+          [
+            648.9,
+            301.3
+          ],
+          [
+            642.2,
+            322.4
+          ],
+          [
+            628.1,
+            349.1
+          ],
+          [
+            602.1,
+            384.2
+          ],
+          [
+            566.4,
+            423.7
+          ],
+          [
+            552.6,
+            439.8
+          ],
+          [
+            643.8,
+            372.2
+          ],
+          [
+            701.1,
+            339.5
+          ],
+          [
+            703.0,
+            349.5
+          ],
+          [
+            714.0,
+            353.5
+          ],
+          [
+            709.9,
+            366.6
+          ],
+          [
+            613.6,
+            420.4
+          ],
+          [
+            611.2,
+            416.2
+          ],
+          [
+            608.5,
+            412.0
+          ],
+          [
+            605.7,
+            408.0
+          ],
+          [
+            602.8,
+            404.1
+          ],
+          [
+            599.7,
+            400.2
+          ],
+          [
+            596.5,
+            396.5
+          ],
+          [
+            593.1,
+            393.0
+          ],
+          [
+            589.6,
+            389.5
+          ],
+          [
+            586.0,
+            386.2
+          ],
+          [
+            582.3,
+            383.0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000034",
+      "slug": "space_30",
+      "name": "Space 30 — East terrace (stepped)",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-E",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 100,
+        "CABARET": 36,
+        "CLASSROOM": 40
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 90,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 80,
+        "areaEstimated": true,
+        "level": 0.18,
+        "levelRange": [
+          0.18,
+          2.16
+        ],
+        "stepped": true,
+        "note": "Large east wedge with its own stairs, multi-level. Good for staged / standing receptions.",
+        "polygon": [
+          [
+            770.6,
+            432.3
+          ],
+          [
+            789.4,
+            439.9
+          ],
+          [
+            727.0,
+            458.1
+          ],
+          [
+            723.5,
+            467.0
+          ],
+          [
+            611.0,
+            479.7
+          ],
+          [
+            632.1,
+            483.9
+          ],
+          [
+            709.1,
+            491.8
+          ],
+          [
+            752.5,
+            503.0
+          ],
+          [
+            773.4,
+            515.0
+          ],
+          [
+            752.8,
+            522.3
+          ],
+          [
+            751.3,
+            531.8
+          ],
+          [
+            627.9,
+            508.3
+          ],
+          [
+            628.7,
+            503.5
+          ],
+          [
+            629.3,
+            498.6
+          ],
+          [
+            629.8,
+            493.7
+          ],
+          [
+            630.1,
+            488.8
+          ],
+          [
+            630.2,
+            483.9
+          ],
+          [
+            630.1,
+            479.0
+          ],
+          [
+            629.8,
+            474.1
+          ],
+          [
+            629.3,
+            469.2
+          ],
+          [
+            628.7,
+            464.4
+          ],
+          [
+            627.9,
+            459.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000035",
+      "slug": "space_24",
+      "name": "Space 24 — perimeter terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-SE",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 150,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.75,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            623.4,
+            626.9
+          ],
+          [
+            629.1,
+            645.4
+          ],
+          [
+            647.7,
+            683.6
+          ],
+          [
+            624.7,
+            666.5
+          ],
+          [
+            617.7,
+            671.1
+          ],
+          [
+            627.6,
+            704.9
+          ],
+          [
+            627.2,
+            724.7
+          ],
+          [
+            617.2,
+            727.6
+          ],
+          [
+            606.4,
+            728.3
+          ],
+          [
+            590.0,
+            714.0
+          ],
+          [
+            582.1,
+            719.8
+          ],
+          [
+            542.8,
+            606.9
+          ],
+          [
+            547.4,
+            605.2
+          ],
+          [
+            552.0,
+            603.3
+          ],
+          [
+            556.4,
+            601.2
+          ],
+          [
+            560.8,
+            599.0
+          ],
+          [
+            565.1,
+            596.7
+          ],
+          [
+            569.3,
+            594.1
+          ],
+          [
+            573.4,
+            591.4
+          ],
+          [
+            577.4,
+            588.6
+          ],
+          [
+            581.3,
+            585.6
+          ],
+          [
+            585.1,
+            582.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000036",
+      "slug": "space_25",
+      "name": "Space 25 — perimeter terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-S",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 165,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.75,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            617.7,
+            727.3
+          ],
+          [
+            606.9,
+            728.1
+          ],
+          [
+            590.5,
+            713.8
+          ],
+          [
+            582.6,
+            719.6
+          ],
+          [
+            575.5,
+            728.5
+          ],
+          [
+            566.2,
+            731.1
+          ],
+          [
+            556.9,
+            733.4
+          ],
+          [
+            547.4,
+            735.4
+          ],
+          [
+            537.9,
+            737.0
+          ],
+          [
+            528.4,
+            738.3
+          ],
+          [
+            518.7,
+            739.2
+          ],
+          [
+            509.5,
+            613.7
+          ],
+          [
+            514.4,
+            613.3
+          ],
+          [
+            519.3,
+            612.7
+          ],
+          [
+            524.1,
+            611.8
+          ],
+          [
+            528.9,
+            610.8
+          ],
+          [
+            533.7,
+            609.7
+          ],
+          [
+            538.4,
+            608.3
+          ],
+          [
+            543.1,
+            606.8
+          ],
+          [
+            547.7,
+            605.1
+          ],
+          [
+            552.2,
+            603.2
+          ],
+          [
+            556.7,
+            601.1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000037",
+      "slug": "space_26",
+      "name": "Space 26 — perimeter terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-NW",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 320,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.75,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            358.4,
+            368.4
+          ],
+          [
+            397.1,
+            393.3
+          ],
+          [
+            388.1,
+            377.7
+          ],
+          [
+            379.3,
+            360.4
+          ],
+          [
+            368.8,
+            339.0
+          ],
+          [
+            354.6,
+            310.6
+          ],
+          [
+            344.2,
+            283.4
+          ],
+          [
+            359.3,
+            288.0
+          ],
+          [
+            372.2,
+            290.9
+          ],
+          [
+            379.5,
+            286.1
+          ],
+          [
+            387.5,
+            282.6
+          ],
+          [
+            436.5,
+            370.3
+          ],
+          [
+            432.3,
+            372.8
+          ],
+          [
+            428.1,
+            375.4
+          ],
+          [
+            424.1,
+            378.2
+          ],
+          [
+            420.1,
+            381.1
+          ],
+          [
+            416.3,
+            384.2
+          ],
+          [
+            412.6,
+            387.4
+          ],
+          [
+            409.0,
+            390.8
+          ],
+          [
+            405.6,
+            394.3
+          ],
+          [
+            402.3,
+            397.9
+          ],
+          [
+            399.1,
+            401.6
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000038",
+      "slug": "space_27",
+      "name": "Space 27 — perimeter terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-N",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 340,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.75,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            381.5,
+            285.1
+          ],
+          [
+            389.4,
+            281.3
+          ],
+          [
+            398.3,
+            279.7
+          ],
+          [
+            406.2,
+            276.3
+          ],
+          [
+            413.2,
+            270.8
+          ],
+          [
+            415.0,
+            250.4
+          ],
+          [
+            422.5,
+            243.1
+          ],
+          [
+            442.6,
+            279.3
+          ],
+          [
+            455.1,
+            297.4
+          ],
+          [
+            478.3,
+            376.0
+          ],
+          [
+            479.8,
+            359.5
+          ],
+          [
+            479.2,
+            355.4
+          ],
+          [
+            474.4,
+            356.3
+          ],
+          [
+            469.6,
+            357.3
+          ],
+          [
+            464.8,
+            358.6
+          ],
+          [
+            460.1,
+            360.0
+          ],
+          [
+            455.5,
+            361.6
+          ],
+          [
+            450.9,
+            363.4
+          ],
+          [
+            446.4,
+            365.3
+          ],
+          [
+            442.0,
+            367.4
+          ],
+          [
+            437.6,
+            369.7
+          ],
+          [
+            433.3,
+            372.1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000039",
+      "slug": "space_28",
+      "name": "Space 28 — perimeter terrace",
+      "floor": 0,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F0-N",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 62,
+        "CABARET": 22,
+        "CLASSROOM": 25
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 20,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 50,
+        "areaEstimated": true,
+        "level": 0.75,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            524.9,
+            330.0
+          ],
+          [
+            538.6,
+            291.6
+          ],
+          [
+            545.9,
+            293.2
+          ],
+          [
+            548.4,
+            311.6
+          ],
+          [
+            555.6,
+            311.2
+          ],
+          [
+            581.9,
+            258.8
+          ],
+          [
+            586.8,
+            270.8
+          ],
+          [
+            593.8,
+            276.3
+          ],
+          [
+            601.7,
+            279.7
+          ],
+          [
+            610.7,
+            281.3
+          ],
+          [
+            618.5,
+            285.1
+          ],
+          [
+            566.7,
+            372.1
+          ],
+          [
+            562.4,
+            369.7
+          ],
+          [
+            558.0,
+            367.4
+          ],
+          [
+            553.6,
+            365.3
+          ],
+          [
+            549.1,
+            363.4
+          ],
+          [
+            544.5,
+            361.6
+          ],
+          [
+            539.9,
+            360.0
+          ],
+          [
+            535.2,
+            358.6
+          ],
+          [
+            530.4,
+            357.3
+          ],
+          [
+            525.6,
+            356.3
+          ],
+          [
+            520.8,
+            355.4
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000040",
+      "slug": "ent_n",
+      "name": "North entrance + service",
+      "floor": 0,
+      "kind": "TRANSITIONAL",
+      "category": "ENTRANCE",
+      "zone": "F0-N",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 0,
+        "bearing": 0,
+        "ring": "outer",
+        "spaceKind": "entrance_vestibule",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": 0.6,
+        "note": "Secondary entry (axes 15-16) with a stair up + an adjacent WC / service room.",
+        "polygon": [
+          [
+            480.0,
+            378.9
+          ],
+          [
+            478.9,
+            345.0
+          ],
+          [
+            493.5,
+            426.7
+          ],
+          [
+            488.3,
+            329.6
+          ],
+          [
+            492.5,
+            283.8
+          ],
+          [
+            500.0,
+            291.0
+          ],
+          [
+            507.4,
+            289.0
+          ],
+          [
+            511.0,
+            338.1
+          ],
+          [
+            513.0,
+            369.6
+          ],
+          [
+            517.3,
+            370.1
+          ],
+          [
+            528.0,
+            337.3
+          ],
+          [
+            519.5,
+            381.6
+          ],
+          [
+            515.6,
+            381.0
+          ],
+          [
+            511.8,
+            380.4
+          ],
+          [
+            507.8,
+            380.1
+          ],
+          [
+            503.9,
+            379.8
+          ],
+          [
+            500.0,
+            379.8
+          ],
+          [
+            496.1,
+            379.8
+          ],
+          [
+            492.2,
+            380.1
+          ],
+          [
+            488.2,
+            380.4
+          ],
+          [
+            484.4,
+            381.0
+          ],
+          [
+            480.5,
+            381.6
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000041",
+      "slug": "box_1_1",
+      "name": "Central core 1.1",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "ATRIUM",
+      "zone": "F-1-N",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 0,
+        "ring": "center",
+        "spaceKind": "circulation_feature",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "ceilingMeters": 2.9,
+        "note": "Lower segment of the central grand-stair hall.",
+        "polygon": [
+          [
+            500.1,
+            453.4
+          ],
+          [
+            509.8,
+            454.4
+          ],
+          [
+            519.0,
+            457.4
+          ],
+          [
+            527.5,
+            462.3
+          ],
+          [
+            534.7,
+            468.8
+          ],
+          [
+            540.4,
+            476.7
+          ],
+          [
+            544.4,
+            485.6
+          ],
+          [
+            546.4,
+            495.1
+          ],
+          [
+            546.4,
+            504.9
+          ],
+          [
+            544.4,
+            514.4
+          ],
+          [
+            540.4,
+            523.3
+          ],
+          [
+            534.7,
+            531.2
+          ],
+          [
+            527.5,
+            537.7
+          ],
+          [
+            519.0,
+            542.6
+          ],
+          [
+            509.8,
+            545.6
+          ],
+          [
+            500.1,
+            546.6
+          ],
+          [
+            490.4,
+            545.6
+          ],
+          [
+            481.1,
+            542.6
+          ],
+          [
+            472.7,
+            537.7
+          ],
+          [
+            465.4,
+            531.2
+          ],
+          [
+            459.7,
+            523.3
+          ],
+          [
+            455.7,
+            514.4
+          ],
+          [
+            453.7,
+            504.9
+          ],
+          [
+            453.7,
+            495.1
+          ],
+          [
+            455.7,
+            485.6
+          ],
+          [
+            459.7,
+            476.7
+          ],
+          [
+            465.4,
+            468.8
+          ],
+          [
+            472.7,
+            462.3
+          ],
+          [
+            481.1,
+            457.4
+          ],
+          [
+            490.4,
+            454.4
+          ]
+        ]
+      },
+      "ceilingCm": 290
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000042",
+      "slug": "box_1_2",
+      "name": "Central core 1.2",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "ATRIUM",
+      "zone": "F-1-SE",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 120,
+        "ring": "center",
+        "spaceKind": "circulation_feature",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "ceilingMeters": 3.0,
+        "note": "Central stair-hall segment; stairs up to Floor 0.",
+        "polygon": [
+          [
+            500.1,
+            453.4
+          ],
+          [
+            509.8,
+            454.4
+          ],
+          [
+            519.0,
+            457.4
+          ],
+          [
+            527.5,
+            462.3
+          ],
+          [
+            534.7,
+            468.8
+          ],
+          [
+            540.4,
+            476.7
+          ],
+          [
+            544.4,
+            485.6
+          ],
+          [
+            546.4,
+            495.1
+          ],
+          [
+            546.4,
+            504.9
+          ],
+          [
+            544.4,
+            514.4
+          ],
+          [
+            540.4,
+            523.3
+          ],
+          [
+            534.7,
+            531.2
+          ],
+          [
+            527.5,
+            537.7
+          ],
+          [
+            519.0,
+            542.6
+          ],
+          [
+            509.8,
+            545.6
+          ],
+          [
+            500.1,
+            546.6
+          ],
+          [
+            490.4,
+            545.6
+          ],
+          [
+            481.1,
+            542.6
+          ],
+          [
+            472.7,
+            537.7
+          ],
+          [
+            465.4,
+            531.2
+          ],
+          [
+            459.7,
+            523.3
+          ],
+          [
+            455.7,
+            514.4
+          ],
+          [
+            453.7,
+            504.9
+          ],
+          [
+            453.7,
+            495.1
+          ],
+          [
+            455.7,
+            485.6
+          ],
+          [
+            459.7,
+            476.7
+          ],
+          [
+            465.4,
+            468.8
+          ],
+          [
+            472.7,
+            462.3
+          ],
+          [
+            481.1,
+            457.4
+          ],
+          [
+            490.4,
+            454.4
+          ]
+        ]
+      },
+      "ceilingCm": 300
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000043",
+      "slug": "box_1_3",
+      "name": "Central core 1.3",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "ATRIUM",
+      "zone": "F-1-SW",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 240,
+        "ring": "center",
+        "spaceKind": "circulation_feature",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "ceilingMeters": 3.0,
+        "note": "Central stair-hall segment.",
+        "polygon": [
+          [
+            500.1,
+            453.4
+          ],
+          [
+            509.8,
+            454.4
+          ],
+          [
+            519.0,
+            457.4
+          ],
+          [
+            527.5,
+            462.3
+          ],
+          [
+            534.7,
+            468.8
+          ],
+          [
+            540.4,
+            476.7
+          ],
+          [
+            544.4,
+            485.6
+          ],
+          [
+            546.4,
+            495.1
+          ],
+          [
+            546.4,
+            504.9
+          ],
+          [
+            544.4,
+            514.4
+          ],
+          [
+            540.4,
+            523.3
+          ],
+          [
+            534.7,
+            531.2
+          ],
+          [
+            527.5,
+            537.7
+          ],
+          [
+            519.0,
+            542.6
+          ],
+          [
+            509.8,
+            545.6
+          ],
+          [
+            500.1,
+            546.6
+          ],
+          [
+            490.4,
+            545.6
+          ],
+          [
+            481.1,
+            542.6
+          ],
+          [
+            472.7,
+            537.7
+          ],
+          [
+            465.4,
+            531.2
+          ],
+          [
+            459.7,
+            523.3
+          ],
+          [
+            455.7,
+            514.4
+          ],
+          [
+            453.7,
+            504.9
+          ],
+          [
+            453.7,
+            495.1
+          ],
+          [
+            455.7,
+            485.6
+          ],
+          [
+            459.7,
+            476.7
+          ],
+          [
+            465.4,
+            468.8
+          ],
+          [
+            472.7,
+            462.3
+          ],
+          [
+            481.1,
+            457.4
+          ],
+          [
+            490.4,
+            454.4
+          ]
+        ]
+      },
+      "ceilingCm": 300
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000044",
+      "slug": "m1_box_1",
+      "name": "Box 1",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F-1-N",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 15,
+        "CLASSROOM": 22
+      },
+      "features": [
+        "enclosed"
+      ],
+      "dayRateMinor": 16000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 0,
+        "ring": "outer",
+        "spaceKind": "box",
+        "bookable": true,
+        "areaApproxM2": 45,
+        "areaEstimated": true,
+        "level": -4.65,
+        "ceilingMeters": 2.7,
+        "note": "North enclosed room on the mid-ring (mirrors Box 5 above). Meeting / breakout.",
+        "polygon": [
+          [
+            482.5,
+            371.7
+          ],
+          [
+            486.0,
+            371.3
+          ],
+          [
+            489.5,
+            371.0
+          ],
+          [
+            493.0,
+            370.7
+          ],
+          [
+            496.5,
+            370.6
+          ],
+          [
+            500.1,
+            370.5
+          ],
+          [
+            503.6,
+            370.6
+          ],
+          [
+            507.1,
+            370.7
+          ],
+          [
+            510.6,
+            371.0
+          ],
+          [
+            514.1,
+            371.3
+          ],
+          [
+            517.6,
+            371.7
+          ],
+          [
+            511.3,
+            417.9
+          ],
+          [
+            509.1,
+            417.6
+          ],
+          [
+            506.8,
+            417.4
+          ],
+          [
+            504.6,
+            417.3
+          ],
+          [
+            502.3,
+            417.2
+          ],
+          [
+            500.1,
+            417.1
+          ],
+          [
+            497.8,
+            417.2
+          ],
+          [
+            495.6,
+            417.3
+          ],
+          [
+            493.3,
+            417.4
+          ],
+          [
+            491.1,
+            417.6
+          ],
+          [
+            488.8,
+            417.9
+          ]
+        ]
+      },
+      "ceilingCm": 270
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000045",
+      "slug": "ring_inner_m1",
+      "name": "Inner concourse (-1)",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "CORRIDOR",
+      "zone": "F-1-N",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 0,
+        "ring": "corridor",
+        "spaceKind": "circulation",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            500.1,
+            414.5
+          ],
+          [
+            507.5,
+            414.9
+          ],
+          [
+            514.9,
+            415.8
+          ],
+          [
+            522.2,
+            417.5
+          ],
+          [
+            529.3,
+            419.7
+          ],
+          [
+            536.2,
+            422.5
+          ],
+          [
+            542.8,
+            426.0
+          ],
+          [
+            549.1,
+            430.0
+          ],
+          [
+            555.0,
+            434.5
+          ],
+          [
+            560.5,
+            439.6
+          ],
+          [
+            565.5,
+            445.1
+          ],
+          [
+            570.1,
+            451.0
+          ],
+          [
+            574.1,
+            457.3
+          ],
+          [
+            577.5,
+            463.9
+          ],
+          [
+            580.4,
+            470.8
+          ],
+          [
+            582.6,
+            477.9
+          ],
+          [
+            584.2,
+            485.2
+          ],
+          [
+            585.2,
+            492.6
+          ],
+          [
+            585.5,
+            500.0
+          ],
+          [
+            585.2,
+            507.4
+          ],
+          [
+            584.2,
+            514.8
+          ],
+          [
+            582.6,
+            522.1
+          ],
+          [
+            580.4,
+            529.2
+          ],
+          [
+            577.5,
+            536.1
+          ],
+          [
+            574.1,
+            542.7
+          ],
+          [
+            570.1,
+            549.0
+          ],
+          [
+            565.5,
+            554.9
+          ],
+          [
+            560.5,
+            560.4
+          ],
+          [
+            555.0,
+            565.5
+          ],
+          [
+            549.1,
+            570.0
+          ],
+          [
+            542.8,
+            574.0
+          ],
+          [
+            536.2,
+            577.5
+          ],
+          [
+            529.3,
+            580.3
+          ],
+          [
+            522.2,
+            582.5
+          ],
+          [
+            514.9,
+            584.2
+          ],
+          [
+            507.5,
+            585.1
+          ],
+          [
+            500.1,
+            585.5
+          ],
+          [
+            492.6,
+            585.1
+          ],
+          [
+            485.2,
+            584.2
+          ],
+          [
+            477.9,
+            582.5
+          ],
+          [
+            470.8,
+            580.3
+          ],
+          [
+            463.9,
+            577.5
+          ],
+          [
+            457.3,
+            574.0
+          ],
+          [
+            451.0,
+            570.0
+          ],
+          [
+            445.1,
+            565.5
+          ],
+          [
+            439.6,
+            560.4
+          ],
+          [
+            434.6,
+            554.9
+          ],
+          [
+            430.1,
+            549.0
+          ],
+          [
+            426.1,
+            542.7
+          ],
+          [
+            422.6,
+            536.1
+          ],
+          [
+            419.8,
+            529.2
+          ],
+          [
+            417.5,
+            522.1
+          ],
+          [
+            415.9,
+            514.8
+          ],
+          [
+            414.9,
+            507.4
+          ],
+          [
+            414.6,
+            500.0
+          ],
+          [
+            414.9,
+            492.6
+          ],
+          [
+            415.9,
+            485.2
+          ],
+          [
+            417.5,
+            477.9
+          ],
+          [
+            419.8,
+            470.8
+          ],
+          [
+            422.6,
+            463.9
+          ],
+          [
+            426.1,
+            457.3
+          ],
+          [
+            430.1,
+            451.0
+          ],
+          [
+            434.6,
+            445.1
+          ],
+          [
+            439.6,
+            439.6
+          ],
+          [
+            445.1,
+            434.5
+          ],
+          [
+            451.0,
+            430.0
+          ],
+          [
+            457.3,
+            426.0
+          ],
+          [
+            463.9,
+            422.5
+          ],
+          [
+            470.8,
+            419.7
+          ],
+          [
+            477.9,
+            417.5
+          ],
+          [
+            485.2,
+            415.8
+          ],
+          [
+            492.6,
+            414.9
+          ],
+          [
+            500.1,
+            414.5
+          ],
+          [
+            500.1,
+            437.8
+          ],
+          [
+            494.6,
+            438.1
+          ],
+          [
+            489.3,
+            438.8
+          ],
+          [
+            484.0,
+            440.0
+          ],
+          [
+            478.8,
+            441.6
+          ],
+          [
+            473.8,
+            443.7
+          ],
+          [
+            469.0,
+            446.2
+          ],
+          [
+            464.4,
+            449.1
+          ],
+          [
+            460.1,
+            452.4
+          ],
+          [
+            456.1,
+            456.1
+          ],
+          [
+            452.5,
+            460.1
+          ],
+          [
+            449.2,
+            464.4
+          ],
+          [
+            446.2,
+            468.9
+          ],
+          [
+            443.7,
+            473.7
+          ],
+          [
+            441.7,
+            478.7
+          ],
+          [
+            440.0,
+            483.9
+          ],
+          [
+            438.9,
+            489.2
+          ],
+          [
+            438.1,
+            494.6
+          ],
+          [
+            437.9,
+            500.0
+          ],
+          [
+            438.1,
+            505.4
+          ],
+          [
+            438.9,
+            510.8
+          ],
+          [
+            440.0,
+            516.1
+          ],
+          [
+            441.7,
+            521.3
+          ],
+          [
+            443.7,
+            526.3
+          ],
+          [
+            446.2,
+            531.1
+          ],
+          [
+            449.2,
+            535.6
+          ],
+          [
+            452.5,
+            539.9
+          ],
+          [
+            456.1,
+            543.9
+          ],
+          [
+            460.1,
+            547.6
+          ],
+          [
+            464.4,
+            550.9
+          ],
+          [
+            469.0,
+            553.8
+          ],
+          [
+            473.8,
+            556.3
+          ],
+          [
+            478.8,
+            558.4
+          ],
+          [
+            484.0,
+            560.0
+          ],
+          [
+            489.3,
+            561.2
+          ],
+          [
+            494.6,
+            561.9
+          ],
+          [
+            500.1,
+            562.2
+          ],
+          [
+            505.5,
+            561.9
+          ],
+          [
+            510.9,
+            561.2
+          ],
+          [
+            516.1,
+            560.0
+          ],
+          [
+            521.3,
+            558.4
+          ],
+          [
+            526.3,
+            556.3
+          ],
+          [
+            531.1,
+            553.8
+          ],
+          [
+            535.7,
+            550.9
+          ],
+          [
+            540.0,
+            547.6
+          ],
+          [
+            544.0,
+            543.9
+          ],
+          [
+            547.7,
+            539.9
+          ],
+          [
+            551.0,
+            535.6
+          ],
+          [
+            553.9,
+            531.1
+          ],
+          [
+            556.4,
+            526.3
+          ],
+          [
+            558.5,
+            521.3
+          ],
+          [
+            560.1,
+            516.1
+          ],
+          [
+            561.3,
+            510.8
+          ],
+          [
+            562.0,
+            505.4
+          ],
+          [
+            562.2,
+            500.0
+          ],
+          [
+            562.0,
+            494.6
+          ],
+          [
+            561.3,
+            489.2
+          ],
+          [
+            560.1,
+            483.9
+          ],
+          [
+            558.5,
+            478.7
+          ],
+          [
+            556.4,
+            473.7
+          ],
+          [
+            553.9,
+            468.9
+          ],
+          [
+            551.0,
+            464.4
+          ],
+          [
+            547.7,
+            460.1
+          ],
+          [
+            544.0,
+            456.1
+          ],
+          [
+            540.0,
+            452.4
+          ],
+          [
+            535.7,
+            449.1
+          ],
+          [
+            531.1,
+            446.2
+          ],
+          [
+            526.3,
+            443.7
+          ],
+          [
+            521.3,
+            441.6
+          ],
+          [
+            516.1,
+            440.0
+          ],
+          [
+            510.9,
+            438.8
+          ],
+          [
+            505.5,
+            438.1
+          ],
+          [
+            500.1,
+            437.8
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000006",
+      "slug": "ring_outer_m1",
+      "name": "Outer concourse (-1)",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "CORRIDOR",
+      "zone": "F-1-N",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 0,
+        "ring": "corridor",
+        "spaceKind": "circulation",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            500.1,
+            352.4
+          ],
+          [
+            512.9,
+            353.0
+          ],
+          [
+            525.7,
+            354.6
+          ],
+          [
+            538.3,
+            357.4
+          ],
+          [
+            550.5,
+            361.3
+          ],
+          [
+            562.4,
+            366.2
+          ],
+          [
+            573.9,
+            372.2
+          ],
+          [
+            584.7,
+            379.1
+          ],
+          [
+            594.9,
+            386.9
+          ],
+          [
+            604.4,
+            395.6
+          ],
+          [
+            613.1,
+            405.1
+          ],
+          [
+            621.0,
+            415.3
+          ],
+          [
+            627.9,
+            426.2
+          ],
+          [
+            633.8,
+            437.6
+          ],
+          [
+            638.8,
+            449.5
+          ],
+          [
+            642.6,
+            461.8
+          ],
+          [
+            645.4,
+            474.4
+          ],
+          [
+            647.1,
+            487.1
+          ],
+          [
+            647.7,
+            500.0
+          ],
+          [
+            647.1,
+            512.9
+          ],
+          [
+            645.4,
+            525.6
+          ],
+          [
+            642.6,
+            538.2
+          ],
+          [
+            638.8,
+            550.5
+          ],
+          [
+            633.8,
+            562.4
+          ],
+          [
+            627.9,
+            573.8
+          ],
+          [
+            621.0,
+            584.7
+          ],
+          [
+            613.1,
+            594.9
+          ],
+          [
+            604.4,
+            604.4
+          ],
+          [
+            594.9,
+            613.1
+          ],
+          [
+            584.7,
+            620.9
+          ],
+          [
+            573.9,
+            627.8
+          ],
+          [
+            562.4,
+            633.8
+          ],
+          [
+            550.5,
+            638.7
+          ],
+          [
+            538.3,
+            642.6
+          ],
+          [
+            525.7,
+            645.4
+          ],
+          [
+            512.9,
+            647.0
+          ],
+          [
+            500.1,
+            647.6
+          ],
+          [
+            487.2,
+            647.0
+          ],
+          [
+            474.4,
+            645.4
+          ],
+          [
+            461.9,
+            642.6
+          ],
+          [
+            449.6,
+            638.7
+          ],
+          [
+            437.7,
+            633.8
+          ],
+          [
+            426.3,
+            627.8
+          ],
+          [
+            415.4,
+            620.9
+          ],
+          [
+            405.2,
+            613.1
+          ],
+          [
+            395.7,
+            604.4
+          ],
+          [
+            387.0,
+            594.9
+          ],
+          [
+            379.1,
+            584.7
+          ],
+          [
+            372.2,
+            573.8
+          ],
+          [
+            366.3,
+            562.4
+          ],
+          [
+            361.4,
+            550.5
+          ],
+          [
+            357.5,
+            538.2
+          ],
+          [
+            354.7,
+            525.6
+          ],
+          [
+            353.0,
+            512.9
+          ],
+          [
+            352.5,
+            500.0
+          ],
+          [
+            353.0,
+            487.1
+          ],
+          [
+            354.7,
+            474.4
+          ],
+          [
+            357.5,
+            461.8
+          ],
+          [
+            361.4,
+            449.5
+          ],
+          [
+            366.3,
+            437.6
+          ],
+          [
+            372.2,
+            426.2
+          ],
+          [
+            379.1,
+            415.3
+          ],
+          [
+            387.0,
+            405.1
+          ],
+          [
+            395.7,
+            395.6
+          ],
+          [
+            405.2,
+            386.9
+          ],
+          [
+            415.4,
+            379.1
+          ],
+          [
+            426.3,
+            372.2
+          ],
+          [
+            437.7,
+            366.2
+          ],
+          [
+            449.6,
+            361.3
+          ],
+          [
+            461.9,
+            357.4
+          ],
+          [
+            474.4,
+            354.6
+          ],
+          [
+            487.2,
+            353.0
+          ],
+          [
+            500.1,
+            352.4
+          ],
+          [
+            500.1,
+            375.7
+          ],
+          [
+            489.2,
+            376.2
+          ],
+          [
+            478.5,
+            377.6
+          ],
+          [
+            467.9,
+            379.9
+          ],
+          [
+            457.5,
+            383.2
+          ],
+          [
+            447.5,
+            387.3
+          ],
+          [
+            437.9,
+            392.4
+          ],
+          [
+            428.8,
+            398.2
+          ],
+          [
+            420.2,
+            404.8
+          ],
+          [
+            412.2,
+            412.1
+          ],
+          [
+            404.8,
+            420.1
+          ],
+          [
+            398.2,
+            428.7
+          ],
+          [
+            392.4,
+            437.8
+          ],
+          [
+            387.4,
+            447.5
+          ],
+          [
+            383.3,
+            457.5
+          ],
+          [
+            380.0,
+            467.8
+          ],
+          [
+            377.6,
+            478.4
+          ],
+          [
+            376.2,
+            489.2
+          ],
+          [
+            375.8,
+            500.0
+          ],
+          [
+            376.2,
+            510.8
+          ],
+          [
+            377.6,
+            521.6
+          ],
+          [
+            380.0,
+            532.2
+          ],
+          [
+            383.3,
+            542.5
+          ],
+          [
+            387.4,
+            552.5
+          ],
+          [
+            392.4,
+            562.2
+          ],
+          [
+            398.2,
+            571.3
+          ],
+          [
+            404.8,
+            579.9
+          ],
+          [
+            412.2,
+            587.9
+          ],
+          [
+            420.2,
+            595.2
+          ],
+          [
+            428.8,
+            601.8
+          ],
+          [
+            437.9,
+            607.6
+          ],
+          [
+            447.5,
+            612.7
+          ],
+          [
+            457.5,
+            616.8
+          ],
+          [
+            467.9,
+            620.1
+          ],
+          [
+            478.5,
+            622.4
+          ],
+          [
+            489.2,
+            623.8
+          ],
+          [
+            500.1,
+            624.3
+          ],
+          [
+            510.9,
+            623.8
+          ],
+          [
+            521.6,
+            622.4
+          ],
+          [
+            532.2,
+            620.1
+          ],
+          [
+            542.6,
+            616.8
+          ],
+          [
+            552.6,
+            612.7
+          ],
+          [
+            562.2,
+            607.6
+          ],
+          [
+            571.4,
+            601.8
+          ],
+          [
+            580.0,
+            595.2
+          ],
+          [
+            588.0,
+            587.9
+          ],
+          [
+            595.3,
+            579.9
+          ],
+          [
+            601.9,
+            571.3
+          ],
+          [
+            607.7,
+            562.2
+          ],
+          [
+            612.7,
+            552.5
+          ],
+          [
+            616.9,
+            542.5
+          ],
+          [
+            620.1,
+            532.2
+          ],
+          [
+            622.5,
+            521.6
+          ],
+          [
+            623.9,
+            510.8
+          ],
+          [
+            624.4,
+            500.0
+          ],
+          [
+            623.9,
+            489.2
+          ],
+          [
+            622.5,
+            478.4
+          ],
+          [
+            620.1,
+            467.8
+          ],
+          [
+            616.9,
+            457.5
+          ],
+          [
+            612.7,
+            447.5
+          ],
+          [
+            607.7,
+            437.8
+          ],
+          [
+            601.9,
+            428.7
+          ],
+          [
+            595.3,
+            420.1
+          ],
+          [
+            588.0,
+            412.1
+          ],
+          [
+            580.0,
+            404.8
+          ],
+          [
+            571.4,
+            398.2
+          ],
+          [
+            562.2,
+            392.4
+          ],
+          [
+            552.6,
+            387.3
+          ],
+          [
+            542.6,
+            383.2
+          ],
+          [
+            532.2,
+            379.9
+          ],
+          [
+            521.6,
+            377.6
+          ],
+          [
+            510.9,
+            376.2
+          ],
+          [
+            500.1,
+            375.7
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000001",
+      "slug": "m1_space_1",
+      "name": "Space 1 — Main hall",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-S",
+      "isCirculation": false,
+      "capacities": {
+        "THEATER": 106,
+        "CLASSROOM": 80,
+        "BANQUET": 88,
+        "RECEPTION": 200,
+        "CABARET": 72
+      },
+      "features": [
+        "stage",
+        "av_builtin",
+        "step_free"
+      ],
+      "dayRateMinor": 90000,
+      "currency": "ALL",
+      "setupBufferMinutes": 240,
+      "teardownBufferMinutes": 120,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 180,
+        "ring": "outer",
+        "spaceKind": "main_hall",
+        "bookable": true,
+        "areaApproxM2": 160,
+        "areaEstimated": true,
+        "level": -4.65,
+        "note": "Largest hall, south side, directly below the Floor-0 entrance plaza. Primary plenary venue.",
+        "polygon": [
+          [
+            574.1,
+            653.1
+          ],
+          [
+            533.1,
+            587.7
+          ],
+          [
+            525.0,
+            590.1
+          ],
+          [
+            516.7,
+            591.6
+          ],
+          [
+            508.4,
+            592.6
+          ],
+          [
+            500.1,
+            593.0
+          ],
+          [
+            491.7,
+            592.6
+          ],
+          [
+            483.4,
+            591.6
+          ],
+          [
+            481.3,
+            567.7
+          ],
+          [
+            473.4,
+            570.8
+          ],
+          [
+            473.4,
+            555.2
+          ],
+          [
+            482.0,
+            537.3
+          ],
+          [
+            485.5,
+            538.8
+          ],
+          [
+            489.0,
+            539.9
+          ],
+          [
+            492.6,
+            540.8
+          ],
+          [
+            496.3,
+            541.3
+          ],
+          [
+            500.1,
+            541.4
+          ],
+          [
+            503.8,
+            541.3
+          ],
+          [
+            507.5,
+            540.8
+          ],
+          [
+            511.1,
+            539.9
+          ],
+          [
+            514.7,
+            538.8
+          ],
+          [
+            518.1,
+            537.3
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000003",
+      "slug": "m1_space_13",
+      "name": "Space 13 — East annex hall",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-E",
+      "isCirculation": false,
+      "capacities": {
+        "THEATER": 56,
+        "CLASSROOM": 42,
+        "BANQUET": 47,
+        "RECEPTION": 106
+      },
+      "features": [
+        "av_builtin",
+        "step_free"
       ],
       "dayRateMinor": 60000,
       "currency": "ALL",
       "setupBufferMinutes": 180,
-      "teardownBufferMinutes": 120,
+      "teardownBufferMinutes": 90,
       "status": "ACTIVE",
-      "adjacent": [
-        "upper_atrium",
-        "roof_terrace",
-        "box_16_meeting"
-      ],
+      "adjacent": [],
       "map": {
-        "floor": 3,
+        "floor": -1,
+        "bearing": 90,
         "ring": "outer",
-        "sectorFrom": 1,
-        "sectorTo": 4
-      },
-      "source": "floor plan (kati 3) + estimated attributes (hackathon)"
+        "spaceKind": "annex_hall",
+        "bookable": true,
+        "areaApproxM2": 85,
+        "areaEstimated": true,
+        "level": -4.65,
+        "note": "Large enclosed room in the east octagon corner. Secondary hall / exhibition.",
+        "polygon": [
+          [
+            820.5,
+            390.9
+          ],
+          [
+            852.1,
+            405.4
+          ],
+          [
+            899.1,
+            420.4
+          ],
+          [
+            890.3,
+            448.5
+          ],
+          [
+            866.4,
+            475.9
+          ],
+          [
+            890.5,
+            500.0
+          ],
+          [
+            764.1,
+            517.4
+          ],
+          [
+            759.3,
+            534.2
+          ],
+          [
+            790.4,
+            557.9
+          ],
+          [
+            897.7,
+            606.8
+          ],
+          [
+            779.4,
+            595.1
+          ],
+          [
+            603.0,
+            535.1
+          ],
+          [
+            605.1,
+            528.2
+          ],
+          [
+            606.7,
+            521.3
+          ],
+          [
+            607.9,
+            514.2
+          ],
+          [
+            608.6,
+            507.1
+          ],
+          [
+            608.8,
+            500.0
+          ],
+          [
+            608.6,
+            492.9
+          ],
+          [
+            607.9,
+            485.8
+          ],
+          [
+            606.7,
+            478.7
+          ],
+          [
+            605.1,
+            471.8
+          ],
+          [
+            603.0,
+            464.9
+          ]
+        ]
+      }
     },
     {
-      "id": "50000000-0000-4000-8000-000000000017",
-      "slug": "box_16_meeting",
-      "name": "Box 16 -- Upper Meeting",
+      "id": "50000000-0000-4000-8000-000000000002",
+      "slug": "m1_space_10",
+      "name": "Space 10 — West annex hall",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-W",
+      "isCirculation": false,
+      "capacities": {
+        "THEATER": 56,
+        "CLASSROOM": 42,
+        "BANQUET": 47,
+        "RECEPTION": 106
+      },
+      "features": [
+        "av_builtin",
+        "step_free"
+      ],
+      "dayRateMinor": 60000,
+      "currency": "ALL",
+      "setupBufferMinutes": 180,
+      "teardownBufferMinutes": 90,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 270,
+        "ring": "outer",
+        "spaceKind": "annex_hall",
+        "bookable": true,
+        "areaApproxM2": 85,
+        "areaEstimated": true,
+        "level": -4.65,
+        "note": "Large enclosed room in the west octagon corner; has a small internal WC.",
+        "polygon": [
+          [
+            139.5,
+            622.7
+          ],
+          [
+            102.5,
+            606.8
+          ],
+          [
+            209.7,
+            557.9
+          ],
+          [
+            240.8,
+            534.2
+          ],
+          [
+            236.0,
+            517.4
+          ],
+          [
+            126.9,
+            500.0
+          ],
+          [
+            415.1,
+            494.4
+          ],
+          [
+            473.7,
+            496.5
+          ],
+          [
+            357.4,
+            471.5
+          ],
+          [
+            248.4,
+            432.4
+          ],
+          [
+            384.0,
+            460.5
+          ],
+          [
+            397.1,
+            464.9
+          ],
+          [
+            395.0,
+            471.8
+          ],
+          [
+            393.4,
+            478.7
+          ],
+          [
+            392.2,
+            485.8
+          ],
+          [
+            391.5,
+            492.9
+          ],
+          [
+            391.3,
+            500.0
+          ],
+          [
+            391.5,
+            507.1
+          ],
+          [
+            392.2,
+            514.2
+          ],
+          [
+            393.4,
+            521.3
+          ],
+          [
+            395.0,
+            528.2
+          ],
+          [
+            397.1,
+            535.1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000004",
+      "slug": "m1_space_9",
+      "name": "Space 9 — NE hall",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-NE",
+      "isCirculation": false,
+      "capacities": {
+        "THEATER": 43,
+        "CLASSROOM": 32,
+        "BANQUET": 36,
+        "RECEPTION": 81
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 48000,
+      "currency": "ALL",
+      "setupBufferMinutes": 150,
+      "teardownBufferMinutes": 90,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 35,
+        "ring": "outer",
+        "spaceKind": "perimeter_hall",
+        "bookable": true,
+        "areaApproxM2": 65,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            586.3,
+            265.6
+          ],
+          [
+            597.3,
+            272.6
+          ],
+          [
+            609.7,
+            276.4
+          ],
+          [
+            621.5,
+            281.6
+          ],
+          [
+            635.6,
+            283.5
+          ],
+          [
+            627.6,
+            317.8
+          ],
+          [
+            568.0,
+            413.0
+          ],
+          [
+            573.2,
+            415.6
+          ],
+          [
+            530.3,
+            468.6
+          ],
+          [
+            532.1,
+            470.0
+          ],
+          [
+            704.5,
+            327.2
+          ],
+          [
+            583.1,
+            429.8
+          ],
+          [
+            579.4,
+            425.6
+          ],
+          [
+            575.5,
+            421.6
+          ],
+          [
+            571.3,
+            417.8
+          ],
+          [
+            567.0,
+            414.2
+          ],
+          [
+            562.4,
+            410.9
+          ],
+          [
+            557.8,
+            407.8
+          ],
+          [
+            552.9,
+            404.9
+          ],
+          [
+            547.9,
+            402.3
+          ],
+          [
+            542.8,
+            400.0
+          ],
+          [
+            537.6,
+            397.9
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000046",
+      "slug": "m1_space_8",
+      "name": "Space 8 — North entrance vestibule",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "ENTRANCE",
+      "zone": "F-1-N",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 20,
+        "ring": "outer",
+        "spaceKind": "entrance_vestibule",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.77,
+        "levelRange": [
+          -4.77,
+          -1.5
+        ],
+        "note": "North arrival vestibule; stairs up toward the Floor-0 north entrance.",
+        "polygon": [
+          [
+            530.8,
+            310.0
+          ],
+          [
+            537.6,
+            313.3
+          ],
+          [
+            524.2,
+            399.6
+          ],
+          [
+            545.7,
+            337.3
+          ],
+          [
+            571.3,
+            278.7
+          ],
+          [
+            574.1,
+            296.6
+          ],
+          [
+            580.9,
+            301.6
+          ],
+          [
+            588.7,
+            303.8
+          ],
+          [
+            596.3,
+            306.8
+          ],
+          [
+            603.7,
+            310.2
+          ],
+          [
+            610.9,
+            314.1
+          ],
+          [
+            553.1,
+            411.0
+          ],
+          [
+            549.7,
+            409.1
+          ],
+          [
+            546.2,
+            407.3
+          ],
+          [
+            542.7,
+            405.6
+          ],
+          [
+            539.1,
+            404.1
+          ],
+          [
+            535.5,
+            402.7
+          ],
+          [
+            531.8,
+            401.4
+          ],
+          [
+            528.1,
+            400.3
+          ],
+          [
+            524.3,
+            399.3
+          ],
+          [
+            520.5,
+            398.4
+          ],
+          [
+            516.6,
+            397.7
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000047",
+      "slug": "m1_space_4",
+      "name": "Space 4 — mid-ring foyer",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-W",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 75,
+        "CABARET": 27,
+        "CLASSROOM": 30
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 250,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 60,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            309.8,
+            613.4
+          ],
+          [
+            433.3,
+            536.4
+          ],
+          [
+            363.1,
+            568.2
+          ],
+          [
+            221.3,
+            626.0
+          ],
+          [
+            216.8,
+            615.4
+          ],
+          [
+            184.9,
+            614.7
+          ],
+          [
+            124.5,
+            620.9
+          ],
+          [
+            120.2,
+            606.6
+          ],
+          [
+            137.7,
+            587.1
+          ],
+          [
+            221.9,
+            555.9
+          ],
+          [
+            251.0,
+            540.3
+          ],
+          [
+            372.2,
+            520.7
+          ],
+          [
+            373.1,
+            525.5
+          ],
+          [
+            374.2,
+            530.3
+          ],
+          [
+            375.4,
+            535.0
+          ],
+          [
+            376.8,
+            539.7
+          ],
+          [
+            378.4,
+            544.3
+          ],
+          [
+            380.1,
+            548.8
+          ],
+          [
+            382.1,
+            553.3
+          ],
+          [
+            384.2,
+            557.7
+          ],
+          [
+            386.4,
+            562.1
+          ],
+          [
+            388.8,
+            566.3
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000048",
+      "slug": "m1_space_5",
+      "name": "Space 5 — mid-ring foyer",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-W",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 68,
+        "CABARET": 24,
+        "CLASSROOM": 27
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 285,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 55,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            437.5,
+            495.4
+          ],
+          [
+            474.7,
+            497.2
+          ],
+          [
+            472.5,
+            495.9
+          ],
+          [
+            468.0,
+            494.0
+          ],
+          [
+            248.1,
+            442.6
+          ],
+          [
+            258.8,
+            435.4
+          ],
+          [
+            475.2,
+            492.3
+          ],
+          [
+            302.9,
+            430.9
+          ],
+          [
+            389.4,
+            456.4
+          ],
+          [
+            431.2,
+            469.9
+          ],
+          [
+            411.9,
+            457.4
+          ],
+          [
+            383.5,
+            443.6
+          ],
+          [
+            381.4,
+            448.1
+          ],
+          [
+            379.6,
+            452.6
+          ],
+          [
+            377.9,
+            457.2
+          ],
+          [
+            376.3,
+            461.8
+          ],
+          [
+            375.0,
+            466.5
+          ],
+          [
+            373.8,
+            471.2
+          ],
+          [
+            372.8,
+            476.0
+          ],
+          [
+            372.0,
+            480.8
+          ],
+          [
+            371.4,
+            485.7
+          ],
+          [
+            370.9,
+            490.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000049",
+      "slug": "m1_space_11",
+      "name": "Space 11 — mid-ring foyer",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-NE",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 68,
+        "CABARET": 24,
+        "CLASSROOM": 27
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 45,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 55,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            657.8,
+            267.8
+          ],
+          [
+            600.7,
+            363.3
+          ],
+          [
+            571.2,
+            410.7
+          ],
+          [
+            574.5,
+            413.4
+          ],
+          [
+            546.1,
+            450.3
+          ],
+          [
+            531.7,
+            468.4
+          ],
+          [
+            589.1,
+            417.5
+          ],
+          [
+            707.6,
+            321.6
+          ],
+          [
+            715.1,
+            328.8
+          ],
+          [
+            723.7,
+            335.3
+          ],
+          [
+            729.8,
+            343.9
+          ],
+          [
+            607.2,
+            427.2
+          ],
+          [
+            604.3,
+            423.2
+          ],
+          [
+            601.4,
+            419.4
+          ],
+          [
+            598.3,
+            415.6
+          ],
+          [
+            595.0,
+            412.0
+          ],
+          [
+            591.6,
+            408.4
+          ],
+          [
+            588.1,
+            405.1
+          ],
+          [
+            584.5,
+            401.8
+          ],
+          [
+            580.7,
+            398.7
+          ],
+          [
+            576.8,
+            395.7
+          ],
+          [
+            572.8,
+            392.9
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000050",
+      "slug": "m1_space_12",
+      "name": "Space 12 — mid-ring foyer",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-NE",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 68,
+        "CABARET": 24,
+        "CLASSROOM": 27
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 65,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 55,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            725.3,
+            337.5
+          ],
+          [
+            731.3,
+            346.1
+          ],
+          [
+            633.8,
+            418.1
+          ],
+          [
+            585.9,
+            451.8
+          ],
+          [
+            590.7,
+            453.5
+          ],
+          [
+            587.0,
+            459.4
+          ],
+          [
+            587.1,
+            463.4
+          ],
+          [
+            660.1,
+            439.6
+          ],
+          [
+            807.7,
+            397.0
+          ],
+          [
+            811.3,
+            408.6
+          ],
+          [
+            859.9,
+            409.0
+          ],
+          [
+            625.6,
+            468.2
+          ],
+          [
+            624.3,
+            463.5
+          ],
+          [
+            622.8,
+            458.9
+          ],
+          [
+            621.2,
+            454.3
+          ],
+          [
+            619.4,
+            449.7
+          ],
+          [
+            617.4,
+            445.3
+          ],
+          [
+            615.3,
+            440.9
+          ],
+          [
+            613.0,
+            436.6
+          ],
+          [
+            610.5,
+            432.4
+          ],
+          [
+            607.9,
+            428.3
+          ],
+          [
+            605.1,
+            424.3
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000051",
+      "slug": "m1_space_14",
+      "name": "Space 14 — mid-ring foyer",
+      "floor": -1,
+      "kind": "MAIN",
+      "category": "HALL",
+      "zone": "F-1-SE",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 75,
+        "CABARET": 27,
+        "CLASSROOM": 30
+      },
+      "features": [
+        "step_free"
+      ],
+      "dayRateMinor": 28000,
+      "currency": "ALL",
+      "setupBufferMinutes": 120,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 130,
+        "ring": "outer",
+        "spaceKind": "mid_ring_hall",
+        "bookable": true,
+        "areaApproxM2": 60,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            618.5,
+            566.2
+          ],
+          [
+            751.8,
+            653.4
+          ],
+          [
+            745.8,
+            662.8
+          ],
+          [
+            739.5,
+            671.9
+          ],
+          [
+            728.6,
+            677.5
+          ],
+          [
+            719.6,
+            684.2
+          ],
+          [
+            712.5,
+            692.4
+          ],
+          [
+            705.2,
+            700.3
+          ],
+          [
+            697.6,
+            708.1
+          ],
+          [
+            690.0,
+            715.7
+          ],
+          [
+            681.7,
+            722.7
+          ],
+          [
+            581.9,
+            600.3
+          ],
+          [
+            585.6,
+            597.2
+          ],
+          [
+            589.2,
+            593.9
+          ],
+          [
+            592.7,
+            590.5
+          ],
+          [
+            596.0,
+            586.9
+          ],
+          [
+            599.3,
+            583.2
+          ],
+          [
+            602.3,
+            579.4
+          ],
+          [
+            605.2,
+            575.5
+          ],
+          [
+            608.0,
+            571.5
+          ],
+          [
+            610.6,
+            567.4
+          ],
+          [
+            613.1,
+            563.2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000052",
+      "slug": "m1_space_17",
+      "name": "Space 17 — central foyer/stairs",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "CORRIDOR",
+      "zone": "F-1-S",
+      "isCirculation": true,
+      "capacities": {},
+      "features": [
+        "circulation"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 180,
+        "ring": "corridor",
+        "spaceKind": "circulation",
+        "bookable": false,
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": -4.65,
+        "note": "Foyer around the base of the central stairs.",
+        "polygon": [
+          [
+            524.6,
+            658.7
+          ],
+          [
+            519.7,
+            659.3
+          ],
+          [
+            514.8,
+            659.9
+          ],
+          [
+            509.9,
+            660.3
+          ],
+          [
+            505.0,
+            660.5
+          ],
+          [
+            500.1,
+            660.6
+          ],
+          [
+            495.1,
+            660.5
+          ],
+          [
+            490.2,
+            660.3
+          ],
+          [
+            485.3,
+            659.9
+          ],
+          [
+            480.4,
+            659.3
+          ],
+          [
+            475.5,
+            658.7
+          ],
+          [
+            484.2,
+            602.4
+          ],
+          [
+            487.4,
+            602.8
+          ],
+          [
+            490.5,
+            603.1
+          ],
+          [
+            493.7,
+            603.4
+          ],
+          [
+            496.9,
+            603.5
+          ],
+          [
+            500.1,
+            603.6
+          ],
+          [
+            503.2,
+            603.5
+          ],
+          [
+            506.4,
+            603.4
+          ],
+          [
+            509.6,
+            603.1
+          ],
+          [
+            512.8,
+            602.8
+          ],
+          [
+            515.9,
+            602.4
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000053",
+      "slug": "m1_space_2",
+      "name": "Space 2 — WC",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "TRANSITIONAL",
+      "zone": "F-1-SW",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "restroom"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 205,
+        "ring": "outer",
+        "spaceKind": "wc",
+        "bookable": false,
+        "areaApproxM2": 35,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            447.3,
+            651.6
+          ],
+          [
+            444.2,
+            650.5
+          ],
+          [
+            441.2,
+            649.4
+          ],
+          [
+            438.2,
+            648.1
+          ],
+          [
+            435.2,
+            646.9
+          ],
+          [
+            432.2,
+            645.5
+          ],
+          [
+            429.3,
+            644.1
+          ],
+          [
+            426.4,
+            642.6
+          ],
+          [
+            423.5,
+            641.1
+          ],
+          [
+            420.7,
+            639.5
+          ],
+          [
+            417.9,
+            637.9
+          ],
+          [
+            439.1,
+            602.3
+          ],
+          [
+            441.2,
+            603.5
+          ],
+          [
+            443.3,
+            604.7
+          ],
+          [
+            445.4,
+            605.8
+          ],
+          [
+            447.5,
+            606.9
+          ],
+          [
+            449.7,
+            608.0
+          ],
+          [
+            451.9,
+            609.0
+          ],
+          [
+            454.1,
+            609.9
+          ],
+          [
+            456.4,
+            610.8
+          ],
+          [
+            458.6,
+            611.7
+          ],
+          [
+            460.9,
+            612.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000054",
+      "slug": "m1_space_3",
+      "name": "Space 3 — WC",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "TRANSITIONAL",
+      "zone": "F-1-SW",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "restroom"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 218,
+        "ring": "outer",
+        "spaceKind": "wc",
+        "bookable": false,
+        "areaApproxM2": 30,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            414.5,
+            635.9
+          ],
+          [
+            411.8,
+            634.1
+          ],
+          [
+            409.1,
+            632.3
+          ],
+          [
+            406.4,
+            630.4
+          ],
+          [
+            403.8,
+            628.5
+          ],
+          [
+            401.2,
+            626.5
+          ],
+          [
+            398.7,
+            624.5
+          ],
+          [
+            396.2,
+            622.4
+          ],
+          [
+            393.7,
+            620.3
+          ],
+          [
+            391.3,
+            618.1
+          ],
+          [
+            388.9,
+            615.9
+          ],
+          [
+            417.6,
+            586.0
+          ],
+          [
+            419.4,
+            587.6
+          ],
+          [
+            421.2,
+            589.2
+          ],
+          [
+            423.0,
+            590.8
+          ],
+          [
+            424.8,
+            592.4
+          ],
+          [
+            426.7,
+            593.9
+          ],
+          [
+            428.6,
+            595.3
+          ],
+          [
+            430.6,
+            596.8
+          ],
+          [
+            432.6,
+            598.1
+          ],
+          [
+            434.6,
+            599.5
+          ],
+          [
+            436.6,
+            600.8
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000055",
+      "slug": "m1_space_7",
+      "name": "Space 7 — WC",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "TRANSITIONAL",
+      "zone": "F-1-N",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "restroom"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 0,
+        "ring": "outer",
+        "spaceKind": "wc",
+        "bookable": false,
+        "areaApproxM2": 35,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            483.8,
+            340.3
+          ],
+          [
+            487.1,
+            340.0
+          ],
+          [
+            490.3,
+            339.7
+          ],
+          [
+            493.6,
+            339.6
+          ],
+          [
+            496.8,
+            339.5
+          ],
+          [
+            500.1,
+            339.4
+          ],
+          [
+            503.3,
+            339.5
+          ],
+          [
+            506.6,
+            339.6
+          ],
+          [
+            509.8,
+            339.7
+          ],
+          [
+            513.1,
+            340.0
+          ],
+          [
+            516.3,
+            340.3
+          ],
+          [
+            512.1,
+            381.5
+          ],
+          [
+            509.7,
+            381.3
+          ],
+          [
+            507.3,
+            381.1
+          ],
+          [
+            504.9,
+            381.0
+          ],
+          [
+            502.5,
+            380.9
+          ],
+          [
+            500.1,
+            380.9
+          ],
+          [
+            497.7,
+            380.9
+          ],
+          [
+            495.2,
+            381.0
+          ],
+          [
+            492.8,
+            381.1
+          ],
+          [
+            490.4,
+            381.3
+          ],
+          [
+            488.0,
+            381.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000056",
+      "slug": "m1_space_16",
+      "name": "Space 16 — WC",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "TRANSITIONAL",
+      "zone": "F-1-SE",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "restroom"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 150,
+        "ring": "outer",
+        "spaceKind": "wc",
+        "bookable": false,
+        "areaApproxM2": 35,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            594.0,
+            630.2
+          ],
+          [
+            591.3,
+            632.1
+          ],
+          [
+            588.6,
+            633.9
+          ],
+          [
+            585.9,
+            635.7
+          ],
+          [
+            583.1,
+            637.4
+          ],
+          [
+            580.3,
+            639.0
+          ],
+          [
+            577.5,
+            640.6
+          ],
+          [
+            574.6,
+            642.2
+          ],
+          [
+            571.8,
+            643.7
+          ],
+          [
+            568.8,
+            645.1
+          ],
+          [
+            565.9,
+            646.4
+          ],
+          [
+            548.9,
+            608.7
+          ],
+          [
+            551.1,
+            607.6
+          ],
+          [
+            553.3,
+            606.6
+          ],
+          [
+            555.4,
+            605.5
+          ],
+          [
+            557.5,
+            604.3
+          ],
+          [
+            559.6,
+            603.2
+          ],
+          [
+            561.7,
+            601.9
+          ],
+          [
+            563.8,
+            600.7
+          ],
+          [
+            565.8,
+            599.4
+          ],
+          [
+            567.8,
+            598.0
+          ],
+          [
+            569.7,
+            596.6
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000057",
+      "slug": "m1_elec",
+      "name": "Electric Room",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "TRANSITIONAL",
+      "zone": "F-1-NW",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "plant"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 300,
+        "ring": "outer",
+        "spaceKind": "technical",
+        "bookable": false,
+        "areaApproxM2": 25,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            353.6,
+            434.2
+          ],
+          [
+            355.0,
+            431.2
+          ],
+          [
+            356.4,
+            428.3
+          ],
+          [
+            357.9,
+            425.4
+          ],
+          [
+            359.4,
+            422.6
+          ],
+          [
+            361.0,
+            419.7
+          ],
+          [
+            362.7,
+            416.9
+          ],
+          [
+            364.4,
+            414.2
+          ],
+          [
+            366.1,
+            411.4
+          ],
+          [
+            368.0,
+            408.7
+          ],
+          [
+            369.8,
+            406.1
+          ],
+          [
+            403.4,
+            430.3
+          ],
+          [
+            402.1,
+            432.3
+          ],
+          [
+            400.7,
+            434.3
+          ],
+          [
+            399.4,
+            436.3
+          ],
+          [
+            398.1,
+            438.4
+          ],
+          [
+            396.9,
+            440.4
+          ],
+          [
+            395.7,
+            442.5
+          ],
+          [
+            394.6,
+            444.7
+          ],
+          [
+            393.5,
+            446.8
+          ],
+          [
+            392.4,
+            449.0
+          ],
+          [
+            391.4,
+            451.2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000058",
+      "slug": "m1_space_6",
+      "name": "Space 6 — Pumproom",
+      "floor": -1,
+      "kind": "TRANSITIONAL",
+      "category": "TRANSITIONAL",
+      "zone": "F-1-NW",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "plant"
+      ],
+      "dayRateMinor": 0,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 30,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": -1,
+        "bearing": 330,
+        "ring": "outer",
+        "spaceKind": "technical",
+        "bookable": false,
+        "areaApproxM2": 25,
+        "areaEstimated": true,
+        "level": -4.65,
+        "polygon": [
+          [
+            406.1,
+            369.8
+          ],
+          [
+            408.8,
+            367.9
+          ],
+          [
+            411.5,
+            366.1
+          ],
+          [
+            414.2,
+            364.3
+          ],
+          [
+            417.0,
+            362.6
+          ],
+          [
+            419.8,
+            361.0
+          ],
+          [
+            422.6,
+            359.4
+          ],
+          [
+            425.5,
+            357.8
+          ],
+          [
+            428.4,
+            356.3
+          ],
+          [
+            431.3,
+            354.9
+          ],
+          [
+            434.2,
+            353.6
+          ],
+          [
+            451.2,
+            391.3
+          ],
+          [
+            449.0,
+            392.4
+          ],
+          [
+            446.9,
+            393.4
+          ],
+          [
+            444.7,
+            394.5
+          ],
+          [
+            442.6,
+            395.7
+          ],
+          [
+            440.5,
+            396.8
+          ],
+          [
+            438.4,
+            398.1
+          ],
+          [
+            436.4,
+            399.3
+          ],
+          [
+            434.3,
+            400.6
+          ],
+          [
+            432.4,
+            402.0
+          ],
+          [
+            430.4,
+            403.4
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000059",
+      "slug": "f3_summit",
+      "name": "Summit terrace",
+      "floor": 3,
+      "kind": "MAIN",
+      "category": "TERRACE",
+      "zone": "F3-N",
+      "isCirculation": false,
+      "capacities": {
+        "RECEPTION": 90,
+        "CABARET": 32
+      },
+      "features": [
+        "outdoor",
+        "weather_dependent",
+        "iconic",
+        "panoramic_view"
+      ],
+      "dayRateMinor": 85000,
+      "currency": "ALL",
+      "setupBufferMinutes": 180,
+      "teardownBufferMinutes": 120,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 3,
+        "bearing": 0,
+        "ring": "center",
+        "spaceKind": "outdoor_terrace",
+        "bookable": true,
+        "areaApproxM2": 120,
+        "areaEstimated": true,
+        "level": 12.8,
+        "levelRange": [
+          12.8,
+          13.92
+        ],
+        "outdoor": true,
+        "weatherDependent": true,
+        "note": "Central rooftop platform at the apex. Premium outdoor reception / launch space; capacity safety-limited.",
+        "polygon": [
+          [
+            500.0,
+            440.3
+          ],
+          [
+            513.1,
+            441.7
+          ],
+          [
+            525.7,
+            445.8
+          ],
+          [
+            537.1,
+            452.4
+          ],
+          [
+            546.9,
+            461.2
+          ],
+          [
+            554.7,
+            471.9
+          ],
+          [
+            560.0,
+            483.9
+          ],
+          [
+            562.8,
+            496.8
+          ],
+          [
+            562.8,
+            510.0
+          ],
+          [
+            560.0,
+            522.9
+          ],
+          [
+            554.7,
+            535.0
+          ],
+          [
+            546.9,
+            545.7
+          ],
+          [
+            537.1,
+            554.5
+          ],
+          [
+            525.7,
+            561.1
+          ],
+          [
+            513.1,
+            565.2
+          ],
+          [
+            500.0,
+            566.6
+          ],
+          [
+            486.9,
+            565.2
+          ],
+          [
+            474.3,
+            561.1
+          ],
+          [
+            462.9,
+            554.5
+          ],
+          [
+            453.1,
+            545.7
+          ],
+          [
+            445.3,
+            535.0
+          ],
+          [
+            440.0,
+            522.9
+          ],
+          [
+            437.2,
+            510.0
+          ],
+          [
+            437.2,
+            496.8
+          ],
+          [
+            440.0,
+            483.9
+          ],
+          [
+            445.3,
+            471.9
+          ],
+          [
+            453.1,
+            461.2
+          ],
+          [
+            462.9,
+            452.4
+          ],
+          [
+            474.3,
+            445.8
+          ],
+          [
+            486.9,
+            441.7
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000060",
+      "slug": "f3_stairs",
+      "name": "Grand external stairs",
+      "floor": 3,
+      "kind": "TRANSITIONAL",
+      "category": "TERRACE",
+      "zone": "F3-S",
+      "isCirculation": false,
+      "capacities": {},
+      "features": [
+        "outdoor",
+        "weather_dependent",
+        "crowd_managed"
+      ],
+      "dayRateMinor": 120000,
+      "currency": "ALL",
+      "setupBufferMinutes": 180,
+      "teardownBufferMinutes": 120,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 3,
+        "bearing": 180,
+        "ring": "outer",
+        "spaceKind": "outdoor_stairs",
+        "bookable": "conditional",
+        "areaApproxM2": null,
+        "areaEstimated": true,
+        "level": 0.0,
+        "levelRange": [
+          0.0,
+          14.1
+        ],
+        "outdoor": true,
+        "weatherDependent": true,
+        "note": "Monumental climbable staircase (~270 deg). Iconic outdoor amphitheatre — bookable only as a managed, crowd-controlled surface.",
+        "polygon": [
+          [
+            803.0,
+            259.8
+          ],
+          [
+            906.6,
+            409.3
+          ],
+          [
+            819.9,
+            575.6
+          ],
+          [
+            774.9,
+            721.9
+          ],
+          [
+            607.1,
+            725.3
+          ],
+          [
+            500.0,
+            913.0
+          ],
+          [
+            333.1,
+            849.3
+          ],
+          [
+            348.0,
+            624.3
+          ],
+          [
+            76.2,
+            599.1
+          ],
+          [
+            68.3,
+            403.4
+          ],
+          [
+            227.5,
+            284.3
+          ],
+          [
+            401.6,
+            424.3
+          ],
+          [
+            377.0,
+            474.9
+          ],
+          [
+            376.8,
+            531.2
+          ],
+          [
+            401.2,
+            582.0
+          ],
+          [
+            445.1,
+            617.1
+          ],
+          [
+            500.0,
+            629.7
+          ],
+          [
+            554.9,
+            617.1
+          ],
+          [
+            598.8,
+            582.0
+          ],
+          [
+            623.2,
+            531.2
+          ],
+          [
+            623.0,
+            474.9
+          ],
+          [
+            598.4,
+            424.3
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000061",
+      "slug": "f3_box_16",
+      "name": "Box 16",
       "floor": 3,
       "kind": "MAIN",
       "category": "BOX",
       "zone": "F3-N",
       "isCirculation": false,
       "capacities": {
-        "BOARDROOM": 16,
-        "CLASSROOM": 24
+        "BOARDROOM": 15,
+        "CLASSROOM": 22
       },
       "features": [
         "enclosed",
-        "av_builtin"
+        "panoramic_view"
       ],
-      "dayRateMinor": 22000,
+      "dayRateMinor": 24000,
       "currency": "ALL",
       "setupBufferMinutes": 60,
       "teardownBufferMinutes": 60,
       "status": "ACTIVE",
-      "adjacent": [
-        "upper_atrium",
-        "skyline_room"
-      ],
+      "adjacent": [],
       "map": {
         "floor": 3,
-        "ring": "outer",
-        "sectorFrom": 5,
-        "sectorTo": 5
+        "bearing": 0,
+        "ring": "rimRooms",
+        "spaceKind": "rim_room",
+        "bookable": true,
+        "areaApproxM2": 45,
+        "areaEstimated": true,
+        "level": 14.64,
+        "ceilingMeters": 2.7,
+        "note": "Enclosed room at the very top (north). Small VIP / lookout / meeting room.",
+        "polygon": [
+          [
+            473.7,
+            365.6
+          ],
+          [
+            478.9,
+            364.7
+          ],
+          [
+            484.2,
+            364.0
+          ],
+          [
+            489.4,
+            363.6
+          ],
+          [
+            494.7,
+            363.3
+          ],
+          [
+            500.0,
+            363.2
+          ],
+          [
+            505.3,
+            363.3
+          ],
+          [
+            510.6,
+            363.6
+          ],
+          [
+            515.8,
+            364.0
+          ],
+          [
+            521.1,
+            364.7
+          ],
+          [
+            526.3,
+            365.6
+          ],
+          [
+            514.5,
+            427.6
+          ],
+          [
+            511.6,
+            427.2
+          ],
+          [
+            508.7,
+            426.8
+          ],
+          [
+            505.8,
+            426.5
+          ],
+          [
+            502.9,
+            426.3
+          ],
+          [
+            500.0,
+            426.3
+          ],
+          [
+            497.1,
+            426.3
+          ],
+          [
+            494.2,
+            426.5
+          ],
+          [
+            491.3,
+            426.8
+          ],
+          [
+            488.4,
+            427.2
+          ],
+          [
+            485.5,
+            427.6
+          ]
+        ]
       },
-      "source": "floor plan (kati 3) + estimated attributes (hackathon)",
-      "ceilingCm": 300
+      "ceilingCm": 270
     },
     {
-      "id": "50000000-0000-4000-8000-000000000018",
-      "slug": "roof_terrace",
-      "name": "Roof Terrace (Pyramid Slope)",
+      "id": "50000000-0000-4000-8000-000000000062",
+      "slug": "f3_space_50",
+      "name": "Space 50 — upper-rim room",
       "floor": 3,
       "kind": "MAIN",
-      "category": "TERRACE",
-      "zone": "F3-slope",
+      "category": "BOX",
+      "zone": "F3-NW",
       "isCirculation": false,
       "capacities": {
-        "RECEPTION": 300,
-        "CUSTOM": 300
+        "BOARDROOM": 13,
+        "CLASSROOM": 20
       },
       "features": [
-        "outdoor",
-        "panoramic_view",
-        "iconic",
-        "weather_dependent"
+        "enclosed",
+        "panoramic_view"
       ],
-      "dayRateMinor": 75000,
+      "dayRateMinor": 24000,
       "currency": "ALL",
-      "setupBufferMinutes": 180,
-      "teardownBufferMinutes": 120,
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
       "status": "ACTIVE",
-      "adjacent": [
-        "skyline_room",
-        "upper_atrium"
-      ],
+      "adjacent": [],
       "map": {
         "floor": 3,
-        "ring": "outer",
-        "sectorFrom": 9,
-        "sectorTo": 14
-      },
-      "source": "floor plan (kati 3) + estimated attributes (hackathon)"
+        "bearing": 300,
+        "ring": "rimRooms",
+        "spaceKind": "rim_room",
+        "bookable": true,
+        "areaApproxM2": 40,
+        "areaEstimated": true,
+        "level": 13.2,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            367.5,
+            457.3
+          ],
+          [
+            369.4,
+            452.3
+          ],
+          [
+            371.4,
+            447.4
+          ],
+          [
+            373.6,
+            442.6
+          ],
+          [
+            376.0,
+            437.9
+          ],
+          [
+            378.5,
+            433.3
+          ],
+          [
+            381.2,
+            428.8
+          ],
+          [
+            384.1,
+            424.3
+          ],
+          [
+            387.2,
+            420.0
+          ],
+          [
+            390.4,
+            415.8
+          ],
+          [
+            393.8,
+            411.8
+          ],
+          [
+            441.6,
+            453.0
+          ],
+          [
+            439.7,
+            455.3
+          ],
+          [
+            438.0,
+            457.6
+          ],
+          [
+            436.3,
+            459.9
+          ],
+          [
+            434.7,
+            462.4
+          ],
+          [
+            433.2,
+            464.9
+          ],
+          [
+            431.8,
+            467.4
+          ],
+          [
+            430.5,
+            470.0
+          ],
+          [
+            429.3,
+            472.6
+          ],
+          [
+            428.1,
+            475.3
+          ],
+          [
+            427.1,
+            478.1
+          ]
+        ]
+      }
     },
     {
-      "id": "50000000-0000-4000-8000-000000000019",
-      "slug": "upper_atrium",
-      "name": "Upper Atrium (floor 3)",
+      "id": "50000000-0000-4000-8000-000000000063",
+      "slug": "f3_space_51",
+      "name": "Space 51 — upper-rim room",
       "floor": 3,
-      "kind": "TRANSITIONAL",
-      "category": "ATRIUM",
-      "zone": "F3-core",
-      "isCirculation": true,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F3-NW",
+      "isCirculation": false,
       "capacities": {
-        "RECEPTION": 120
+        "BOARDROOM": 13,
+        "CLASSROOM": 20
       },
       "features": [
-        "grand_stair"
+        "enclosed",
+        "panoramic_view"
       ],
-      "dayRateMinor": 25000,
+      "dayRateMinor": 24000,
       "currency": "ALL",
-      "setupBufferMinutes": 120,
-      "teardownBufferMinutes": 90,
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
       "status": "ACTIVE",
-      "adjacent": [
-        "skyline_room",
-        "box_16_meeting",
-        "roof_terrace",
-        "central_atrium_f0"
-      ],
+      "adjacent": [],
       "map": {
         "floor": 3,
-        "ring": "center"
+        "bearing": 330,
+        "ring": "rimRooms",
+        "spaceKind": "rim_room",
+        "bookable": true,
+        "areaApproxM2": 40,
+        "areaEstimated": true,
+        "level": 13.2,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            408.3,
+            397.2
+          ],
+          [
+            412.4,
+            393.9
+          ],
+          [
+            416.6,
+            390.6
+          ],
+          [
+            420.9,
+            387.6
+          ],
+          [
+            425.3,
+            384.7
+          ],
+          [
+            429.9,
+            381.9
+          ],
+          [
+            434.5,
+            379.4
+          ],
+          [
+            439.2,
+            377.0
+          ],
+          [
+            444.0,
+            374.8
+          ],
+          [
+            448.9,
+            372.8
+          ],
+          [
+            453.9,
+            371.0
+          ],
+          [
+            474.6,
+            430.6
+          ],
+          [
+            471.9,
+            431.6
+          ],
+          [
+            469.2,
+            432.7
+          ],
+          [
+            466.6,
+            433.9
+          ],
+          [
+            464.0,
+            435.2
+          ],
+          [
+            461.4,
+            436.6
+          ],
+          [
+            458.9,
+            438.1
+          ],
+          [
+            456.5,
+            439.7
+          ],
+          [
+            454.1,
+            441.4
+          ],
+          [
+            451.8,
+            443.2
+          ],
+          [
+            449.6,
+            445.0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000064",
+      "slug": "f3_space_52",
+      "name": "Space 52 — upper-rim room",
+      "floor": 3,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F3-NE",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 13,
+        "CLASSROOM": 20
       },
-      "source": "floor plan (kati 3) + estimated attributes (hackathon)"
+      "features": [
+        "enclosed",
+        "panoramic_view"
+      ],
+      "dayRateMinor": 24000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 3,
+        "bearing": 30,
+        "ring": "rimRooms",
+        "spaceKind": "rim_room",
+        "bookable": true,
+        "areaApproxM2": 40,
+        "areaEstimated": true,
+        "level": 13.2,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            546.1,
+            371.0
+          ],
+          [
+            551.1,
+            372.8
+          ],
+          [
+            556.0,
+            374.8
+          ],
+          [
+            560.8,
+            377.0
+          ],
+          [
+            565.5,
+            379.4
+          ],
+          [
+            570.1,
+            381.9
+          ],
+          [
+            574.7,
+            384.7
+          ],
+          [
+            579.1,
+            387.6
+          ],
+          [
+            583.4,
+            390.6
+          ],
+          [
+            587.6,
+            393.9
+          ],
+          [
+            591.7,
+            397.2
+          ],
+          [
+            550.4,
+            445.0
+          ],
+          [
+            548.2,
+            443.2
+          ],
+          [
+            545.9,
+            441.4
+          ],
+          [
+            543.5,
+            439.7
+          ],
+          [
+            541.1,
+            438.1
+          ],
+          [
+            538.6,
+            436.6
+          ],
+          [
+            536.0,
+            435.2
+          ],
+          [
+            533.4,
+            433.9
+          ],
+          [
+            530.8,
+            432.7
+          ],
+          [
+            528.1,
+            431.6
+          ],
+          [
+            525.4,
+            430.6
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000065",
+      "slug": "f3_space_53",
+      "name": "Space 53 — upper-rim room",
+      "floor": 3,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F3-NE",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 13,
+        "CLASSROOM": 20
+      },
+      "features": [
+        "enclosed",
+        "panoramic_view"
+      ],
+      "dayRateMinor": 24000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 3,
+        "bearing": 60,
+        "ring": "rimRooms",
+        "spaceKind": "rim_room",
+        "bookable": true,
+        "areaApproxM2": 40,
+        "areaEstimated": true,
+        "level": 13.2,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            606.2,
+            411.8
+          ],
+          [
+            609.6,
+            415.8
+          ],
+          [
+            612.8,
+            420.0
+          ],
+          [
+            615.9,
+            424.3
+          ],
+          [
+            618.8,
+            428.8
+          ],
+          [
+            621.5,
+            433.3
+          ],
+          [
+            624.0,
+            437.9
+          ],
+          [
+            626.4,
+            442.6
+          ],
+          [
+            628.6,
+            447.4
+          ],
+          [
+            630.6,
+            452.3
+          ],
+          [
+            632.5,
+            457.3
+          ],
+          [
+            572.9,
+            478.1
+          ],
+          [
+            571.9,
+            475.3
+          ],
+          [
+            570.7,
+            472.6
+          ],
+          [
+            569.5,
+            470.0
+          ],
+          [
+            568.2,
+            467.4
+          ],
+          [
+            566.8,
+            464.9
+          ],
+          [
+            565.3,
+            462.4
+          ],
+          [
+            563.7,
+            459.9
+          ],
+          [
+            562.0,
+            457.6
+          ],
+          [
+            560.3,
+            455.3
+          ],
+          [
+            558.4,
+            453.0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000066",
+      "slug": "f3_space_54",
+      "name": "Space 54 — upper-rim room",
+      "floor": 3,
+      "kind": "MAIN",
+      "category": "BOX",
+      "zone": "F3-W",
+      "isCirculation": false,
+      "capacities": {
+        "BOARDROOM": 13,
+        "CLASSROOM": 20
+      },
+      "features": [
+        "enclosed",
+        "panoramic_view"
+      ],
+      "dayRateMinor": 24000,
+      "currency": "ALL",
+      "setupBufferMinutes": 60,
+      "teardownBufferMinutes": 60,
+      "status": "ACTIVE",
+      "adjacent": [],
+      "map": {
+        "floor": 3,
+        "bearing": 285,
+        "ring": "rimRooms",
+        "spaceKind": "rim_room",
+        "bookable": true,
+        "areaApproxM2": 40,
+        "areaEstimated": true,
+        "level": 13.2,
+        "idsToConfirm": true,
+        "polygon": [
+          [
+            360.1,
+            493.2
+          ],
+          [
+            360.6,
+            487.9
+          ],
+          [
+            361.3,
+            482.6
+          ],
+          [
+            362.2,
+            477.4
+          ],
+          [
+            363.2,
+            472.3
+          ],
+          [
+            364.5,
+            467.1
+          ],
+          [
+            366.0,
+            462.0
+          ],
+          [
+            367.6,
+            457.0
+          ],
+          [
+            369.5,
+            452.1
+          ],
+          [
+            371.5,
+            447.2
+          ],
+          [
+            373.7,
+            442.4
+          ],
+          [
+            430.5,
+            469.9
+          ],
+          [
+            429.3,
+            472.5
+          ],
+          [
+            428.2,
+            475.2
+          ],
+          [
+            427.2,
+            477.9
+          ],
+          [
+            426.3,
+            480.7
+          ],
+          [
+            425.5,
+            483.5
+          ],
+          [
+            424.8,
+            486.3
+          ],
+          [
+            424.2,
+            489.1
+          ],
+          [
+            423.7,
+            492.0
+          ],
+          [
+            423.3,
+            494.9
+          ],
+          [
+            423.1,
+            497.8
+          ]
+        ]
+      }
     }
   ],
   "bundleTemplates": [
@@ -744,19 +8819,25 @@
       "when": "eventType=CONFERENCE",
       "roles": [
         {
-          "role": "main",
+          "role": "plenary",
           "category": "HALL",
           "layout": "THEATER",
-          "note": "talks"
+          "note": "main talks"
+        },
+        {
+          "role": "breakout",
+          "category": "BOX",
+          "note": "parallel sessions / workshops",
+          "optional": true
         },
         {
           "role": "registration",
           "category": [
             "ENTRANCE",
-            "ATRIUM",
-            "TRANSITIONAL"
+            "HALL"
           ],
-          "note": "check-in + coffee"
+          "note": "check-in + coffee near the entrance",
+          "optional": true
         },
         {
           "role": "green_room",
@@ -778,10 +8859,7 @@
         },
         {
           "role": "overflow",
-          "category": [
-            "CORRIDOR",
-            "TRANSITIONAL"
-          ],
+          "category": "HALL",
           "note": "extra booths / flow",
           "optional": true
         }
@@ -799,15 +8877,21 @@
         },
         {
           "role": "welcome",
-          "category": "ATRIUM",
+          "category": [
+            "TERRACE",
+            "HALL"
+          ],
           "layout": "RECEPTION",
-          "note": "welcome drinks"
+          "note": "welcome drinks / summit views",
+          "optional": true
         }
       ]
     }
   ],
   "circulationRules": [
-    "Booking an isCirculation space for an event blocks/limits access to its 'adjacent' spaces during the effective window -- surface as an access warning, prefer an alternative.",
-    "Step-free access: if an event needs step_free, prefer routing registration/flow through step_free circulation spaces."
+    "Never offer wc / technical / circulation / entrance_vestibule as an event venue (map.bookable=false).",
+    "'conditional' spaces (external stairs) appear only for matching outdoor event types with crowd-safety + weather handling.",
+    "Booking an isCirculation space blocks/limits access to its neighbours during the window -- surface as an access warning.",
+    "Cross-floor plans (plenary on -1 + breakouts on Floor 0) move assets via central/side stairs -- include the level moves in task lists (no lift confirmed)."
   ]
 }

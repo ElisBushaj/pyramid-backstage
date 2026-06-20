@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # question phrasing). Sonnet is plenty for extraction and far snappier than Opus
     # for these — keeps the copilot responsive on stage.
     FAST_MODEL: str = "claude-sonnet-4-6"
+    # LLM-polish the plan narrative into natural prose (FAST_MODEL). The figures are
+    # still injected from ops-core: a numeric guard rejects any rewrite that invents
+    # or drops a number, falling back to the deterministic f-string (#2). Needs a key.
+    NARRATIVE_POLISH: bool = True
 
     # ── Conversation state (Redis) + RAG (ChromaDB) ─────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"

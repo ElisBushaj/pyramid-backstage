@@ -14,7 +14,7 @@ phrasing of clarifying questions.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .config import settings
 from .intake import _anthropic
@@ -23,9 +23,18 @@ from .schemas import ChatResponse, OperationalPlan, ProposedAction
 from .session import get_sessions
 
 _NUM = re.compile(r"\d{2,5}")
+# Word-quantities ("a dozen", "a couple hundred") so the copilot doesn't re-ask for a
+# count it can already resolve via the intake LLM/heuristic.
+_WORDNUM = re.compile(
+    r"\b(?:a\s+)?(?:dozen|hundred|handful|couple|few|several|"
+    r"ten|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b",
+    re.I,
+)
 _DATE = re.compile(
     r"(next\s+(week|month)|this\s+(week|month|weekend)|tomorrow|weekend|"
     r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|"
+    r"\b(early|mid|late|this|next)\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*|"
+    r"\b(q[1-4]|spring|summer|autumn|fall|winter)\b|"
     r"\d{4}-\d{2}-\d{2}|"
     r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)",
     re.I,
@@ -37,7 +46,7 @@ _AFFIRM = {
 
 
 def _has_num(t: str) -> bool:
-    return bool(_NUM.search(t))
+    return bool(_NUM.search(t) or _WORDNUM.search(t))
 
 
 def _has_date(t: str) -> bool:
@@ -69,20 +78,27 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
     if not settings.ANTHROPIC_API_KEY:
         return template
     try:
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        now = datetime.now(UTC)
+        today, weekday = now.strftime("%Y-%m-%d"), now.strftime("%A")
         resp = await _anthropic().messages.create(
             model=settings.FAST_MODEL,
             max_tokens=120,
             system=(
-                f"You are a warm, concise venue-booking copilot for the Pyramid of Tirana. "
-                f"Today is {today} (UTC); resolve relative dates against it and never invent a date. "
-                "Ask ONE short question to collect the missing details. Never invent facts."
+                "You are a warm, concise booking copilot for the Pyramid of Tirana — Albania's "
+                "landmark events venue. "
+                f"Today is {weekday}, {today} (UTC); resolve relative dates against it "
+                "and NEVER invent or guess a specific date. "
+                "Briefly acknowledge what the organizer has already told you, "
+                "then ask in ONE friendly "
+                "sentence only for what's still missing. Don't re-ask anything already known, "
+                "don't list options, don't invent facts, and keep it under 30 words."
             ),
             messages=[
                 {
                     "role": "user",
-                    "content": f"Brief so far: {brief}\nMissing: {', '.join(missing)}\n"
-                    "Ask for the missing details in one friendly sentence.",
+                    "content": f"What the organizer has said so far: {brief}\n"
+                    f"Still missing: {', '.join(missing)}\n"
+                    "Write the reply.",
                 }
             ],
         )
