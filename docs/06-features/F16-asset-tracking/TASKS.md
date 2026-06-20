@@ -49,7 +49,7 @@ last_updated: 2026-06-20
   - tsc clean; the F13 contract test passes.
 
 ### F16-T05 — FE: QR-encode util + per-asset QR on AssetDetail; mobile-first Scanner page
-- Status: not_started
+- Status: done
 - Depends on: F16-T04
 - Estimate: 0.75d
 - Acceptance:
@@ -59,7 +59,7 @@ last_updated: 2026-06-20
   - Conforms to the frontend stack (Vite/React 19, React Router 7, Tailwind 4, Radix, Zustand, CVA, lucide); no SSR; build green.
 
 ### F16-T06 — FE: "Where is it?" dashboard widget + per-asset movement timeline; EN/AL i18n
-- Status: not_started
+- Status: done
 - Depends on: F16-T04
 - Estimate: 0.5d
 - Acceptance:

@@ -34,7 +34,8 @@
     "audit": "Audit",
     "settings": "Settings",
     "users": "Staff",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "scan": "Scanner"
   },
   "shell": {
     "searchPlaceholder": "Search or start a request…",
@@ -127,7 +128,11 @@
     "loadErrorTitle": "Couldn't load the dashboard",
     "loadErrorBody": "The connection to ops-core timed out.",
     "emptyTitle": "No events this week",
-    "emptyBody": "When requests are approved and scheduled, they'll show up here."
+    "emptyBody": "When requests are approved and scheduled, they'll show up here.",
+    "whereIsIt": "Where is it?",
+    "whereIsItSub": "Assets currently checked out",
+    "nothingOut": "Everything is in its home location.",
+    "unitsOut": "out"
   },
   "requests": {
     "title": "Requests",
@@ -298,7 +303,12 @@
     "colAvailability": "Availability",
     "colInWindow": "In window",
     "availableLower": "available",
-    "heldLower": "held"
+    "heldLower": "held",
+    "movements": "Movement history",
+    "noMovements": "No movements recorded yet.",
+    "liveLocation": "Live location",
+    "checkedOut": "Checked out",
+    "scan": "Scan"
   },
   "audit": {
     "title": "Audit",
@@ -427,5 +437,35 @@
   "reservation": {
     "leaseExpiresIn": "Lease expires in",
     "reservedAssets": "Reserved assets"
+  },
+  "scanner": {
+    "title": "Scanner",
+    "subtitle": "Scan or pick an asset, then check it in or out — its live location updates instantly.",
+    "findAsset": "Find an asset",
+    "searchPlaceholder": "Search assets…",
+    "selected": "Selected",
+    "unknownCode": "Unrecognized code",
+    "recorded": "Movement recorded",
+    "failed": "Scan failed",
+    "checkOut": "Check out",
+    "checkIn": "Check in",
+    "relocate": "Relocate",
+    "out": "out",
+    "noAsset": "No asset selected",
+    "noAssetBody": "Scan a QR or pick an asset to record a movement.",
+    "currentlyOut": "Currently out",
+    "action": "Action",
+    "quantity": "Quantity",
+    "toLocation": "To location",
+    "toLocationPlaceholder": "e.g. Blue Hall",
+    "note": "Note",
+    "notePlaceholder": "Optional",
+    "record": "Record movement",
+    "cameraUnsupported": "Camera scan isn't available here — pick an asset below.",
+    "startCamera": "Scan with camera",
+    "stopCamera": "Stop camera",
+    "cameraHint": "Point the camera at an asset QR",
+    "history": "Movement history",
+    "emptyHistory": "No movements yet"
   }
 }

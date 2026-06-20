@@ -34,7 +34,8 @@
     "audit": "Auditimi",
     "settings": "Cilësimet",
     "users": "Stafi",
-    "collapse": "Palos"
+    "collapse": "Palos",
+    "scan": "Skaneri"
   },
   "shell": {
     "searchPlaceholder": "Kërko ose nis një kërkesë…",
@@ -127,7 +128,11 @@
     "loadErrorTitle": "Paneli nuk u ngarkua",
     "loadErrorBody": "Lidhja me ops-core skadoi.",
     "emptyTitle": "Asnjë event këtë javë",
-    "emptyBody": "Kur kërkesat të miratohen dhe programohen, do të shfaqen këtu."
+    "emptyBody": "Kur kërkesat të miratohen dhe programohen, do të shfaqen këtu.",
+    "whereIsIt": "Ku ndodhet?",
+    "whereIsItSub": "Asetet aktualisht jashtë",
+    "nothingOut": "Çdo gjë është në vendndodhjen e vet.",
+    "unitsOut": "jashtë"
   },
   "requests": {
     "title": "Kërkesat",
@@ -298,7 +303,12 @@
     "colAvailability": "Disponueshmëria",
     "colInWindow": "Në dritare",
     "availableLower": "në dispozicion",
-    "heldLower": "të mbajtura"
+    "heldLower": "të mbajtura",
+    "movements": "Historiku i lëvizjeve",
+    "noMovements": "Ende asnjë lëvizje e regjistruar.",
+    "liveLocation": "Vendndodhja aktuale",
+    "checkedOut": "Jashtë",
+    "scan": "Skano"
   },
   "audit": {
     "title": "Auditimi",
@@ -427,5 +437,35 @@
   "reservation": {
     "leaseExpiresIn": "Rezervimi skadon për",
     "reservedAssets": "Asetet e rezervuara"
+  },
+  "scanner": {
+    "title": "Skaneri",
+    "subtitle": "Skano ose zgjidh një aset, pastaj regjistro hyrjen/daljen — vendndodhja përditësohet menjëherë.",
+    "findAsset": "Gjej një aset",
+    "searchPlaceholder": "Kërko asete…",
+    "selected": "U zgjodh",
+    "unknownCode": "Kod i panjohur",
+    "recorded": "Lëvizja u regjistrua",
+    "failed": "Skanimi dështoi",
+    "checkOut": "Dil",
+    "checkIn": "Hyr",
+    "relocate": "Zhvendos",
+    "out": "jashtë",
+    "noAsset": "Asnjë aset i zgjedhur",
+    "noAssetBody": "Skano një QR ose zgjidh një aset për të regjistruar një lëvizje.",
+    "currentlyOut": "Aktualisht jashtë",
+    "action": "Veprimi",
+    "quantity": "Sasia",
+    "toLocation": "Te vendndodhja",
+    "toLocationPlaceholder": "p.sh. Salla Blu",
+    "note": "Shënim",
+    "notePlaceholder": "Opsionale",
+    "record": "Regjistro lëvizjen",
+    "cameraUnsupported": "Skanimi me kamerë nuk disponohet këtu — zgjidh një aset më poshtë.",
+    "startCamera": "Skano me kamerë",
+    "stopCamera": "Ndalo kamerën",
+    "cameraHint": "Drejto kamerën nga QR-ja e asetit",
+    "history": "Historiku i lëvizjeve",
+    "emptyHistory": "Ende asnjë lëvizje"
   }
 }

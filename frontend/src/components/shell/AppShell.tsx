@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   LayoutDashboard, FileText, CalendarDays, Building2, Boxes, ListChecks, AlertTriangle,
-  CheckCircle2, Clock, Users, Sparkles, Search, ChevronLeft, ChevronRight, Menu, LogOut,
+  CheckCircle2, Clock, Users, Sparkles, Search, ChevronLeft, ChevronRight, Menu, LogOut, QrCode,
 } from 'lucide-react'
 import { useMe, useLogout, useDashboardStats, useConflicts } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
@@ -64,6 +64,7 @@ export function AppShell() {
     { title: t('nav.resources'), items: [
       { to: '/spaces', label: t('nav.spaces'), icon: Building2 },
       { to: '/inventory', label: t('nav.inventory'), icon: Boxes, badgeKey: 'inventory', badgeTone: 'danger' },
+      { to: '/scan', label: t('nav.scan'), icon: QrCode },
     ] },
     { title: t('nav.operations'), items: [
       { to: '/tasks', label: t('nav.tasks'), icon: ListChecks },

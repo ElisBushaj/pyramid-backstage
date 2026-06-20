@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { User, UserInput } from './types/auth'
 import type { Space, SpaceInput, SpaceWithAvailability, SpaceAvailability } from './types/spaces'
-import type { Asset, AssetInput, AssetWithAvailability } from './types/assets'
+import type { Asset, AssetInput, AssetWithAvailability, AssetMovement, AssetScanInput, AssetScanResult } from './types/assets'
 import type { EventRequest, EventRequestInput, RequestAggregate, DashboardStats } from './types/requests'
 import type { Reservation, ReservationInput } from './types/reservations'
 import type { Quote, LineItemInput } from './types/quotes'
@@ -138,6 +138,21 @@ export function useUpdateAsset(id: string) {
   return useMutation({
     mutationFn: (body: Partial<AssetInput>) => api.patch<Asset>(`/private/assets/${id}`, { body, idempotency: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: q('assets') }),
+  })
+}
+
+// ── F16: QR/NFC asset tracking ─────────────────────────────────────────────────
+export const useAssetMovements = (id?: string) =>
+  useQuery({ queryKey: q('asset-movements', id), queryFn: () => api.get<AssetMovement[]>(`/private/assets/${id}/movements`), enabled: !!id })
+
+export function useScanAsset(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: AssetScanInput) => api.post<AssetScanResult>(`/private/assets/${id}/scan`, { body, idempotency: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: q('assets') })
+      qc.invalidateQueries({ queryKey: q('asset-movements', id) })
+    },
   })
 }
 

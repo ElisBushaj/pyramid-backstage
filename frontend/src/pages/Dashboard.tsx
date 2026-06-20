@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { KPIStat } from '@/components/command/KPIStat'
+import { AssetLocationBoard } from '@/components/command/AssetLocationBoard'
 import { AvailabilityTimeline } from '@/components/command/AvailabilityTimeline'
 import { AuditTimeline } from '@/components/command/AuditTimeline'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
@@ -186,14 +187,17 @@ export default function Dashboard() {
         <AvailabilityTimeline />
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <AuditTimeline entries={audit ?? []} />
-        </CardBody>
-      </Card>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <AuditTimeline entries={audit ?? []} />
+          </CardBody>
+        </Card>
+        <AssetLocationBoard />
+      </div>
     </div>
   )
 }

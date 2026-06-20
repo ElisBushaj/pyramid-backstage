@@ -11,6 +11,7 @@ import Spaces from '@/pages/Spaces'
 import SpaceDetail from '@/pages/SpaceDetail'
 import Inventory from '@/pages/Inventory'
 import AssetDetail from '@/pages/AssetDetail'
+import Scanner from '@/pages/Scanner'
 import Tasks from '@/pages/Tasks'
 import Conflicts from '@/pages/Conflicts'
 import Audit from '@/pages/Audit'
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
       { path: 'spaces/:id', element: <SpaceDetail /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'inventory/:id', element: <AssetDetail /> },
+      { path: 'scan', element: <Scanner /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'conflicts', element: <Conflicts /> },
       { path: 'audit', element: <Audit /> },
