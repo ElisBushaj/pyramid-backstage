@@ -5,5 +5,6 @@
 process.env.NODE_ENV ??= "test";
 process.env.DATABASE_URL ??= "postgresql://pyramid:pyramid@localhost:5432/pyramid_test";
 process.env.SESSION_SECRET ??= "test-secret";
+process.env.OPS_CORE_SERVICE_TOKEN ??= "test-service-token"; // F17 — exercised by service-token.test.ts
 process.env.NATS_ENABLED ??= "false";
 process.env.LOG_LEVEL ??= "silent";

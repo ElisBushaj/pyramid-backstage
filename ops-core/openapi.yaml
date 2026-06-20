@@ -600,6 +600,16 @@ components:
       type: apiKey
       in: cookie
       name: pb_session
+    # F17 — the ai-orchestrator authenticates with a shared bearer token (system actor)
+    # and forwards the acting staff user via X-Acting-User-Id / X-Acting-User-Role so audit
+    # attribution + partner row-scoping stay correct. The forwarded role may not exceed the
+    # user's real role nor the MANAGER ceiling. See docs/08-decisions/0012-ai-ops-core-service-token-auth.md.
+    serviceToken:
+      type: http
+      scheme: bearer
+      description: >-
+        AI service token. MUST be sent with `X-Acting-User-Id` and `X-Acting-User-Role`
+        headers identifying the staff member the AI is acting for.
 
   parameters:
     PathId:
@@ -1087,6 +1097,8 @@ components:
               - type: object
                 properties: { data: { $ref: "#/components/schemas/Reservation" } }
 
-# Applies to every path unless overridden with `security: []`
+# Applies to every path unless overridden with `security: []`.
+# Either a staff session cookie OR the AI service token + forwarded-actor headers (F17).
 security:
   - sessionCookie: []
+  - serviceToken: []

@@ -13,6 +13,8 @@ const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
  */
 export function requireCsrf(req: Request, _res: Response, next: NextFunction): void {
   if (SAFE.has(req.method)) return next();
+  // F17 — service-token (bearer) auth carries no cookie, so it is not subject to CSRF.
+  if (req.serviceAuth) return next();
   const cookie = req.cookies?.[CSRF_COOKIE];
   const header = req.header(CSRF_HEADER);
   if (!cookie || !header || cookie !== header) {

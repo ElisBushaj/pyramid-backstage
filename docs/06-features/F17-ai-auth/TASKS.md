@@ -7,7 +7,7 @@ last_updated: 2026-06-20
 # F17 — Tasks
 
 ### F17-T01 — service-token config + .env.example
-- Status: not_started
+- Status: done
 - Depends on: —
 - Estimate: 0.25d
 - Acceptance:
@@ -18,7 +18,7 @@ last_updated: 2026-06-20
   - tsc clean; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F17-T02 — service-token branch in requireAuth (validate forwarded actor)
-- Status: not_started
+- Status: done
 - Depends on: F17-T01
 - Estimate: 0.5d
 - Acceptance:
@@ -29,7 +29,7 @@ last_updated: 2026-06-20
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F17-T03 — forwarded-role ceiling (clamp/reject above ceiling)
-- Status: not_started
+- Status: done
 - Depends on: F17-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -39,7 +39,7 @@ last_updated: 2026-06-20
   - tsc clean; vitest passing.
 
 ### F17-T04 — audit attribution for AI-driven mutations
-- Status: not_started
+- Status: done
 - Depends on: F17-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -49,7 +49,7 @@ last_updated: 2026-06-20
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F17-T05 — contract: securityScheme + X-Acting-User-* headers + mock parity
-- Status: not_started
+- Status: done
 - Depends on: F17-T02
 - Estimate: 0.25d
 - Acceptance:
@@ -60,7 +60,7 @@ last_updated: 2026-06-20
   - tsc clean.
 
 ### F17-T06 — tests: the service-token matrix
-- Status: not_started
+- Status: done
 - Depends on: F17-T02, F17-T03, F17-T04
 - Estimate: 0.5d
 - Acceptance:

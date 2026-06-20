@@ -2,7 +2,7 @@
 
 > **This is a generated dashboard.** Do not hand-edit. Regenerate via `node .planning/tasks.mjs regen` (the protocol in `CLAUDE.md` § "Status regeneration").
 
-**Last regenerated:** 2026-06-20 — Build in progress. 81/111 ops-core tasks done.
+**Last regenerated:** 2026-06-20 — Build in progress. 87/111 ops-core tasks done.
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Status | Count |
 |--------|-------|
-| done | 81 |
+| done | 87 |
 | in_progress | 0 |
 | blocked | 0 |
-| not_started | 40 |
+| not_started | 34 |
 | **Total** | **121** |
 
-> ops-core: **81/111 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
+> ops-core: **87/111 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
 
 ---
 
@@ -34,7 +34,7 @@ _(none)_
 
 1. **F15-T01** — add PARTNER to the Role enum + RANK ladder (below VIEWER) _(deps: F01-T05)_
 2. **F16-T01** — AssetMovement model + migration + AssetMovementAction enum _(deps: F03-T01)_
-3. **F17-T01** — service-token config + .env.example _(deps: none)_
+3. **F18-T01** — frontend/src/api/ai.ts: VITE_AI_URL client for POST /chat + POST /plan with degrade _(deps: F13-T02, F17-T01)_
 
 
 …and 2 more eligible.
@@ -62,8 +62,8 @@ _(none)_
 | F14 space-catalog | Foundation | 5 | 0 | 5 |
 | F15 partner-portal | Core | 0 | 6 | 6 |
 | F16 asset-tracking | Core | 0 | 7 | 7 |
-| F17 ai-auth | Integration | 0 | 6 | 6 |
+| F17 ai-auth | Integration | 6 | 0 | 6 |
 | F18 ai-wiring | Integration | 0 | 6 | 6 |
 | F19 floor-map | Integration | 0 | 5 | 5 |
-| **ops-core subtotal** | | **81** | **30** | **111** |
+| **ops-core subtotal** | | **87** | **24** | **111** |
 | A00 ai-orchestrator | AI | 0 | 10 | 10 |
