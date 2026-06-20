@@ -1,10 +1,7 @@
 """Application configuration via pydantic-settings.
 
 All values load from the environment (or a local ``.env``). The single runtime
-coupling to ops-core is ``OPS_CORE_URL``; flip it from the stateful mock
-(``mock-ops-core`` on :4010) to the real service (:4000) to integrate — a
-one-line change, no code edits. See ``docs/02-domain/AI_ORCHESTRATION.md`` →
-"Parallel-dev seam".
+coupling to ops-core is ``OPS_CORE_URL``.
 """
 
 from __future__ import annotations
@@ -25,14 +22,10 @@ class Settings(BaseSettings):
     )
 
     # ── ops-core coupling (THE one seam) ────────────────────────────────────
-    # Default points at the real ops-core. For isolated AI dev, set this to the
-    # stateful mock, e.g. OPS_CORE_URL=http://localhost:4010/api/v1
     OPS_CORE_URL: str = "http://localhost:4000/api/v1"
 
-    # ── F17 service-token auth to the REAL ops-core ─────────────────────────
-    # Shared secret; must equal ops-core's OPS_CORE_SERVICE_TOKEN. Leave EMPTY
-    # for the mock (no auth) — an empty token means NO auth headers are sent, so
-    # the mock path is unchanged.
+    # ── F17 service-token auth ───────────────────────────────────────────────
+    # Shared secret; must equal ops-core's OPS_CORE_SERVICE_TOKEN.
     OPS_CORE_SERVICE_TOKEN: str | None = None
     # The staff user the AI acts for (audit + partner row-scoping key). Defaults
     # to the seeded manager; ops-core clamps the role to its MANAGER ceiling.
