@@ -693,7 +693,7 @@ components:
     ConflictType:
       type: string
       enum: [SPACE_DOUBLE_BOOKED, ASSET_OVERALLOCATED, SETUP_WINDOW_OVERLAP]
-    Role: { type: string, enum: [ADMIN, MANAGER, OPS, VIEWER] }
+    Role: { type: string, enum: [ADMIN, MANAGER, OPS, VIEWER, PARTNER] }
 
     DateRange:
       type: object

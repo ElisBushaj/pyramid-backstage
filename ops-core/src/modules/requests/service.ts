@@ -48,9 +48,11 @@ class RequestsService {
   }
 
   /** The single payload the operational-plan page renders (REQUESTS.md). */
-  async getAggregate(id: string): Promise<ServiceResponse<RequestAggregate>> {
+  async getAggregate(actor: Actor, id: string): Promise<ServiceResponse<RequestAggregate>> {
     const request = await prisma.eventRequest.findUnique({ where: { id } });
     if (!request) throw APIError.notFound();
+    // F15 — a PARTNER may read ONLY their own request; others 404 (no existence leak). ADR-0010.
+    if (actor.role === "PARTNER" && request.createdById !== actor.id) throw APIError.notFound();
 
     const reservation = await prisma.reservation.findFirst({
       where: { requestId: id, status: { in: ["HELD", "CONFIRMED"] } },
@@ -84,10 +86,12 @@ class RequestsService {
     );
   }
 
-  async list(p: ListParams): Promise<ListResponse<EventRequest>> {
+  async list(actor: Actor, p: ListParams): Promise<ListResponse<EventRequest>> {
     const page = Math.max(1, p.page ?? 1);
     const pageSize = Math.min(Math.max(1, p.pageSize ?? 20), 100);
     const where: Prisma.EventRequestWhereInput = {
+      // F15 — PARTNER sees only their own requests; staff (VIEWER+) see all. ADR-0010.
+      ...(actor.role === "PARTNER" ? { createdById: actor.id } : {}),
       ...(p.status ? { status: p.status as EventRequest["status"] } : {}),
       ...(p.q
         ? { OR: [{ title: { contains: p.q, mode: "insensitive" } }, { organizerName: { contains: p.q, mode: "insensitive" } }] }
@@ -104,6 +108,8 @@ class RequestsService {
   async updateDraft(actor: Actor, id: string, input: Partial<EventRequestInput>): Promise<ServiceResponse<EventRequest>> {
     const existing = await prisma.eventRequest.findUnique({ where: { id } });
     if (!existing) throw APIError.notFound();
+    // F15 — a PARTNER may edit ONLY their own draft; others 404.
+    if (actor.role === "PARTNER" && existing.createdById !== actor.id) throw APIError.notFound();
     if (existing.status !== "DRAFT") {
       throw APIError.invalidTransition(existing.status, "DRAFT", "request.invalid_transition");
     }

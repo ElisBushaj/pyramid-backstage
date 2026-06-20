@@ -63,6 +63,8 @@ const USERS = [
   { id: id(2, "user"), email: "manager@pyramid.al", name: "Mira Manager", role: "MANAGER" as const },
   { id: id(3, "user"), email: "ops@pyramid.al", name: "Otto Ops", role: "OPS" as const },
   { id: id(4, "user"), email: "viewer@pyramid.al", name: "Vera Viewer", role: "VIEWER" as const },
+  // F15 — an external event partner. Submits via the portal; sees only their own requests.
+  { id: id(5, "user"), email: "partner@acme.al", name: "Pjeter Partner", role: "PARTNER" as const },
 ];
 const DEV_PASSWORD = "Password123!";
 
@@ -126,12 +128,14 @@ async function seedEvents(actor: Actor) {
   await quotesService.generate(actor, { requestId: e2.id });
 
   // E3 — fresh inquiry (DRAFT), the conflict→alternatives demo target (wants Blue at W1).
-  await requestsService.create(actor, {
+  // F15 — submitted by the PARTNER via the portal, so it shows in their "my requests".
+  const partner = USERS[4]!;
+  await requestsService.create({ id: partner.id, name: partner.name, role: "PARTNER" }, {
     title: "Community Art Exhibition", organizerName: "Open Studio", contactEmail: "studio@open.al",
     expectedAttendees: 160, eventType: "EXHIBITION", preferredDates: [W1, W2], requirements: { layout: "RECEPTION" },
   });
 
-  console.log("[seed] created 3 events (E1 SCHEDULED in Blue@W1 = planted conflict, E2 PROPOSED in Green@W2, E3 DRAFT)");
+  console.log("[seed] created 3 events (E1 SCHEDULED in Blue@W1 = planted conflict, E2 PROPOSED in Green@W2, E3 DRAFT by PARTNER)");
 }
 
 export async function runSeed(opts: { reset?: boolean } = {}): Promise<void> {

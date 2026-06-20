@@ -19,6 +19,9 @@ enum Role {
   MANAGER
   OPS
   VIEWER
+  // F15 — external event partners. Below VIEWER on the ladder: grants nothing on the
+  // staff tool surface; only partner-scoped intake + own-request reads (ADR-0010).
+  PARTNER
 }
 
 enum SpaceKind {

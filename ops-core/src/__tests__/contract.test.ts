@@ -58,7 +58,7 @@ describe("contract: enum casing is UPPER_SNAKE and matches the TS mirrors", () =
     TaskStatus: ["TODO", "IN_PROGRESS", "DONE", "BLOCKED"],
     LineItemKind: ["SPACE", "ASSET", "SERVICE"],
     ConflictType: ["SPACE_DOUBLE_BOOKED", "ASSET_OVERALLOCATED", "SETUP_WINDOW_OVERLAP"],
-    Role: ["ADMIN", "MANAGER", "OPS", "VIEWER"],
+    Role: ["ADMIN", "MANAGER", "OPS", "VIEWER", "PARTNER"],
   };
 
   it.each(Object.entries(expected))("%s matches the contract exactly", (name, values) => {

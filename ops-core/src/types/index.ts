@@ -55,7 +55,7 @@ export function okList<T>(
 export interface Actor {
   id: string;
   name: string;
-  role: "ADMIN" | "MANAGER" | "OPS" | "VIEWER";
+  role: "ADMIN" | "MANAGER" | "OPS" | "VIEWER" | "PARTNER";
 }
 
 declare global {

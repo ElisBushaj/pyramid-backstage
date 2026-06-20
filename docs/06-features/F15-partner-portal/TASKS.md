@@ -7,7 +7,7 @@ last_updated: 2026-06-20
 # F15 — Tasks
 
 ### F15-T01 — add PARTNER to the Role enum + RANK ladder (below VIEWER)
-- Status: not_started
+- Status: done
 - Depends on: F01-T05
 - Estimate: 0.5d
 - Acceptance:
@@ -18,7 +18,7 @@ last_updated: 2026-06-20
   - `tsc` clean; migration applies cleanly on a fresh DB; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F15-T02 — partner row-scoping on requests list + aggregate (SECURITY-CRITICAL)
-- Status: not_started
+- Status: done
 - Depends on: F15-T01
 - Estimate: 0.75d
 - Acceptance:
@@ -30,7 +30,7 @@ last_updated: 2026-06-20
   - `tsc` clean; vitest passing (real-Postgres integration test for the scoping matrix); conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F15-T03 — seed a demo PARTNER user + partner-created PROPOSED requests
-- Status: not_started
+- Status: done
 - Depends on: F15-T02
 - Estimate: 0.25d
 - Acceptance:

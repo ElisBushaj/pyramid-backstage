@@ -5,8 +5,9 @@ import { APIError } from "../errors";
 import type { Actor } from "../types";
 import { resolveActor, SESSION_COOKIE } from "../modules/auth/session";
 
-// Total role ladder VIEWER < OPS < MANAGER < ADMIN. (F15 inserts PARTNER below VIEWER.)
-const RANK: Record<Actor["role"], number> = { VIEWER: 0, OPS: 1, MANAGER: 2, ADMIN: 3 };
+// Total role ladder PARTNER < VIEWER < OPS < MANAGER < ADMIN. PARTNER (F15) grants
+// nothing on the staff tool surface — see ADR-0010.
+const RANK: Record<Actor["role"], number> = { PARTNER: -1, VIEWER: 0, OPS: 1, MANAGER: 2, ADMIN: 3 };
 
 // F17 — when the AI acts via the service token it may never exceed this role,
 // even when the forwarded staff user is an ADMIN. A compromised AI cannot self-grant
