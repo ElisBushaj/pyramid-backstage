@@ -50,8 +50,9 @@ Resolved with `${VAR:-default}`; defaults are local-dev only ([`infrastructure/R
 | `SESSION_SECRET` | `dev-session-secret-change-me` | ops-core (**rotate for any real deploy** — see [SECURITY.md](./SECURITY.md)) |
 | `FRONTEND_URL` | `http://localhost:5173` | ops-core (CORS) |
 | `OPS_CORE_URL` | `http://ops-core:4000/api/v1` | ai-orchestrator (the one coupling) |
+| `OPS_CORE_SERVICE_TOKEN` | `dev-service-token-change-me` | ai-orchestrator → ops-core (the service-token branch of `requireAuth`; **shared secret, rotate for any real deploy** — see [SECURITY.md](./SECURITY.md) § service-token model) |
 | `ANTHROPIC_API_KEY` | *(empty)* | ai-orchestrator |
-| `VITE_OPS_CORE_URL` / `VITE_AI_URL` | `:4000/api/v1` / `:8000` | frontend |
+| `VITE_OPS_CORE_URL` / `VITE_AI_URL` | `:4000/api/v1` / `:8000` | frontend (`VITE_AI_URL` now **in use** — the `CopilotPanel` wire to `/chat` + `/plan`, [F18](../06-features/F18-ai-wiring/); degrades to a canned copilot if unset/unreachable) |
 
 Service-internal wiring (`REDIS_URL`, `NATS_URL`, `CHROMA_URL`, `DATABASE_URL`) is fixed to the compose network and not meant to be overridden for local dev. The NATS degrade switch (`NATS_ENABLED=false`, [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)) is the one knob that changes the runtime topology — see the cut-line in [`MASTER_PLAN.md`](../00-strategy/MASTER_PLAN.md) §5.
 

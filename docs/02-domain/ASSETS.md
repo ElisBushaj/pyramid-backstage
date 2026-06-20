@@ -4,7 +4,8 @@ Operational equipment: chairs, tables, microphones, screens, projectors, stage u
 
 ## Shape
 - `type` (`SEATING`, `TABLE`, `MICROPHONE`, `SCREEN`, `PROJECTOR`, `STAGE_UNIT`, `LIGHTING`, `OTHER`), `name`, `totalQuantity`, `location`, `status` (`ACTIVE | MAINTENANCE | RETIRED`).
-- Inventory is tracked at the **aggregate** level (a count per asset line), not per physical unit. Per-unit / QR-NFC tagging and a movement ledger are a clean future extension (`location` is already a first-class field) — out of scope for the 3-day build, noted in [docs/09-questions/OPEN.md](../09-questions/OPEN.md).
+- Inventory is tracked at the **aggregate** level (a count per asset line), not per physical unit. This grain is unchanged.
+- `location` is now **live + historical**: QR/NFC scanning moves stock between locations and a movement ledger records every move — now in scope (aggregate-with-movement, not per-unit serial identity). See [ASSET_TRACKING.md](./ASSET_TRACKING.md).
 
 ## Availability (windowed)
 `GET /assets?type&quantity&start&end` returns each asset with `availableQuantity = totalQuantity − Σ overlapping holds` for the window (see [CONFLICTS.md](./CONFLICTS.md)). `MAINTENANCE`/`RETIRED` assets report `availableQuantity: 0`.

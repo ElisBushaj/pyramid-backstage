@@ -97,6 +97,19 @@ These three are disjoint modules and parallelize cleanly after Phase 1.
 - Pages per [`docs/05-frontend/PAGES.md`](../05-frontend/PAGES.md) — each pinned to its contract endpoints so the UI cannot drift.
 - Parity verified per [`docs/10-qa/DESIGN-PARITY.md`](../10-qa/DESIGN-PARITY.md).
 
+### Phase 6 — Beyond Booking (`F14`–`F19`, post-`F13` expansion)
+
+**Goal:** push the shipped record past the booking loop toward the wider operational picture the [AADF Pyramid Challenge](../../New_Docs/) brief asks for — driven by Alvin's just-merged AI branch. **This is an expansion on top of `F00`–`F13`, not a fresh 3-day build**; the §6 program DoD stands and this phase has its own (below). Lane split and the seam are in [`ASSIGNMENTS.md`](./ASSIGNMENTS.md); the per-feature scope is in `docs/06-features/F14`–`F19`.
+
+- **`F14` Space catalog** — extend `Space` with the catalog-extension fields and grow the seed from 6 to 19 spaces, from [`docs/03-data/spaces.catalog.json`](../03-data/spaces.catalog.json). Additive + nullable + backfill; rows 1–6 stay authoritative; the `F12` planted Blue-hall conflict survives. **Schema-first → keystone for `F18`/`F19`.**
+- **`F15` Partner portal** — `PARTNER` role below `VIEWER`, partner-scoped intake (row-scoped by `EventRequest.createdById`), admin approval queue that removes email; reuses `F10` approve/reject (single-step).
+- **`F16` Asset tracking** — `AssetMovement` ledger + `POST …/scan` (live `location` update) + `GET …/movements`; mobile scanner UI + "where is it" widget. Aggregate-with-movement, not per-unit identity.
+- **`F17` AI auth** — service token (system actor) + forwarded `X-Acting-User-Id`/`X-Acting-User-Role` with a role ceiling, so AI→ops-core calls keep audit + partner scoping correct.
+- **`F18` AI wiring** — `POST /chat` + `POST /plan` wired into `CopilotPanel`, with a degrade-to-canned fallback.
+- **`F19` Floor map** — Elis's v1 radial `FloorMap` behind the prop contract `<FloorMap floor spaces={[{slug,status}]} />`, rendering `/plan` output; v2 SVG hotspots are post-demo polish.
+
+**Definition of Done (`F14`–`F19`):** all six features' tasks `done`; `pnpm tsc --noEmit` + `pnpm test --run` green; the contract still **additive-only**; the headline plan demo, the **partner-no-email** intake→approval flow, and **QR live asset tracking** each run end-to-end; and the **AI-degrade** path (copilot → canned, map → v1) is verified — the demo never depends on the brain being live. Parallelism is bounded by the same rules as §4: `F14`'s schema work is serial and runs first; `MESSAGE_KEYS`/locales/route-mounts stay pre-staged.
+
 ## 3. The 3-day timeline
 
 The build is time-boxed to three days. The mapping (the ops-core agent executes the backlog task-by-task; see [`EXECUTION_PLAYBOOK.md`](./EXECUTION_PLAYBOOK.md)):

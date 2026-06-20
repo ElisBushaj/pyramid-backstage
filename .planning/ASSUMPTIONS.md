@@ -50,3 +50,24 @@ Every default chosen in the absence of explicit guidance, with a date and one-li
 - Assumed: **task `dueAt` is null until a reservation exists** for the request; once a
   reservation is present, SETUP offsets apply to its event `start`, TEARDOWN to its `end`.
   Rationale: matches TASKS.md; `dueOffsetHours` is retained so dueAt can be recomputed.
+
+## 2026-06-20 — Beyond-Booking expansion (F14–F19 doc reconciliation)
+
+User-confirmed decisions (chosen explicitly, recorded for traceability):
+- Decided: **Elis stays in lane (ops-core + frontend + AI wiring) with self-sufficient fallbacks** — the copilot degrades to canned and Elis ships the v1 FloorMap, so the demo never depends on Alvin's live AI. Python AI logic (A00) stays Alvin's.
+- Decided: **Elis builds the v1 radial FloorMap** behind Alvin's agreed prop contract `<FloorMap floor spaces={[{slug,status}]} />`; hot-swap Alvin's component later. (ADR-0014)
+- Decided: **selective merge of `origin/alvin/phase-a-spine`** onto `feat/beyond-booking` — brings the catalog, `COLLABORATION.md`, `New_Docs/`, and the wired `/plan` spine to the branch.
+
+Assumed defaults (no explicit guidance; logged so they can be overridden):
+- Assumed: **asset tracking is aggregate-with-movement, not per-unit serialized identity** — QR encodes `assetId`; a scan writes an `AssetMovement` (CHECK_OUT|CHECK_IN|RELOCATE, quantity) + updates live `Asset.location`.
+  Rationale: the brief asks for counts + location, not serialized units; far smaller model. Per-unit deferred. (ADR-0011)
+- Assumed: **single-step approval** — PARTNER submits → existing F10 `MANAGER+` approve/reject; no new approval stage.
+  Rationale: reuses a built, tested path; multi-stage chain deferred as a question. (ADR-0010)
+- Assumed: **`PARTNER` ranks below `VIEWER`**; partner reads are row-scoped by `EventRequest.createdById`; a cross-row read returns **404, not 403** (no existence leak).
+  Rationale: a partner must grant nothing on the staff surface; 404 avoids confirming other partners' requests exist. (ADR-0010)
+- Assumed: **AI→ops-core auth = service token (system actor) + forwarded `X-Acting-User-Id/Role`, with a forwarded-role ceiling of `MANAGER`**.
+  Rationale: keeps audit attribution + partner scoping correct; a compromised AI cannot self-grant ADMIN. (ADR-0012)
+- Assumed: **`bundleTemplates` + `circulationRules` ship as a frontend constant** sourced from `spaces.catalog.json`, not a contract endpoint.
+  Rationale: static reference data; avoids a contract addition; Alvin loads the same JSON into `venue_facts`. (ADR-0013)
+- Assumed: **catalog rows 7–19 carry estimated capacities/rates/buffers/adjacency**; rows 1–6 stay byte-authoritative vs `seed.ts`.
+  Rationale: read from the floor plans but not surveyed; flagged for real-venue confirmation (new OPEN question).

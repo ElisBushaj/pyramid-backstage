@@ -2,7 +2,7 @@
 
 > **This is a generated dashboard.** Do not hand-edit. Regenerate via `node .planning/tasks.mjs regen` (the protocol in `CLAUDE.md` § "Status regeneration").
 
-**Last regenerated:** 2026-06-19 — Build in progress. 76/76 ops-core tasks done.
+**Last regenerated:** 2026-06-20 — Build in progress. 76/111 ops-core tasks done.
 
 ---
 
@@ -13,10 +13,10 @@
 | done | 76 |
 | in_progress | 0 |
 | blocked | 0 |
-| not_started | 10 |
-| **Total** | **86** |
+| not_started | 45 |
+| **Total** | **121** |
 
-> ops-core: **76/76 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
+> ops-core: **76/111 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
 
 ---
 
@@ -32,9 +32,12 @@ _(none)_
 
 ## Eligible-next tasks
 
-_(none — backlog complete or all remaining work is blocked.)_
+1. **F14-T01** — additive Space extension fields + Prisma migration _(deps: F02-T01)_
+2. **F15-T01** — add PARTNER to the Role enum + RANK ladder (below VIEWER) _(deps: F01-T05)_
+3. **F16-T01** — AssetMovement model + migration + AssetMovementAction enum _(deps: F03-T01)_
 
 
+…and 2 more eligible.
 
 ---
 
@@ -56,5 +59,11 @@ _(none — backlog complete or all remaining work is blocked.)_
 | F11 events | Foundation | 6 | 0 | 6 |
 | F12 seed | Integration | 4 | 0 | 4 |
 | F13 contract | Integration | 5 | 0 | 5 |
-| **ops-core subtotal** | | **76** | **0** | **76** |
+| F14 space-catalog | Foundation | 0 | 5 | 5 |
+| F15 partner-portal | Core | 0 | 6 | 6 |
+| F16 asset-tracking | Core | 0 | 7 | 7 |
+| F17 ai-auth | Integration | 0 | 6 | 6 |
+| F18 ai-wiring | Integration | 0 | 6 | 6 |
+| F19 floor-map | Integration | 0 | 5 | 5 |
+| **ops-core subtotal** | | **76** | **35** | **111** |
 | A00 ai-orchestrator | AI | 0 | 10 | 10 |

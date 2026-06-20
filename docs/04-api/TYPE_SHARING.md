@@ -14,9 +14,11 @@ ops-core/openapi.yaml                 ← source of truth (the contract)
 
 ## Rules
 - **One file per domain area**: `spaces.ts`, `assets.ts`, `requests.ts`, `reservations.ts`, `quotes.ts`, `tasks.ts`, `conflicts.ts`, `audit.ts`, `auth.ts`.
+- The F14–F19 additions extend the existing per-area files: the **Space extension fields** (`slug`, `category`, `zone`, `isCirculation`, `adjacent[]`, `map`, `ceilingCm`) land in `spaces.ts`, and the **`AssetMovement`** shape (plus the scan-result type) in `assets.ts`. Both still mirror `openapi.yaml`.
 - The `ServiceResponse<T>` envelope type is identical on both TS sides (`api/types/_envelope.ts`); only `T` differs per endpoint.
 - The frontend mirrors **only what it consumes**. The AI mirrors the full tool surface.
-- **Drift is caught two ways**: (1) a contract test asserts the `openapi.yaml` example payloads validate against the TS types; (2) PR review.
+- **One exception to the source of truth**: `frontend/src/api/types/ai.ts` is a **consumed-but-AI-owned** mirror. It mirrors [`AI_CONTRACT.md`](./AI_CONTRACT.md) (the `/chat` + `/plan` surface: `ChatRequest`, `ChatResponse`, `ProposedAction`, `OperationalPlan`) — **not** `openapi.yaml`, because those endpoints live on `ai-orchestrator`, not `ops-core`. Its source of truth upstream is the AI's `app/schemas.py`. Any embedded contract shapes inside it (`Space`, `Reservation`, `Quote`, `Task`, `Conflict`) still trace back to `openapi.yaml`.
+- **Drift is caught two ways**: (1) a contract test asserts the `openapi.yaml` example payloads validate against the TS types; (2) PR review. The `ai.ts` mirror is checked against `AI_CONTRACT.md` / `schemas.py` instead of the openapi spec.
 
 ## Generation aid (optional, not required)
 A `pnpm gen:types` script may emit `ops-core/src/types/api/*` from `openapi.yaml` to reduce hand-mirroring toil — but the YAML remains the source of truth and the emitted files are committed and reviewed like any code. The frontend + Python mirrors stay hand-written so they carry only the consumed surface.

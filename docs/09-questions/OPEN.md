@@ -27,9 +27,10 @@ When resolved, move the entry to [`RESOLVED.md`](./RESOLVED.md) with an `R-NN` I
 ### Q-02 — Real staff roles, and who can approve
 - Asked: 2026-06-18
 - Blocks: none — F01 ships on the default ladder
-- Status: open
+- Status: in_review
 - Default if not answered: roles **ADMIN / MANAGER / OPS / VIEWER**; **approvals require MANAGER+**, inventory/space writes require **OPS+**, user management is **ADMIN** ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md)).
 - Context: The audit ledger is worthless without a real decider, so RBAC is in scope. The four-role ladder maps to venue-manager / logistics / front-desk and is the minimal credible model. We need the venue's real org chart to confirm role names and, critically, **who is allowed to approve** an event (commit reservations + money). The default is conservative (only MANAGER+ approves); widening or renaming is a config change, not a rebuild.
+- Update (2026-06-20): the **role ladder is extended below VIEWER with `PARTNER`** (external organizers) and the **approval chain is single-step (reuse F10's MANAGER+ approve/reject)** — see [R-08](./RESOLVED.md#r-08--partner-role-and-the-approval-chain) / [ADR-0010](../08-decisions/0010-partner-role-and-approval-chain.md). The *staff* names ADMIN/MANAGER/OPS/VIEWER and who-approves are still pending the venue org chart, so this stays `in_review`, not resolved. **Multi-stage approval** (e.g. OPS pre-check → MANAGER sign-off) is split out as [Q-08](#q-08--multi-stage-approval-chain).
 
 ### Q-03 — Real rate card for spaces and assets
 - Asked: 2026-06-18
@@ -54,9 +55,11 @@ When resolved, move the entry to [`RESOLVED.md`](./RESOLVED.md) with an `R-NN` I
 
 ### Q-06 — Per-unit / QR asset tracking vs. aggregate counts
 - Asked: 2026-06-18
+- Resolved: 2026-06-20 → see [R-07](./RESOLVED.md#r-07--qr--nfc-asset-tracking-aggregate-with-movement)
 - Blocks: none — F03 tracks aggregate counts; per-unit is a future extension
-- Status: open
+- Status: resolved
 - Default if not answered: **aggregate counts** per asset line (`totalQuantity`) + a `location` string. No per-physical-unit identity, no QR/NFC tags, no movement ledger.
+- Resolution: **aggregate-with-movement.** QR/NFC encodes `assetId` (not a per-unit serial); a scan records an `AssetMovement` ledger row and updates the live `Asset.location`. The aggregate count model is unchanged — F16 layers a movement history on top, no per-physical-unit identity. **Per-unit / serialized identity is split out as the deferred [Q-09](#q-09--per-unit-serialized-asset-identity).** See [ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md).
 - Context: Inventory is tracked as a count per asset (400 standard chairs at "Storage -1"), which is enough to compute `availableQuantity = total − Σ overlapping holds` and to drive the conflict engine. Per-unit tracking (each chair a tagged entity with a scan history) is a real-world extension the venue may want eventually; `location` is already a first-class field so the ledger slots in later. Confirm whether aggregate counts suffice for launch — the build assumes they do.
 
 ### Q-07 — Realtime expectation: is the live dashboard required, or is polling acceptable?
@@ -65,3 +68,31 @@ When resolved, move the entry to [`RESOLVED.md`](./RESOLVED.md) with an `R-NN` I
 - Status: open
 - Default if not answered: **NATS live dashboard, with polling fallback** (`NATS_ENABLED=false` → REST-only) ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)).
 - Context: The live command center and the unprompted AI conflict heads-up are core "wow" moments, and they ride NATS (`conflict.detected`, `reservation.held`, …). But the entire request→plan→approve loop works over REST alone, and the dashboard degrades to polling cleanly. We'd like to know the venue's real-time expectation — if "the screen updates by itself" is a must-have, NATS stays in the demo path; if polling-on-refresh is acceptable for launch, the degrade mode is the floor. Correctness never depends on the answer; only the liveness does.
+
+### Q-08 — Multi-stage approval chain
+- Asked: 2026-06-20
+- Blocks: none — F15 ships single-step approval (reuses F10)
+- Status: open
+- Default if not answered: **single-step approval** — one MANAGER+ approve/reject transitions the request, exactly as F10 already does ([ADR-0010](../08-decisions/0010-partner-role-and-approval-chain.md)). No OPS pre-check stage, no parallel sign-offs, no per-amount escalation.
+- Context: The partner portal ([Q-02](#q-02--real-staff-roles-and-who-can-approve) → [R-08](./RESOLVED.md#r-08--partner-role-and-the-approval-chain)) routes external intake into the *existing* approval queue, so launch needs no new state machine. A real venue may eventually want a chain — front-desk OPS triage → MANAGER commit, or finance escalation above a money threshold. That expands the `EventRequest` status machine and the audit trail; it is deliberately deferred so single-step ships clean. If the venue requires staged sign-off for launch, it's a scoped addition to F10/F15, flagged here so it isn't a surprise.
+
+### Q-09 — Per-unit / serialized asset identity
+- Asked: 2026-06-20
+- Blocks: none — F16 ships aggregate-with-movement
+- Status: open
+- Default if not answered: **no per-unit identity.** QR/NFC encodes `assetId`; a scan moves the *aggregate* line and appends an `AssetMovement` row. No serial per physical chair, no per-unit scan history, no per-unit lifecycle (lost / damaged / retired) ([ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md)).
+- Context: Split from the now-resolved [Q-06](#q-06--per-unit--qr-asset-tracking-vs-aggregate-counts) (→ [R-07](./RESOLVED.md#r-07--qr--nfc-asset-tracking-aggregate-with-movement)). Aggregate-with-movement answers "where is this *kind* of asset, and what moved when" — enough for the "where is it" dashboard widget and the scanner loop. True per-unit tracking (each chair its own tagged entity with an independent location and condition history) is a heavier model: a new `AssetUnit` entity, scans bound to units not types, and a reconciliation story between unit counts and the aggregate `totalQuantity`. Deferred unless the venue needs individual-asset accountability (high-value gear — a specific projector, a named console) at launch.
+
+### Q-10 — Catalog rows 7–19: estimated capacities, rates, and buffers
+- Asked: 2026-06-20
+- Blocks: none — F14 seeds rows 7–19 from estimates; rows 1–6 are authoritative
+- Status: open
+- Default if not answered: rows **1–6 are AUTHORITATIVE** (they match the ops-core seed UUIDs, capacities, rates, and buffers exactly); rows **7–19 ship with estimated** capacities / `dayRateMinor` / setup-teardown buffers, marked as estimates, pending venue confirmation. See [`docs/03-data/spaces.catalog.json`](../03-data/spaces.catalog.json) and [ADR-0013](../08-decisions/0013-space-catalog-extension-fields.md).
+- Context: The 19-space catalog is a superset of the 6 currently-seeded halls/boxes. Rows 7–19 — the transitional spaces (corridors, atria, the entrance, the terrace) and the additional halls/boxes — carry **estimated** attributes so the FloorMap ([F19](../06-features/F19-floor-map/SPEC.md)), bundle templates, and the planner have a complete venue to reason over. The catalog-extension fields (`slug`, `category`, `zone`, `isCirculation`, `adjacent[]`, `map`, `ceilingCm`) are structural and stable; the *numbers* (how many people fit the south corridor, the terrace day-rate, real turnaround on the atrium) want measurement against the real building. Quotes and conflict windows for rows 7–19 are only as good as these estimates until the venue confirms them.
+
+### Q-11 — FloorMap v2: real-plan polygon fidelity
+- Asked: 2026-06-20
+- Blocks: none — F19 ships the v1 radial map
+- Status: open
+- Default if not answered: **v1 radial map** — Elis builds a schematic radial/ring rendering driven by each space's `map {floor, ring, sectorFrom?, sectorTo?}` field, behind the `<FloorMap floor spaces={[{slug,status}]} />` prop contract ([ADR-0014](../08-decisions/0014-floor-map-ownership-and-fidelity-tiers.md)). No surveyed geometry.
+- Context: The v1 map is a correct, legible *schematic* — concentric floors, radial sectors, circulation/center spaces drawn without a sector wedge — enough to render `/plan` output (free / main / bundle / conflict / circulation) and to land the "see the plan on the building" moment. **v2** traces the real architectural plan into true SVG polygon hotspots per space, so the map matches the actual Pyramid footprint rather than an idealized ring. That needs the venue's floor plans (or a survey) and is post-demo polish; the prop contract is identical, so v2 is a renderer swap behind the same interface. Deferred until the real plans are in hand.
