@@ -2,7 +2,7 @@
 
 > **This is a generated dashboard.** Do not hand-edit. Regenerate via `node .planning/tasks.mjs regen` (the protocol in `CLAUDE.md` § "Status regeneration").
 
-**Last regenerated:** 2026-06-20 — Build in progress. 97/111 ops-core tasks done.
+**Last regenerated:** 2026-06-20 — Build in progress. 100/111 ops-core tasks done.
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Status | Count |
 |--------|-------|
-| done | 97 |
+| done | 100 |
 | in_progress | 0 |
 | blocked | 0 |
-| not_started | 24 |
+| not_started | 21 |
 | **Total** | **121** |
 
-> ops-core: **97/111 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
+> ops-core: **100/111 done**. `A00` (Alvin's ai-orchestrator lane) is excluded from the eligible set.
 
 ---
 
@@ -32,12 +32,11 @@ _(none)_
 
 ## Eligible-next tasks
 
-1. **F15-T04** — FE partner portal: /portal/* shell + submit flow + my-requests timeline _(deps: F15-T02)_
-2. **F15-T05** — FE admin Pending Approvals queue (approve/reject via F10) + AI slot _(deps: F15-T02)_
-3. **F18-T01** — frontend/src/api/ai.ts: VITE_AI_URL client for POST /chat + POST /plan with degrade _(deps: F13-T02, F17-T01)_
+1. **F18-T01** — frontend/src/api/ai.ts: VITE_AI_URL client for POST /chat + POST /plan with degrade _(deps: F13-T02, F17-T01)_
+2. **F18-T02** — frontend/src/api/types/ai.ts: hand-mirror the AI DTOs _(deps: F13-T02)_
+3. **F19-T01** — FloorMap.tsx v1: radial map per floor from the catalog `map` field _(deps: F14-T05)_
 
 
-…and 2 more eligible.
 
 ---
 
@@ -60,10 +59,10 @@ _(none)_
 | F12 seed | Integration | 4 | 0 | 4 |
 | F13 contract | Integration | 5 | 0 | 5 |
 | F14 space-catalog | Foundation | 5 | 0 | 5 |
-| F15 partner-portal | Core | 3 | 3 | 6 |
+| F15 partner-portal | Core | 6 | 0 | 6 |
 | F16 asset-tracking | Core | 7 | 0 | 7 |
 | F17 ai-auth | Integration | 6 | 0 | 6 |
 | F18 ai-wiring | Integration | 0 | 6 | 6 |
 | F19 floor-map | Integration | 0 | 5 | 5 |
-| **ops-core subtotal** | | **97** | **14** | **111** |
+| **ops-core subtotal** | | **100** | **11** | **111** |
 | A00 ai-orchestrator | AI | 0 | 10 | 10 |

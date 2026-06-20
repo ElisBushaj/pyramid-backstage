@@ -467,5 +467,36 @@
     "cameraHint": "Drejto kamerën nga QR-ja e asetit",
     "history": "Historiku i lëvizjeve",
     "emptyHistory": "Ende asnjë lëvizje"
+  },
+  "portal": {
+    "title": "Portali i Partnerëve",
+    "subtitle": "Dërgo dhe ndjek kërkesat e tua për evente",
+    "myRequests": "Kërkesat e mia",
+    "myRequestsSub": "Ndjek çdo kërkesë nga dërgimi deri te planifikimi.",
+    "newRequest": "Kërkesë e re",
+    "newRequestSub": "Na trego për eventin tënd — kontrollojmë mundësinë dhe përgatisim një propozim.",
+    "logout": "Dil",
+    "emptyTitle": "Ende asnjë kërkesë",
+    "emptyBody": "Dërgo kërkesën tënde të parë për të filluar.",
+    "rejected": "Nuk u miratua",
+    "submit": "Dërgo kërkesën",
+    "layoutAny": "Çdo skemë",
+    "fTitle": "Titulli i eventit",
+    "fOrganizer": "Organizatori",
+    "fEmail": "Email kontakti",
+    "fAttendees": "Pjesëmarrës të pritur",
+    "fEventType": "Lloji i eventit",
+    "fLayout": "Skema e preferuar",
+    "fStart": "Fillimi",
+    "fEnd": "Mbarimi",
+    "fAv": "Nevojitet AV / zëri",
+    "fAvSub": "Mikrofona, ekrane, projektorë"
+  },
+  "approvals": {
+    "title": "Miratime në pritje",
+    "subtitle": "Shqyrto kërkesat e propozuara dhe mirato ose refuzo.",
+    "emptyTitle": "Asgjë në pritje",
+    "emptyBody": "Nuk ka kërkesa në pritje për miratim.",
+    "aiSlot": "Rekomandimi i AI do të shfaqet këtu sapo kopiloti të lidhet."
   }
 }

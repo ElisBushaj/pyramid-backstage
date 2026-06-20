@@ -40,7 +40,7 @@ last_updated: 2026-06-20
   - `tsc` clean; `seed.ts` runs clean on a fresh `pyramid_dev`/`pyramid_test` DB; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F15-T04 — FE partner portal: /portal/* shell + submit flow + my-requests timeline
-- Status: not_started
+- Status: done
 - Depends on: F15-T02
 - Estimate: 1d
 - Acceptance:
@@ -51,7 +51,7 @@ last_updated: 2026-06-20
   - `tsc` clean; `npm run build` green; component/route test asserts the `RequireRole('PARTNER')` redirect both directions.
 
 ### F15-T05 — FE admin Pending Approvals queue (approve/reject via F10) + AI slot
-- Status: not_started
+- Status: done
 - Depends on: F15-T02
 - Estimate: 0.75d
 - Acceptance:
@@ -62,7 +62,7 @@ last_updated: 2026-06-20
   - All copy is i18n; `tsc` clean; `npm run build` green.
 
 ### F15-T06 — i18n EN/AL keys + tests (row-scoping matrix + queue actions)
-- Status: not_started
+- Status: done
 - Depends on: F15-T04, F15-T05
 - Estimate: 0.5d
 - Acceptance:

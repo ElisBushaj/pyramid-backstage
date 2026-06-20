@@ -467,5 +467,36 @@
     "cameraHint": "Point the camera at an asset QR",
     "history": "Movement history",
     "emptyHistory": "No movements yet"
+  },
+  "portal": {
+    "title": "Partner Portal",
+    "subtitle": "Submit and track your event requests",
+    "myRequests": "My requests",
+    "myRequestsSub": "Track each request from submission to scheduling.",
+    "newRequest": "New request",
+    "newRequestSub": "Tell us about your event — we'll check feasibility and prepare a proposal.",
+    "logout": "Sign out",
+    "emptyTitle": "No requests yet",
+    "emptyBody": "Submit your first event request to get started.",
+    "rejected": "Not approved",
+    "submit": "Submit request",
+    "layoutAny": "Any layout",
+    "fTitle": "Event title",
+    "fOrganizer": "Organizer",
+    "fEmail": "Contact email",
+    "fAttendees": "Expected attendees",
+    "fEventType": "Event type",
+    "fLayout": "Preferred layout",
+    "fStart": "Start",
+    "fEnd": "End",
+    "fAv": "AV / sound needed",
+    "fAvSub": "Microphones, screens, projectors"
+  },
+  "approvals": {
+    "title": "Pending approvals",
+    "subtitle": "Review proposed requests and approve or decline.",
+    "emptyTitle": "Nothing pending",
+    "emptyBody": "There are no requests awaiting approval.",
+    "aiSlot": "AI recommendation will appear here once the copilot is connected."
   }
 }
