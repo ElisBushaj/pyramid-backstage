@@ -51,6 +51,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     app.state.ops = OpsCoreClient()  # points at settings.OPS_CORE_URL (mock or real)
     app.state.graph = build_planning_graph()
+    # Warm the Anthropic connection so the first user request isn't a cold start.
+    if settings.ANTHROPIC_API_KEY:
+        try:
+            from .intake import _anthropic
+
+            await _anthropic().messages.create(
+                model=settings.FAST_MODEL, max_tokens=1, messages=[{"role": "user", "content": "hi"}]
+            )
+        except Exception:
+            pass
     try:
         yield
     finally:

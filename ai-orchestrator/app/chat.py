@@ -14,8 +14,10 @@ phrasing of clarifying questions.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
 from .config import settings
+from .intake import _anthropic
 from .planning import build_operational_plan
 from .schemas import ChatResponse, OperationalPlan, ProposedAction
 from .session import get_sessions
@@ -23,6 +25,7 @@ from .session import get_sessions
 _NUM = re.compile(r"\d{2,5}")
 _DATE = re.compile(
     r"(next\s+(week|month)|this\s+(week|month|weekend)|tomorrow|weekend|"
+    r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|"
     r"\d{4}-\d{2}-\d{2}|"
     r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)",
     re.I,
@@ -66,14 +69,13 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
     if not settings.ANTHROPIC_API_KEY:
         return template
     try:
-        from anthropic import AsyncAnthropic
-
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        resp = await client.messages.create(
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        resp = await _anthropic().messages.create(
             model=settings.FAST_MODEL,
             max_tokens=120,
             system=(
-                "You are a warm, concise venue-booking copilot for the Pyramid of Tirana. "
+                f"You are a warm, concise venue-booking copilot for the Pyramid of Tirana. "
+                f"Today is {today} (UTC); resolve relative dates against it and never invent a date. "
                 "Ask ONE short question to collect the missing details. Never invent facts."
             ),
             messages=[

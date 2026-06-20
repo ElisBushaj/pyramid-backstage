@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 
 from pydantic import ValidationError
 
@@ -85,10 +86,16 @@ def _system_prompt() -> str:
     )
 
 
-async def _llm_attempt(text: str, repair_hint: str | None = None) -> EventRequestInput:
-    from anthropic import AsyncAnthropic  # lazy import: only needed when a key is set
+@lru_cache(maxsize=1)
+def _anthropic():
+    """One reused AsyncAnthropic client — keep-alive connection avoids per-call cold starts."""
+    from anthropic import AsyncAnthropic
 
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    return AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+
+async def _llm_attempt(text: str, repair_hint: str | None = None) -> EventRequestInput:
+    client = _anthropic()
     user = text if not repair_hint else (
         f"{text}\n\n(Your previous output was invalid: {repair_hint}. Return corrected JSON only.)"
     )
