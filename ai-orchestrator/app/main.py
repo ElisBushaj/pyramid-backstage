@@ -133,37 +133,40 @@ class PlanRequest(EventRequestInput):
 
 @app.post("/plan", response_model=OperationalPlan, tags=["ai"])
 async def plan(req: PlanRequest) -> OperationalPlan:
-    """Deterministic "generate the plan" for a known request.
+    """Deterministic "generate the plan" via the compiled planning DAG.
 
-    SCAFFOLD: returns a canned, well-formed ``OperationalPlan`` with
-    ``feasible=True`` and a narrative. The real implementation (Alvin) invokes
-    the compiled planning DAG (``app.state.graph``) — parse → match → check →
-    reserve → quote → tasks → detect conflicts → assemble — and returns the
-    assembled plan. Narrative numbers are injected from ops-core responses, never
-    free-generated (non-negotiable #2).
-
-    TODO (A00): replace the canned body with::
-
-        state = PlanState(ops=app.state.ops, request_id=..., intake=...)
-        result = await app.state.graph.ainvoke(state)
-        return OperationalPlan(...from result...)
+    Either references an existing request (``requestId``) or accepts a full
+    ``EventRequestInput`` (this model extends it). The fixed DAG threads ops-core
+    responses through to assembly — parse → match → check → reserve → quote →
+    tasks → detect conflicts → assemble — and every narrative number is injected
+    from those responses, never free-generated (non-negotiable #2).
     """
-    request_id = req.requestId or "req_unknown"
+    state: dict = {"ops": app.state.ops}
+    if req.requestId:
+        state["request_id"] = req.requestId
+    else:
+        state["intake"] = EventRequestInput(
+            title=req.title or "Untitled event",
+            organizerName=req.organizerName or "Unknown",
+            contactEmail=req.contactEmail,
+            contactPhone=req.contactPhone,
+            expectedAttendees=req.expectedAttendees or 1,
+            eventType=req.eventType or "OTHER",
+            preferredDates=req.preferredDates or [],
+            requirements=req.requirements,
+        )
+
+    result = await app.state.graph.ainvoke(state)
     return OperationalPlan(
-        requestId=request_id,
-        feasible=True,
-        space=None,
-        reservation=None,
-        quote=None,
-        tasks=[],
-        conflicts=[],
-        alternatives=[],
-        narrative=(
-            "Scaffold plan: the deterministic planning graph is not wired yet. "
-            "When it is, this narrative will summarize the matched hall, reserved "
-            "window, quote total (incl. VAT), and queued setup tasks — with every "
-            "number injected from ops-core, never invented."
-        ),
+        requestId=result.get("request_id") or (req.requestId or "req_unknown"),
+        feasible=bool(result.get("feasible")),
+        space=result.get("space"),
+        reservation=result.get("reservation"),
+        quote=result.get("quote"),
+        tasks=result.get("tasks") or [],
+        conflicts=result.get("conflicts") or [],
+        alternatives=result.get("alternatives") or [],
+        narrative=result.get("narrative") or "",
     )
 
 
