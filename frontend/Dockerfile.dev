@@ -18,5 +18,11 @@ COPY . .
 
 EXPOSE 5173
 
+# Install at *startup*, not just build time: compose mounts a persistent
+# `frontend_node_modules` volume over /app/node_modules that shadows the image's
+# build-time install and survives rebuilds. Without this, adding a dependency
+# (e.g. qrcode) to package.json leaves the container's node_modules stale and
+# Vite fails to resolve the import. The bind-mounted package.json + lockfile are
+# current, so a frozen install reconciles the volume without mutating either.
 # --host so the dev server is reachable from outside the container.
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+CMD ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0"]
