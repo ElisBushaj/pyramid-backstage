@@ -360,6 +360,7 @@ export default function Intake() {
               proposedAction={copilot.proposedAction}
               headsUp={copilot.headsUp}
               onDismiss={copilot.dismiss}
+              onReplan={copilot.replan}
               onIgnore={copilot.ignore}
               onRetry={copilot.retry}
               stateLabel={copilot.degraded ? t('intake.chatOffline') : undefined}

@@ -27,6 +27,7 @@ The DAG (linear spine + one conditional branch):
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -131,6 +132,21 @@ async def parse_intake(state: PlanState) -> dict[str, Any]:
     }
 
 
+_SEATED_LAYOUTS = frozenset(
+    {"THEATER", "CLASSROOM", "BANQUET", "RECEPTION", "CABARET", "BOARDROOM"}
+)
+
+
+def _fit_capacity(space: Space, layout: str | None) -> int:
+    """Capacity for the requested layout — or the space's BEST capacity when the layout
+    is CUSTOM/flexible (or one the space isn't sized for). A flexible event can use the
+    room's best setup, so it must never read as "no space fits"."""
+    caps = space.capacities or {}
+    if layout and layout in caps:
+        return caps[layout]
+    return max(caps.values()) if caps else 0
+
+
 async def match_space(state: PlanState) -> dict[str, Any]:
     """Choose the best-fit BOOKABLE space for the window, ranked by capacity-for-setup.
 
@@ -147,13 +163,16 @@ async def match_space(state: PlanState) -> dict[str, Any]:
 
     attendees = state.get("attendees") or 0
     layout = state.get("layout")
-    spaces = await state["ops"].match_spaces(layout=layout, start=win.start, end=win.end)
+    # CUSTOM/flexible (or any layout no space is sized for) must NOT filter ops-core by
+    # layout — that returns zero spaces and the plan reads "no matching space" even though
+    # the venue can host the event. Query unfiltered and rank by best-fit capacity instead.
+    query_layout = layout if layout in _SEATED_LAYOUTS else None
+    spaces = await state["ops"].match_spaces(layout=query_layout, start=win.start, end=win.end)
 
     def cap(s: Space) -> int:
-        caps = s.capacities or {}
-        return caps.get(layout, 0) if layout else (max(caps.values()) if caps else 0)
+        return _fit_capacity(s, layout)
 
-    candidates = [s for s in spaces if cap(s) > 0]  # has capacity for this layout = bookable here
+    candidates = [s for s in spaces if cap(s) > 0]  # has bookable capacity for this event
     available = [s for s in candidates if s.available is not False]
     fits = [s for s in available if cap(s) >= attendees]
     if fits:
@@ -303,16 +322,41 @@ async def alternatives(state: PlanState) -> dict[str, Any]:
         )
 
     win = state.get("chosen_window")
-    booked_id = state["space"].id if state.get("space") else None
+    space = state.get("space")
+    booked_id = space.id if space else None
     layout = state.get("layout")
     if win is not None:
+        # No unused preferred date? Probe the next few days for the SAME hall being free,
+        # so a single-date clash still yields a concrete alternate DATE the Re-plan button
+        # can act on — not just other halls inside the same busy window.
+        has_window_alt = any(a.get("type") == "ALTERNATE_WINDOW" for a in alts)
+        if space is not None and not has_window_alt:
+            try:
+                s0 = datetime.fromisoformat(win.start.replace("Z", "+00:00"))
+                dur = datetime.fromisoformat(win.end.replace("Z", "+00:00")) - s0
+                for days in (1, 2, 3, 7):
+                    ns = s0 + timedelta(days=days)
+                    iso_s = ns.isoformat().replace("+00:00", "Z")
+                    iso_e = (ns + dur).isoformat().replace("+00:00", "Z")
+                    avail = await ops.check_space_availability(space.id, start=iso_s, end=iso_e)
+                    if avail.available:
+                        alts.insert(0, {
+                            "type": "ALTERNATE_WINDOW",
+                            "dateRange": {"start": iso_s, "end": iso_e},
+                            "detail": f"{space.name} is free on {ns.date().isoformat()} "
+                                      "— want me to move it there?",
+                        })
+                        break
+            except Exception:
+                pass
+
         # Offer the largest OTHER bookable halls free in this window (no hard capacity
         # gate — the modest halls combine, so a free hall is a valid starting point).
-        spaces = await ops.match_spaces(layout=layout, start=win.start, end=win.end)
+        query_layout = layout if layout in _SEATED_LAYOUTS else None
+        spaces = await ops.match_spaces(layout=query_layout, start=win.start, end=win.end)
 
         def cap(s: Space) -> int:
-            caps = s.capacities or {}
-            return caps.get(layout, 0) if layout else (max(caps.values()) if caps else 0)
+            return _fit_capacity(s, layout)
 
         free = sorted(
             (s for s in spaces if s.id != booked_id and s.available is True and cap(s) > 0),
@@ -428,7 +472,7 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
     win = state.get("chosen_window")
     attendees = state.get("attendees")
     raw_layout = state.get("layout")
-    layout = raw_layout or "flexible layout"
+    layout = "flexible layout" if raw_layout in (None, "CUSTOM") else raw_layout
     event_type = state.get("event_type") or "OTHER"
     overflow = state.get("overflow_needed", 0) or 0
 
@@ -495,13 +539,24 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
     else:
         if primary_slug:
             map_state.append({"slug": primary_slug, "status": "conflict"})
-        reason = (
-            conflicts[0].detail
-            if conflicts
-            else "No matching space or inventory for the requested window."
+        date = win.start[:10] if win else "the requested date"
+        who = f"{attendees} guests" if isinstance(attendees, int) else "that group"
+        # Always give a CONCRETE reason: the actual booking clash, or why nothing matched.
+        if conflicts:
+            # Drop the internal request UUID from the clash detail ("…reserved for <uuid>…").
+            reason = re.sub(
+                r"\s+for\s+[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                "", conflicts[0].detail,
+            )
+        elif space is None:
+            reason = f"no bookable space is free for {who} on {date} in that window"
+        else:
+            reason = f"{space.name} couldn't be held for {who} on {date}"
+        alt_txt = (
+            (" " + alts[0]["detail"]) if alts
+            else " I can try another date or split it across halls — want me to re-plan?"
         )
-        alt_txt = (" " + alts[0]["detail"]) if alts else ""
-        narrative = f"Not feasible as requested: {reason}{alt_txt}"
+        narrative = f"Not feasible as requested: {reason.rstrip('. ')}.{alt_txt}"
 
     return {
         "feasible": feasible,
