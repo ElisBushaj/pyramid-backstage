@@ -233,6 +233,45 @@ def test_condense_feeds_a_resolved_brief_to_the_planner(patched_plan, monkeypatc
     assert ops.released == ["resv-1"]  # prior hold still released before the re-plan
 
 
+def _force_intent(monkeypatch, intent: str) -> None:
+    async def _fake(message, *, has_plan, awaiting=""):
+        return intent
+
+    monkeypatch.setattr(chat, "_classify_intent", _fake)
+
+
+def test_heuristic_intent_mapping() -> None:
+    h = chat._heuristic_intent
+    assert h("yes", has_plan=True) == "AFFIRM"
+    assert h("what's the biggest hall?", has_plan=False) == "VENUE_QUESTION"
+    assert h("conference for 180 on 2026-09-15", has_plan=False) == "BOOKING"
+    assert h("make it 250", has_plan=True) == "MODIFY"
+    assert h("what's the total?", has_plan=True) == "OTHER"          # plan-relative, not a re-plan
+    assert h("a gala for 90 on 2026-12-03", has_plan=True) == "BOOKING"  # full brief -> new event
+
+
+def test_classifier_routes_venue_question_even_after_a_plan(patched_plan, monkeypatch) -> None:
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+    kb = FakeKB(hits=[{"document": "Floor 3 has outdoor roof terraces.", "metadata": {}}])
+    _force_intent(monkeypatch, "BOOKING")
+    _send(store, ops, graph, "conference for 180 on 2026-09-15", kb=kb)
+    assert graph.calls == 1  # plan established
+    # A venue question WITH a plan standing now routes to RAG (the classifier separates it
+    # from plan-relative chatter) — old keyword gate would have re-served the plan instead.
+    _force_intent(monkeypatch, "VENUE_QUESTION")
+    r = _send(store, ops, graph, "do you have outdoor space?", kb=kb)
+    assert graph.calls == 1 and "outdoor roof terraces" in r.reply  # answered, no re-plan
+    assert asyncio.run(store.get("sess-A"))["plan"] is not None     # plan preserved for "yes"
+
+
+def test_classifier_other_without_a_plan_nudges_without_polluting_brief(monkeypatch) -> None:
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+    _force_intent(monkeypatch, "OTHER")
+    r = _send(store, ops, graph, "hey there!", kb=None)
+    assert graph.calls == 0 and r.plan is None
+    assert asyncio.run(store.get("sess-A"))["messages"] == []  # greeting didn't enter the brief
+
+
 def test_memory_store_roundtrips_without_redis() -> None:
     # No Redis configured -> in-memory backend, full record shape on a cold read.
     store = SessionStore()

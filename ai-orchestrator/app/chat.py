@@ -274,16 +274,91 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
         return template
 
 
+# ── Intent routing ────────────────────────────────────────────────────────────
+# An LLM labels each message into one intent; the keyword heuristic is the no-key /
+# failure fallback. Routing on meaning (not keywords) is what lets "what setup for a
+# banquet?" read as a question while "make it a banquet" reads as an edit.
+_INTENTS = ("BOOKING", "MODIFY", "VENUE_QUESTION", "AFFIRM", "OTHER")
+
+
+def _heuristic_intent(message: str, *, has_plan: bool) -> str:
+    """Keyword routing — the fallback when the LLM classifier is unavailable.
+
+    Mirrors the pre-classifier behaviour: venue questions only when no plan stands;
+    once a plan exists a change is a MODIFY and anything else is plan-relative OTHER."""
+    if has_plan and _is_affirmation(message):
+        return "AFFIRM"
+    if not has_plan and _is_venue_question(message) and not _has_change(message):
+        return "VENUE_QUESTION"
+    full_brief = _has_num(message) and _has_date(message)
+    if has_plan:
+        if _has_change(message) and not full_brief:
+            return "MODIFY"
+        return "BOOKING" if full_brief else "OTHER"
+    return "BOOKING"
+
+
+async def _classify_intent(message: str, *, has_plan: bool, awaiting: str = "") -> str:
+    """Route a message to ONE intent via a cheap LLM call; heuristic on no key / failure.
+
+    Context (does a plan stand, what the bot last asked) lets it read terse replies — "yes"
+    as AFFIRM, "about 200" mid-gather as BOOKING. Output is constrained to the label set;
+    anything off falls back to the heuristic, so a bad classification never derails routing."""
+    if not settings.ANTHROPIC_API_KEY:
+        return _heuristic_intent(message, has_plan=has_plan)
+    try:
+        plan_ctx = (
+            "A plan already exists for this conversation."
+            if has_plan else "No plan exists yet."
+        )
+        asked = f' The assistant just asked: "{awaiting[:160]}".' if awaiting else ""
+        resp = await _anthropic().messages.create(
+            model=settings.FAST_MODEL,
+            max_tokens=8,
+            system=(
+                "Classify the user's latest message in a venue-booking chat into ONE intent. "
+                "Reply with EXACTLY one word and nothing else:\n"
+                "BOOKING — gives details for a NEW event to plan (type, headcount, date, layout, "
+                "requirements) or asks to start one.\n"
+                "MODIFY — changes the event already being planned (different headcount/date/"
+                "layout, add or remove catering or AV).\n"
+                "VENUE_QUESTION — asks about the VENUE itself (halls, capacity, floors, outdoor "
+                "space, setup options, what exists) — not about the current quote or plan.\n"
+                "AFFIRM — agrees, approves, or confirms (yes, go ahead, sounds good, approve).\n"
+                "OTHER — greetings, thanks, or a question about the CURRENT plan (its price, date, "
+                "or location).\n"
+                f"Context: {plan_ctx}{asked}"
+            ),
+            messages=[{"role": "user", "content": message}],
+        )
+        raw = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").upper()
+        token = next((w for w in re.split(r"[^A-Z_]+", raw) if w in _INTENTS), "")
+        return token or _heuristic_intent(message, has_plan=has_plan)
+    except Exception:
+        return _heuristic_intent(message, has_plan=has_plan)
+
+
+def _last_assistant(sess: dict) -> str:
+    """The previous assistant turn (classifier context), excluding the just-added user msg."""
+    for turn in reversed(sess.get("history", [])[:-1]):
+        if turn.get("role") == "assistant":
+            return turn.get("content", "")
+    return ""
+
+
 async def handle_chat(
     session_id: str, message: str, *, ops, graph, sessions: SessionStore,
     kb: KnowledgeBase | None = None,
 ) -> ChatResponse:
     sess = await sessions.get(session_id)
     sess.setdefault("history", []).append({"role": "user", "content": message})
+    has_plan = bool(sess.get("plan"))
 
-    # 1. "yes/approve" on a standing feasible plan -> surface the gated action; never
-    #    auto-commit, and never re-plan (that would spawn a duplicate hold).
-    if sess.get("plan") and _is_affirmation(message):
+    intent = await _classify_intent(message, has_plan=has_plan, awaiting=_last_assistant(sess))
+
+    # AFFIRM on a standing feasible plan -> surface the gated action; never auto-commit
+    # and never re-plan (that would spawn a duplicate hold).
+    if intent == "AFFIRM" and has_plan:
         plan = OperationalPlan.model_validate(sess["plan"])
         if plan.feasible:
             return await _finish(
@@ -299,10 +374,10 @@ async def handle_chat(
                 ),
             )
 
-    # 1b. A venue QUESTION carrying no booking signal, before any plan stands -> answer
-    #     it from the knowledge base (RAG). Leaves the brief untouched, so a question
-    #     asked mid-gather doesn't derail the intake. Falls through if RAG is off/empty.
-    if not sess.get("plan") and _is_venue_question(message) and not _has_change(message):
+    # VENUE_QUESTION -> grounded RAG answer (works even once a plan stands, since the
+    # classifier separates venue questions from plan-relative ones). Brief untouched, so
+    # a question mid-gather doesn't derail intake. Falls through if the KB is off/empty.
+    if intent == "VENUE_QUESTION":
         answer = await _answer_venue_question(message, kb=kb)
         if answer is not None:
             return await _finish(
@@ -310,19 +385,31 @@ async def handle_chat(
                 ChatResponse(reply=answer, plan=None, proposedActions=[], requiresApproval=False),
             )
 
-    # 2. A self-contained NEW event (count AND date in one message, once a plan already
-    #    stands) starts a fresh brief — don't bleed event A into event B. An exact
-    #    re-send of the standing event is NOT new (step 4 re-serves its plan). Before a
-    #    plan exists we only accumulate, so a multi-turn gather never resets mid-way.
-    is_new_event = bool(sess.get("plan")) and _has_num(message) and _has_date(message)
-    if is_new_event and sess.get("brief_planned") != message:
-        await _release_current(ops, sess)  # abandon the prior event's hold
+    # OTHER -> re-serve the standing plan (a plan-relative question / thanks), or nudge
+    # for details when there's nothing to plan yet. Brief untouched either way.
+    if intent == "OTHER":
+        if has_plan:
+            return await _finish(
+                sessions, session_id, sess,
+                _plan_response(OperationalPlan.model_validate(sess["plan"])),
+            )
+        return await _finish(
+            sessions, session_id, sess,
+            ChatResponse(
+                reply="Happy to help you book a space — how many people, and roughly when?",
+                plan=None, proposedActions=[], requiresApproval=False,
+            ),
+        )
+
+    # BOOKING / MODIFY (and any AFFIRM/VENUE that fell through) -> the brief state machine.
+    # A BOOKING while a plan stands is a NEW event: drop the old hold and start a fresh
+    # brief so event A never bleeds into event B. MODIFY keeps the brief and re-plans.
+    if intent == "BOOKING" and has_plan:
+        await _release_current(ops, sess)
         sess["messages"] = [message]
         sess["plan"] = None
         sess["brief_planned"] = None
         sess["request_id"] = None
-    elif is_new_event:
-        sess["messages"] = [message]
     else:
         sess.setdefault("messages", []).append(message)
     brief = "  ".join(sess["messages"])
@@ -337,24 +424,18 @@ async def handle_chat(
             sessions, session_id, sess,
             ChatResponse(
                 reply=await _phrase_question(brief, missing),
-                plan=None,
-                proposedActions=[],
-                requiresApproval=False,
+                plan=None, proposedActions=[], requiresApproval=False,
             ),
         )
 
-    # 3. Brief is complete. Re-serve the STANDING plan for conversational follow-ups
-    #    (no count/date/layout/AV/catering signal) or an identical brief — no graph run,
-    #    no new request, no duplicate hold. Only a real change falls through to re-plan.
-    if sess.get("plan") and (not _has_change(message) or sess.get("brief_planned") == brief):
+    # Complete brief. An identical re-send re-serves the cached plan (no churn); otherwise
+    # release the prior hold (leases never stack), condense the fragments into a standalone
+    # brief (latest value wins), and run the deterministic DAG exactly once.
+    if sess.get("plan") and sess.get("brief_planned") == brief:
         return await _finish(
-            sessions, session_id, sess, _plan_response(OperationalPlan.model_validate(sess["plan"]))
+            sessions, session_id, sess,
+            _plan_response(OperationalPlan.model_validate(sess["plan"])),
         )
-
-    # 4. First plan, or a genuine change -> release the prior hold (so leases never
-    #    stack), then run the deterministic DAG exactly once. Condense the accumulated
-    #    fragments into a standalone brief first so a later override (e.g. "make it 250")
-    #    wins over the earlier value instead of being lost in the concatenation.
     await _release_current(ops, sess)
     planned_brief = await _condense_brief(sess["messages"])
     result = await graph.ainvoke({"ops": ops, "nl_text": planned_brief})
