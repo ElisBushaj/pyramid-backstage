@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useCreateRequest } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
+import { fieldErrorsFrom } from '@/lib/apiError'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
@@ -27,15 +28,25 @@ export default function PortalNewRequest() {
   const [end, setEnd] = useState('')
   const [layout, setLayout] = useState('')
   const [avNeeded, setAvNeeded] = useState(false)
+  // Per-field server (422) errors, keyed by the API field path; merged with the
+  // client-side range check below so a field highlights regardless of source.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [err, setErr] = useState<string | null>(null)
 
-  const valid = title.trim() && organizerName.trim() && Number(attendees) >= 1 && start && end
+  // End must be strictly after start; surface inline (and block submit) before the round-trip.
+  const rangeInvalid = !!start && !!end && new Date(start).getTime() >= new Date(end).getTime()
+  const valid = !!title.trim() && !!organizerName.trim() && Number(attendees) >= 1 && !!start && !!end && !rangeInvalid
+
+  // The end-date field shows the local range error first, then any server-side date error.
+  const endError = rangeInvalid ? t('portal.endAfterStart') : fieldErrors.preferredDates
 
   function submit() {
     if (!valid) {
       setErr(t('intake.required'))
       return
     }
+    setErr(null)
+    setFieldErrors({})
     const input: EventRequestInput = {
       title: title.trim(),
       organizerName: organizerName.trim(),
@@ -45,7 +56,15 @@ export default function PortalNewRequest() {
       preferredDates: [{ start: new Date(start).toISOString(), end: new Date(end).toISOString() }],
       requirements: layout || avNeeded ? { layout: (layout || undefined) as Layout | undefined, avNeeded } : undefined,
     }
-    create.mutate(input, { onSuccess: () => navigate('/portal'), onError: () => setErr(t('error.generic')) })
+    create.mutate(input, {
+      onSuccess: () => navigate('/portal'),
+      onError: (e) => {
+        const fields = fieldErrorsFrom(e, t)
+        setFieldErrors(fields)
+        // Keep a generic fallback banner when the 422 carried no field map (or it was a non-422).
+        setErr(Object.keys(fields).length === 0 ? t('error.generic') : null)
+      },
+    })
   }
 
   return (
@@ -57,14 +76,14 @@ export default function PortalNewRequest() {
 
       <div className="rounded-lg border border-border-subtle p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label={t('portal.fTitle')} htmlFor="title"><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('intake.titlePlaceholder')} /></FormField>
-          <FormField label={t('portal.fOrganizer')} htmlFor="org"><Input id="org" value={organizerName} onChange={(e) => setOrganizerName(e.target.value)} placeholder={t('intake.organizerPlaceholder')} /></FormField>
-          <FormField label={t('portal.fEmail')} htmlFor="email"><Input id="email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder={t('intake.emailPlaceholder')} /></FormField>
-          <FormField label={t('portal.fAttendees')} htmlFor="pax"><Input id="pax" type="number" min={1} value={attendees} onChange={(e) => setAttendees(e.target.value)} placeholder={t('intake.attendeesPlaceholder')} /></FormField>
-          <FormField label={t('portal.fEventType')}><Select value={eventType} onValueChange={setEventType} options={EVENT_TYPES.map((v) => ({ value: v, label: t(`eventType.${v}`) }))} /></FormField>
+          <FormField label={t('portal.fTitle')} htmlFor="title" error={fieldErrors.title}><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('intake.titlePlaceholder')} /></FormField>
+          <FormField label={t('portal.fOrganizer')} htmlFor="org" error={fieldErrors.organizerName}><Input id="org" value={organizerName} onChange={(e) => setOrganizerName(e.target.value)} placeholder={t('intake.organizerPlaceholder')} /></FormField>
+          <FormField label={t('portal.fEmail')} htmlFor="email" error={fieldErrors.contactEmail}><Input id="email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder={t('intake.emailPlaceholder')} /></FormField>
+          <FormField label={t('portal.fAttendees')} htmlFor="pax" error={fieldErrors.expectedAttendees}><Input id="pax" type="number" min={1} value={attendees} onChange={(e) => setAttendees(e.target.value)} placeholder={t('intake.attendeesPlaceholder')} /></FormField>
+          <FormField label={t('portal.fEventType')} error={fieldErrors.eventType}><Select value={eventType} onValueChange={setEventType} options={EVENT_TYPES.map((v) => ({ value: v, label: t(`eventType.${v}`) }))} /></FormField>
           <FormField label={t('portal.fLayout')}><Select value={layout} onValueChange={setLayout} placeholder={t('portal.layoutAny')} options={LAYOUTS.map((v) => ({ value: v, label: t(`layout.${v}`) }))} /></FormField>
           <FormField label={t('portal.fStart')} htmlFor="start"><Input id="start" type="datetime-local" lang="en-GB" className="[color-scheme:light]" value={start} onChange={(e) => setStart(e.target.value)} /></FormField>
-          <FormField label={t('portal.fEnd')} htmlFor="end"><Input id="end" type="datetime-local" lang="en-GB" className="[color-scheme:light]" value={end} onChange={(e) => setEnd(e.target.value)} /></FormField>
+          <FormField label={t('portal.fEnd')} htmlFor="end" error={endError}><Input id="end" type="datetime-local" lang="en-GB" className="[color-scheme:light]" value={end} onChange={(e) => setEnd(e.target.value)} /></FormField>
         </div>
 
         <div className="mt-4 flex items-center justify-between rounded-md border border-border-subtle px-3.5 py-3">
