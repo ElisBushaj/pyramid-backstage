@@ -3,6 +3,7 @@ import { Plus, MoreVertical, Pencil, UserCheck, UserX, Lock } from 'lucide-react
 import { useMe, useUsers, useCreateUser, useUpdateUser } from '@/api/hooks'
 import { APIError } from '@/api/api-error'
 import { useT } from '@/i18n/useT'
+import { fieldErrorsFrom, useMutationToast } from '@/lib/apiError'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -20,9 +21,11 @@ import {
 } from '@/components/ui/DropdownMenu'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
 import { DataTable, type DataTableColumn } from '@/components/command/DataTable'
+import { Pager } from '@/components/command/Pager'
 import type { Role, User } from '@/api/types/auth'
 
-const ROLES: Role[] = ['ADMIN', 'MANAGER', 'OPS', 'VIEWER']
+const ROLES: Role[] = ['ADMIN', 'MANAGER', 'OPS', 'VIEWER', 'PARTNER']
+const PAGE_SIZE = 20
 
 // Canvas role → tone map (§9.1): MANAGER warning · OPS accent/info · ADMIN success · VIEWER neutral.
 const ROLE_TONE: Record<Role, BadgeTone> = {
@@ -58,15 +61,21 @@ const EMPTY_FORM: FormShape = { name: '', email: '', password: '', role: 'VIEWER
 
 export default function Users() {
   const t = useT()
+  const onMutationError = useMutationToast()
   const me = useMe().data
   const isAdmin = me?.role === 'ADMIN'
 
-  const { data, isLoading, isError, error } = useUsers()
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError, error } = useUsers({ page, pageSize: PAGE_SIZE })
   const create = useCreateUser()
   const update = useUpdateUser()
 
   const [dialog, setDialog] = useState<DialogState>({ mode: 'closed' })
   const [form, setForm] = useState<FormShape>(EMPTY_FORM)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  // Which row's active-toggle is mid-flight — disables that Switch so a double-tap
+  // can't queue a contradictory PATCH while the first is in flight.
+  const [pendingToggle, setPendingToggle] = useState<string | null>(null)
 
   // Forbidden — calm warning-toned lock card. Drive off the live role; a 403 from
   // the users query (race / direct nav) lands here too.
@@ -88,25 +97,37 @@ export default function Users() {
     )
   }
 
-  const users = data ?? []
+  const users = data?.data ?? []
+  // Subtitle counts staff only — PARTNER rows are external accounts, not staff (audit F19).
+  const staffCount = users.filter((u) => u.role !== 'PARTNER').length
   const otherError = isError && !(error instanceof APIError && error.status === 403)
 
   function openCreate() {
     setForm(EMPTY_FORM)
+    setFormErrors({})
     setDialog({ mode: 'create' })
   }
 
   function openEdit(user: User) {
     setForm({ name: user.name, email: user.email, password: '', role: user.role })
+    setFormErrors({})
     setDialog({ mode: 'edit', user })
   }
 
   function closeDialog() {
     setDialog({ mode: 'closed' })
+    setFormErrors({})
   }
 
   function toggleActive(user: User, next: boolean) {
-    update.mutate({ id: user.id, body: { isActive: next } })
+    setPendingToggle(user.id)
+    update.mutate(
+      { id: user.id, body: { isActive: next } },
+      {
+        onError: onMutationError,
+        onSettled: () => setPendingToggle((cur) => (cur === user.id ? null : cur)),
+      },
+    )
   }
 
   const isCreate = dialog.mode === 'create'
@@ -114,16 +135,25 @@ export default function Users() {
   const editValid = form.name.trim() && form.email.trim()
   const submitDisabled = isCreate ? !createValid : !editValid
 
+  // On a 422 we keep the dialog open and surface per-field messages under the
+  // offending FormFields; any other status falls through to the shared toast.
+  function onSubmitError(err: unknown) {
+    const fields = fieldErrorsFrom(err, t)
+    if (Object.keys(fields).length > 0) setFormErrors(fields)
+    else onMutationError(err)
+  }
+
   function submitDialog() {
+    setFormErrors({})
     if (dialog.mode === 'create') {
       create.mutate(
         { name: form.name, email: form.email, password: form.password, role: form.role },
-        { onSuccess: closeDialog },
+        { onSuccess: closeDialog, onError: onSubmitError },
       )
     } else if (dialog.mode === 'edit') {
       update.mutate(
         { id: dialog.user.id, body: { name: form.name, email: form.email, role: form.role } },
-        { onSuccess: closeDialog },
+        { onSuccess: closeDialog, onError: onSubmitError },
       )
     }
   }
@@ -152,7 +182,7 @@ export default function Users() {
       key: 'role',
       header: t('users.role'),
       width: '130px',
-      render: (u) => <Badge tone={ROLE_TONE[u.role]}>{u.role}</Badge>,
+      render: (u) => <Badge tone={ROLE_TONE[u.role]}>{t(`roles.${u.role}`)}</Badge>,
     },
     {
       key: 'active',
@@ -162,6 +192,7 @@ export default function Users() {
         <Switch
           checked={u.isActive}
           onCheckedChange={(next) => toggleActive(u, next)}
+          disabled={pendingToggle === u.id}
           aria-label={t('users.active')}
         />
       ),
@@ -206,7 +237,7 @@ export default function Users() {
       <PageHeader
         breadcrumb={[t('nav.settings'), t('users.title')]}
         title={t('users.title')}
-        subtitle={isLoading ? undefined : t('users.count', { n: users.length })}
+        subtitle={isLoading ? undefined : t('users.count', { n: staffCount })}
         actions={
           isLoading ? undefined : (
             <Button onClick={openCreate}>
@@ -230,18 +261,28 @@ export default function Users() {
         }}
       />
 
+      {data && !isLoading ? (
+        <Pager
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          totalPages={data.totalPages}
+          onPageChange={setPage}
+        />
+      ) : null}
+
       <Dialog open={dialog.mode !== 'closed'} onOpenChange={(open) => !open && closeDialog()}>
         {dialog.mode !== 'closed' ? (
           <DialogContent title={isCreate ? t('users.create') : t('users.editUser')}>
             <div className="flex flex-col gap-3.5">
-              <FormField label={t('users.name')}>
+              <FormField label={t('users.name')} error={formErrors.name}>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   autoFocus
                 />
               </FormField>
-              <FormField label={t('users.email')}>
+              <FormField label={t('users.email')} error={formErrors.email}>
                 <Input
                   type="email"
                   value={form.email}
@@ -249,7 +290,11 @@ export default function Users() {
                 />
               </FormField>
               {isCreate ? (
-                <FormField label={t('auth.password')} hint={t('users.passwordHint')}>
+                <FormField
+                  label={t('auth.password')}
+                  hint={t('users.passwordHint')}
+                  error={formErrors.password}
+                >
                   <Input
                     type="password"
                     value={form.password}
@@ -257,14 +302,14 @@ export default function Users() {
                   />
                 </FormField>
               ) : null}
-              <FormField label={t('users.role')}>
+              <FormField label={t('users.role')} error={formErrors.role}>
                 <Select
                   value={form.role}
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {t(`roles.${r}`)}
                     </option>
                   ))}
                 </Select>
