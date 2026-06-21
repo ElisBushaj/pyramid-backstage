@@ -21,8 +21,12 @@ type View = 'day' | 'week'
 const START_OF_DAY = 'T08:00:00Z'
 const END_OF_DAY = 'T20:00:00Z'
 
-/** Tirana's representative scheduling day for the canvas surface. */
+/** Tirana's representative scheduling day for the canvas surface (initial load only). */
 const DEFAULT_DAY = '2026-07-22'
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
 
 /** Largest layout capacity → the "cap N" mono lane sublabel. */
 function laneCapacity(space: SpaceWithAvailability): number {
@@ -188,7 +192,7 @@ export default function Calendar() {
       <Button
         size="sm"
         variant="secondary"
-        onClick={() => setDay(DEFAULT_DAY)}
+        onClick={() => setDay(todayIso())}
       >
         {t('calendar.today')}
       </Button>

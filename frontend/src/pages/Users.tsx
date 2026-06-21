@@ -209,13 +209,10 @@ export default function Users() {
         subtitle={isLoading ? undefined : t('users.count', { n: users.length })}
         actions={
           isLoading ? undefined : (
-            <>
-              <Badge tone="success">ADMIN</Badge>
-              <Button onClick={openCreate}>
-                <Plus className="size-[13px]" strokeWidth={2.5} />
-                {t('users.create')}
-              </Button>
-            </>
+            <Button onClick={openCreate}>
+              <Plus className="size-[13px]" strokeWidth={2.5} />
+              {t('users.create')}
+            </Button>
           )
         }
       />

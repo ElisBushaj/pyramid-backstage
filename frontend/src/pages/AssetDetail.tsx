@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/Feedback'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AssetQr } from '@/components/command/AssetQr'
-import type { AssetInput } from '@/api/types/assets'
+import type { AssetInput, AssetMovement } from '@/api/types/assets'
 
 export default function AssetDetail() {
   const { id } = useParams()
@@ -106,22 +106,7 @@ export default function AssetDetail() {
             {movements.length === 0 ? (
               <EmptyState title={t('inventory.noMovements')} message={`${available}/${total} ${t('inventory.available').toLowerCase()}`} />
             ) : (
-              <ol className="relative space-y-3 border-l border-border-subtle pl-4">
-                {movements.map((m) => (
-                  <li key={m.id} className="relative">
-                    <span className="absolute -left-[21px] top-1 size-2 rounded-full bg-accent" />
-                    <div className="flex items-center gap-2 text-[13px]">
-                      <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-[600] uppercase text-text-secondary">{t(`scanner.${m.action === 'CHECK_OUT' ? 'checkOut' : m.action === 'CHECK_IN' ? 'checkIn' : 'relocate'}`)}</span>
-                      <span className="font-mono font-[600] tabular-nums text-text-primary">{m.quantity}</span>
-                      <span className="flex items-center gap-1 text-text-secondary">
-                        {m.fromLocation && <>{m.fromLocation} <ArrowRight className="size-3" /></>}
-                        <span className="font-[550] text-text-primary">{m.toLocation}</span>
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-text-tertiary">{fmtAt(m.at)}{m.note ? ` · ${m.note}` : ''}</p>
-                  </li>
-                ))}
-              </ol>
+              <MovementSections movements={movements} fmtAt={fmtAt} t={t} />
             )}
           </div>
         </section>
@@ -153,5 +138,72 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-[14px] text-text-secondary">{label}</span>
       <span className="text-[14px] font-[550] text-text-primary">{value}</span>
     </div>
+  )
+}
+
+function MovementSections({
+  movements,
+  fmtAt,
+  t,
+}: {
+  movements: AssetMovement[]
+  fmtAt: (iso: string) => string
+  t: ReturnType<typeof import('@/i18n/useT').useT>
+}) {
+  const checkouts = movements.filter((m) => m.action === 'CHECK_OUT' || m.action === 'CHECK_IN')
+  const relocations = movements.filter((m) => m.action !== 'CHECK_OUT' && m.action !== 'CHECK_IN')
+
+  return (
+    <div className="flex flex-col gap-5">
+      {checkouts.length > 0 && (
+        <div>
+          <p className="mb-2.5 text-[12px] font-[600] uppercase tracking-[0.04em] text-text-tertiary">
+            {t('inventory.checkoutHistory')}
+          </p>
+          <MovementList movements={checkouts} fmtAt={fmtAt} t={t} />
+        </div>
+      )}
+      {relocations.length > 0 && (
+        <div>
+          <p className="mb-2.5 text-[12px] font-[600] uppercase tracking-[0.04em] text-text-tertiary">
+            {t('inventory.movementLog')}
+          </p>
+          <MovementList movements={relocations} fmtAt={fmtAt} t={t} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MovementList({
+  movements,
+  fmtAt,
+  t,
+}: {
+  movements: AssetMovement[]
+  fmtAt: (iso: string) => string
+  t: ReturnType<typeof import('@/i18n/useT').useT>
+}) {
+  return (
+    <ol className="relative space-y-3 border-l border-border-subtle pl-4">
+      {movements.map((m) => (
+        <li key={m.id} className="relative">
+          <span className="absolute -left-[21px] top-1 size-2 rounded-full bg-accent" />
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-[600] uppercase text-text-secondary">
+              {t(`scanner.${m.action === 'CHECK_OUT' ? 'checkOut' : m.action === 'CHECK_IN' ? 'checkIn' : 'relocate'}`)}
+            </span>
+            <span className="font-mono font-[600] tabular-nums text-text-primary">{m.quantity}</span>
+            <span className="flex items-center gap-1 text-text-secondary">
+              {m.fromLocation && <>{m.fromLocation} <ArrowRight className="size-3" /></>}
+              <span className="font-[550] text-text-primary">{m.toLocation}</span>
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-text-tertiary">
+            {fmtAt(m.at)}{m.note ? ` · ${m.note}` : ''}
+          </p>
+        </li>
+      ))}
+    </ol>
   )
 }

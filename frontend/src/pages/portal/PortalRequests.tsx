@@ -47,7 +47,7 @@ function RequestCard({ r, t, fmtDate }: { r: EventRequest; t: ReturnType<typeof 
   const rejected = r.status === 'REJECTED'
   // COMPLETED is past the last visible stage — clamp so the stepper fills instead of blanking.
   const currentIdx = r.status === 'COMPLETED' ? STAGES.length - 1 : STAGES.indexOf(r.status as (typeof STAGES)[number])
-  const first = r.preferredDates?.[0]
+  const dates = r.preferredDates ?? []
 
   return (
     <li className="rounded-lg border border-border-subtle p-5">
@@ -57,7 +57,12 @@ function RequestCard({ r, t, fmtDate }: { r: EventRequest; t: ReturnType<typeof 
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-text-tertiary">
             <span className="capitalize">{t(`eventType.${r.eventType}`)}</span>
             <span className="flex items-center gap-1"><Users className="size-3" /> {r.expectedAttendees}</span>
-            {first && <span className="flex items-center gap-1"><CalendarDays className="size-3" /> {fmtDate(first.start)}</span>}
+            {dates.length > 0 && (
+              <span className="flex items-center gap-1">
+                <CalendarDays className="size-3" />
+                {dates.map((d) => fmtDate(d.start)).join(', ')}
+              </span>
+            )}
           </p>
         </div>
         <StatusBadge status={r.status} />
