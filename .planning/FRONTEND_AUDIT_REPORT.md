@@ -101,7 +101,7 @@ Requests search and Audit filters fire one request **per keystroke** (verified: 
 - *major* — **Global Copilot button opens a panel you can never send from** (XC-5). The same `CopilotPanel` is fully wired on Intake but inert here.
 - *major* — **Top-bar Search is fake** — navigates to /requests (XC-5).
 - *major* — `useConflicts({})` here is the 2nd 422 source; kills the nav conflicts badge (XC-2).
-- *minor* — **"NATS connected" pill is mislabeled** — `live = meQuery.isError ? 'degraded' : 'connected'` reflects whether `/me` succeeded, **not** NATS. Verify against real bus state or relabel.
+- *minor* — **freshness pill copy/state** — `live = meQuery.isError ? 'degraded' : 'connected'` reflects whether `/me` succeeded. Relabel to "Up to date"/"Stale" and drive it off the polling freshness state (time since the last successful REST poll). (The async event subsystem was removed in ADR-0018, so there is no bus to reflect.)
 - *ok* — nav approvals badge ("2") works; sidebar collapse works; RBAC nav-hiding works (XC-6); user dropdown + logout (`qc.clear()` → /login) work.
 
 ### `/requests` — Requests list
@@ -229,6 +229,6 @@ Requests search and Audit filters fire one request **per keystroke** (verified: 
 - Add **~300ms debounce** to Requests/Audit search (XC-9).
 - Fix the **"Action" → "Status"** label on AssetDetail; fix **"1 spaces"** pluralization.
 - Remove the dead **VALUE** column on `/requests` (or wire the quote total).
-- Relabel the **"NATS connected"** pill (it doesn't reflect NATS).
+- Relabel the freshness pill to **"Up to date"/"Stale"** and drive it off the polling freshness state (NATS removed per ADR-0018).
 - Exclude **PARTNER** rows from the "Staff" count / add PARTNER to the edit role list so editing a partner can't silently demote them.
 - Add `onError` toasts to Users CRUD and Intake create (re-use the existing toast system already used by Approvals/Scanner).

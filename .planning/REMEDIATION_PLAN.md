@@ -24,7 +24,7 @@ I'll proceed on these defaults unless you redirect.
 
 - **Every contract change = a new ADR** (`docs/08-decisions/0015+…`, never edit closed ADRs) → sync `ops-core/openapi.yaml` (additive only) → update `ops-core/src/types/api/*` → hand-mirror `frontend/src/api/types/*` → green the **contract/type-sharing test**. (ADR-0008 / `docs/04-api/TYPE_SHARING.md`.)
 - **Every new feature = `docs/06-features/F##-…/{SPEC,TASKS}.md`**, status `not_started→in_progress→done`, **regenerate `STATUS.md`** per the protocol, one commit per task.
-- **ops-core invariants** (`CORE_PATTERNS.md`): `@controlledResponse`, throw `APIError` w/ `messageKey`, `ValidationHelpers`+express-validator, `ServiceResponse`/`PaginatedServiceResponse`, every mutation writes `AuditEntry`+`OutboxEvent` in **one** tx, reservations decrement under a **serializable tx + row locks**, money via `utils/money.ts`, time/overlap via `utils/time.ts`.
+- **ops-core invariants** (`CORE_PATTERNS.md`): `@controlledResponse`, throw `APIError` w/ `messageKey`, `ValidationHelpers`+express-validator, `ServiceResponse`/`PaginatedServiceResponse`, every mutation writes an `AuditEntry` in **one** tx, reservations decrement under a **serializable tx + row locks**, money via `utils/money.ts`, time/overlap via `utils/time.ts`.
 - **Tests**: Vitest next to impl; property tests for availability/conflict; integration on **real Postgres** (no DB mocks). Frontend: type-check + build-green + **al.json/en.json key-count parity**.
 - **Ambiguity** → log to `docs/09-questions/OPEN.md` + `.planning/ASSUMPTIONS.md`, implement against the assumption, flag in the commit.
 
@@ -78,7 +78,7 @@ Highest severity first; ships visible reliability fast.
 ### Phase D — Completeness & polish — ~2 days
 **D1 · i18n (F29)** — *mostly frontend, M.* Frontend owns KPI sub-copy (stop rendering server `.hint` English; key via `t()`); fix `sq-AL` date (Albanian month map or `sq` locale); ICU/branch pluralization ("1 space"); add missing keys (`roles.PARTNER`, `intake.invalid.contactEmail/contactPhone`); i18n the timeline legend; title-case/i18n the Inventory type dropdown. Keep al/en key counts equal.
 **D2 · Debounce (XC-9)** — *frontend, S.* `useDebouncedValue(~300ms)` on Requests + Audit search/filters.
-**D3 · Polish (F30)** — *frontend, S.* AssetDetail **"Action"→"Status"** label; remove dead **VALUE** column (per D5); relabel/verify **"NATS connected"** pill; exclude PARTNER from "staff" count + add PARTNER to the edit role Select (or hide partner rows) so editing can't silently demote; Audit entity-type → **dropdown** of valid types; Scanner Check-In default location; clear login error banner on input; friendly REQ-id display.
+**D3 · Polish (F30)** — *frontend, S.* AssetDetail **"Action"→"Status"** label; remove dead **VALUE** column (per D5); relabel the freshness pill to **"Up to date"/"Stale"** driven by the polling freshness state (NATS removed per ADR-0018); exclude PARTNER from "staff" count + add PARTNER to the edit role Select (or hide partner rows) so editing can't silently demote; Audit entity-type → **dropdown** of valid types; Scanner Check-In default location; clear login error banner on input; friendly REQ-id display.
 
 ### Phase E — Verify & close out — ~1 day
 - ops-core: full Vitest (unit + property + real-Postgres integration) green; contract/type-sharing test green.
@@ -117,7 +117,7 @@ Highest severity first; ships visible reliability fast.
 | Audit: unbounded; case-sensitive free-text filter; no debounce | C1 + D3 + D2 |
 | Users: swallowed errors, partner-demote, no pagination, in-flight toggle | A3 + D3 + C1 |
 | Portal: dead-end cards, no pagination, no end>start, generic errors | (cards→D4-style detail or accept) + C1 + A3 |
-| Shell: NATS pill mislabel | D3 |
+| Shell: freshness pill mislabel | D3 |
 
 *(Two items folded into the closest phase: Portal request-detail route — add a read-only `/portal/:id` if you want clickable cards (small frontend) — and the "Value" column rollup, both flagged as optional/deferred.)*
 
