@@ -1,6 +1,6 @@
 import { forwardRef, useMemo, useState } from 'react'
 import * as RP from '@radix-ui/react-popover'
-import { Check, ChevronDown, Search } from 'lucide-react'
+import { Check, ChevronDown, Plus, Search } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 /**
@@ -30,6 +30,15 @@ export interface ComboboxProps {
    * Canvas default mirrors the spaces picker.
    */
   emptyMessage?: (query: string) => string
+  /**
+   * Opt-in "creatable" mode. When set and the search query doesn't exactly
+   * match an existing option, a row is offered that commits the raw query as
+   * the value — so callers whose option set may be empty or incomplete (e.g.
+   * relocating an asset to a brand-new location) aren't dead-ended. `label`
+   * renders that row; `{query}` is replaced with the current search term.
+   */
+  allowCreate?: boolean
+  createLabel?: (query: string) => string
   'aria-label'?: string
 }
 
@@ -45,6 +54,8 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(
       className,
       triggerClassName,
       emptyMessage = (query) => `No spaces match “${query}”`,
+      allowCreate = false,
+      createLabel = (query) => `Use “${query}”`,
       'aria-label': ariaLabel,
     },
     ref,
@@ -59,6 +70,12 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(
       if (!q) return options
       return options.filter((o) => o.label.toLowerCase().includes(q))
     }, [options, query])
+
+    const trimmedQuery = query.trim()
+    const canCreate =
+      allowCreate &&
+      trimmedQuery.length > 0 &&
+      !options.some((o) => o.label.toLowerCase() === trimmedQuery.toLowerCase())
 
     const select = (next: string) => {
       onChange?.(next)
@@ -112,7 +129,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(
               />
             </div>
 
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && !canCreate ? (
               <div className="px-3 py-[18px] text-center text-[13px] text-text-tertiary">
                 {emptyMessage(query)}
               </div>
@@ -140,6 +157,21 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(
                     </button>
                   )
                 })}
+                {canCreate ? (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onClick={() => select(trimmedQuery)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] text-accent outline-none transition-colors duration-micro ease-std',
+                      'hover:bg-surface-sunken focus-visible:bg-surface-sunken focus-visible:outline-none',
+                    )}
+                  >
+                    <Plus size={14} className="shrink-0" aria-hidden />
+                    <span className="truncate">{createLabel(trimmedQuery)}</span>
+                  </button>
+                ) : null}
               </div>
             )}
           </RP.Content>

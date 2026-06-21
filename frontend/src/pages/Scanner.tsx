@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Search, MapPin, PackageCheck, Lock } from 'lucide-react'
-import { useAssets, useScanAsset } from '@/api/hooks'
+import { Search, MapPin, Lock } from 'lucide-react'
+import { useAssets, useScanAsset, useSpaces } from '@/api/hooks'
 import { useCan } from '@/lib/abilities'
 import { useT } from '@/i18n/useT'
 import { cn } from '@/lib/cn'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Combobox } from '@/components/ui/Combobox'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
@@ -21,6 +22,7 @@ export default function Scanner() {
   const canScan = can('scanAsset')
   const assetsQuery = useAssets({})
   const assets = assetsQuery.data ?? []
+  const spaces = useSpaces({}).data ?? []
 
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -36,6 +38,18 @@ export default function Scanner() {
     const s = search.trim().toLowerCase()
     return s ? assets.filter((a) => a.name.toLowerCase().includes(s) || a.id.toLowerCase().includes(s)) : assets
   }, [assets, search])
+
+  // "To location" offers the full Spaces catalog (every place in the Pyramid,
+  // not just the ones an asset currently sits in), unioned with any asset
+  // locations not in that catalog so legacy/free-text values stay selectable.
+  // `allowCreate` still covers a brand-new spot no record mentions yet.
+  const locationOptions = useMemo(() => {
+    const names = Array.from(
+      new Set([...spaces.map((s) => s.name), ...assets.map((a) => a.location)].filter(Boolean)),
+    )
+    names.sort((a, b) => a.localeCompare(b))
+    return names.map((name) => ({ value: name, label: name }))
+  }, [spaces, assets])
 
   // A CHECK_IN returns units to where the asset lives, so "To location" isn't
   // collected for it — we default to the asset's current/home location.
@@ -166,7 +180,18 @@ export default function Scanner() {
                     {!isCheckIn && (
                       <div>
                         <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.toLocation')}</label>
-                        <Input value={toLocation} onChange={(e) => setToLocation(e.target.value)} placeholder={t('scanner.toLocationPlaceholder')} suffix={<PackageCheck className="size-4 text-text-tertiary" />} />
+                        <Combobox
+                          value={toLocation}
+                          onChange={setToLocation}
+                          options={locationOptions}
+                          className="w-full"
+                          placeholder={t('scanner.toLocationPlaceholder')}
+                          searchPlaceholder={t('scanner.toLocationSearch')}
+                          emptyMessage={(query) => t('scanner.toLocationEmpty', { query })}
+                          allowCreate
+                          createLabel={(query) => t('scanner.toLocationCreate', { query })}
+                          aria-label={t('scanner.toLocation')}
+                        />
                       </div>
                     )}
                   </div>
