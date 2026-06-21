@@ -113,6 +113,10 @@ def _heuristic_attendees(low: str) -> int:
 def _heuristic_window(low: str) -> DateRange:
     """Resolve a rough date phrase to a window; fall back to ~30 days out."""
     now = datetime.now(UTC)
+    if "tonight" in low:
+        return _window_on(now, 18, 23)
+    if "today" in low:
+        return _window_on(now)
     if "tomorrow" in low:
         return _window_on(now + timedelta(days=1))
     if "next week" in low:
@@ -218,7 +222,8 @@ def _system_prompt() -> str:
         "  - a weekday name ('this Monday', 'Friday') -> the next such day on/after today.\n"
         "  - a bare month ('in July') -> mid-month; a quarter ('Q3')/season ('summer') "
         "-> its middle month.\n"
-        "  - 'tomorrow' -> today + 1 day. If NO date is given, use a weekday ~30 days out.\n"
+        "  - 'today'/'tonight' -> today; 'tomorrow' -> today + 1 day. "
+        "If NO date is given, use a weekday ~30 days out.\n"
         "Output ONLY a JSON object (no prose, no code fence, no trailing text) with keys:\n"
         "  title (str: a short human label, Title Case),\n"
         "  organizerName (str; 'Guest organizer' if none given), contactEmail (str|null),\n"

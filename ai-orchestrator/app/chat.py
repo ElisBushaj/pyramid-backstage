@@ -49,7 +49,7 @@ _CHANGE_HINT = re.compile(
     re.I,
 )
 _DATE = re.compile(
-    r"(next\s+(week|month)|this\s+(week|month|weekend)|tomorrow|weekend|"
+    r"(today|tonight|tomorrow|next\s+(week|month)|this\s+(week|month|weekend)|weekend|"
     r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|"
     r"\b(early|mid|late|this|next)\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*|"
     r"\b(q[1-4]|spring|summer|autumn|fall|winter)\b|"
@@ -57,6 +57,18 @@ _DATE = re.compile(
     r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)",
     re.I,
 )
+# A start-time and/or duration signal. A reservation needs it (it sets the hold window),
+# so the copilot ASKS for it rather than inventing one.
+_TIME = re.compile(
+    r"\b\d{1,2}\s*(?::\d{2})?\s*(?:am|pm)\b|"        # 3pm, 3:30 pm, 9 am
+    r"\b(?:[01]?\d|2[0-3]):[0-5]\d\b|"               # 15:00, 9:30 (24h clock)
+    r"\b(?:noon|midday|midnight|morning|afternoon|evening|tonight|overnight)\b|"
+    r"\b(?:for\s+\d+\s*(?:h|hr|hrs|hour|hours)|\d+\s*[- ]?(?:hour|hr)s?|"
+    r"all[\s-]?day|half[\s-]?day|whole\s+day)\b",
+    re.I,
+)
+# Clock times stripped before counting, so "at 15:00" / "3pm" don't read as a headcount.
+_TIMEISH = re.compile(r"\b\d{1,2}:\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b", re.I)
 _AFFIRM = {
     "yes", "y", "approve", "approved", "go ahead", "ok", "okay", "confirm",
     "do it", "sure", "yep", "yes please", "send it", "lets do it", "let's do it",
@@ -64,12 +76,18 @@ _AFFIRM = {
 
 
 def _has_num(t: str) -> bool:
-    """A HEADCOUNT signal — a number/word-number that isn't part of a date."""
-    return bool(_NUM.search(_DATEY.sub(" ", t)) or _WORDNUM.search(t))
+    """A HEADCOUNT signal — a number/word-number that isn't part of a date or clock time."""
+    cleaned = _TIMEISH.sub(" ", _DATEY.sub(" ", t))
+    return bool(_NUM.search(cleaned) or _WORDNUM.search(t))
 
 
 def _has_date(t: str) -> bool:
     return bool(_DATE.search(t))
+
+
+def _has_time(t: str) -> bool:
+    """A start-time or duration signal (sets the reservation hold window)."""
+    return bool(_TIME.search(t))
 
 
 def _has_change(t: str) -> bool:
@@ -250,14 +268,16 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
             model=settings.FAST_MODEL,
             max_tokens=120,
             system=(
-                "You are a warm, concise booking copilot for the Pyramid of Tirana — Albania's "
-                "landmark events venue. "
-                f"Today is {weekday}, {today} (UTC); resolve relative dates against it "
-                "and NEVER invent or guess a specific date. "
-                "Briefly acknowledge what the organizer has already told you, "
-                "then ask in ONE friendly "
-                "sentence only for what's still missing. Don't re-ask anything already known, "
-                "don't list options, don't invent facts, and keep it under 30 words."
+                "You help venue STAFF capture an event enquiry for the Pyramid of Tirana. "
+                f"Today is {weekday}, {today} (UTC); resolve relative dates against it and "
+                "NEVER invent or guess a date. "
+                "In ONE short, friendly sentence, briefly restate ONLY the facts explicitly "
+                "given, then ask for what's still missing. "
+                "Do NOT greet anyone by name or assume who is making the request — an "
+                "organizer named in the enquiry is the CLIENT, not the person you're talking "
+                "to, so don't welcome them as if they're here. "
+                "Do NOT add ANY detail that wasn't stated — no times, durations, catering, AV, "
+                "or services. Don't list options. Keep it under 25 words."
             ),
             messages=[
                 {
@@ -418,7 +438,9 @@ async def handle_chat(
     if not _has_num(brief):
         missing.append("how many people")
     if not _has_date(brief):
-        missing.append("roughly when (a date or month)")
+        missing.append("which day")
+    if not _has_time(brief):
+        missing.append("what time it starts and how long it runs")
     if missing:
         return await _finish(
             sessions, session_id, sess,

@@ -119,7 +119,7 @@ def test_followups_never_spawn_duplicate_holds(patched_plan) -> None:
     # Multi-turn gather: count first, then the date as an ISO string.
     r1 = _send(store, ops, graph, "conference for 180 people")
     assert r1.plan is None and graph.calls == 0  # still gathering, no plan yet
-    r2 = _send(store, ops, graph, "on 2026-09-15")
+    r2 = _send(store, ops, graph, "on 2026-09-15 from 9am to 5pm")
     assert r2.plan is not None and graph.calls == 1  # planned exactly once
 
     # The ISO date did NOT reset the brief — the count survived the gather.
@@ -135,7 +135,7 @@ def test_followups_never_spawn_duplicate_holds(patched_plan) -> None:
 
 def test_affirmation_does_not_replan(patched_plan) -> None:
     store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
-    _send(store, ops, graph, "conference for 180 people on 2026-09-15")
+    _send(store, ops, graph, "conference for 180 people on 2026-09-15 from 9am to 5pm")
     assert graph.calls == 1
     r = _send(store, ops, graph, "yes")
     assert graph.calls == 1  # "yes" surfaces the gated action, never re-plans
@@ -144,7 +144,7 @@ def test_affirmation_does_not_replan(patched_plan) -> None:
 
 def test_real_change_releases_prior_hold_then_replans(patched_plan) -> None:
     store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
-    _send(store, ops, graph, "conference for 180 people on 2026-09-15")
+    _send(store, ops, graph, "conference for 180 people on 2026-09-15 from 9am to 5pm")
     assert graph.calls == 1  # hold resv-1
 
     _send(store, ops, graph, "actually make it 250 instead")
@@ -157,13 +157,13 @@ def test_real_change_releases_prior_hold_then_replans(patched_plan) -> None:
 
 def test_new_event_releases_old_hold_and_resets_brief(patched_plan) -> None:
     store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
-    _send(store, ops, graph, "conference for 180 people on 2026-09-15")
+    _send(store, ops, graph, "conference for 180 people on 2026-09-15 from 9am to 5pm")
     # A second self-contained brief = a different event -> release + fresh brief.
-    _send(store, ops, graph, "a gala for 90 people on 2026-12-03")
+    _send(store, ops, graph, "a gala for 90 people on 2026-12-03 from 6pm to 11pm")
     assert graph.calls == 2
     assert ops.released == ["resv-1"]
     sess = asyncio.run(store.get("sess-A"))
-    assert sess["brief_planned"] == "a gala for 90 people on 2026-12-03"
+    assert sess["brief_planned"] == "a gala for 90 people on 2026-12-03 from 6pm to 11pm"
 
 
 def test_history_keeps_user_and_assistant_turns(patched_plan) -> None:
@@ -199,7 +199,7 @@ def test_booking_brief_is_not_hijacked_by_the_rag_path(patched_plan) -> None:
     # A full brief (count + date) plans even though a KB is present — booking wins.
     store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
     kb = FakeKB(hits=[{"document": "irrelevant", "metadata": {}}])
-    r = _send(store, ops, graph, "conference for 180 people on 2026-09-15", kb=kb)
+    r = _send(store, ops, graph, "conference for 180 people on 2026-09-15 from 9am to 5pm", kb=kb)
     assert graph.calls == 1 and r.plan is not None
 
 
@@ -225,7 +225,7 @@ def test_condense_feeds_a_resolved_brief_to_the_planner(patched_plan, monkeypatc
         return "Conference for 250 people on 2026-09-15"
 
     monkeypatch.setattr(chat, "_condense_brief", _fake_condense)
-    _send(store, ops, graph, "conference for 180 people on 2026-09-15")  # first plan
+    _send(store, ops, graph, "conference for 180 people on 2026-09-15 from 9am to 5pm")
     _send(store, ops, graph, "actually make it 250")  # a change -> re-plan via condense
     assert graph.calls == 2
     # The planner saw the RECONCILED brief (250), not the raw "180 ... 250" concatenation.
@@ -254,7 +254,7 @@ def test_classifier_routes_venue_question_even_after_a_plan(patched_plan, monkey
     store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
     kb = FakeKB(hits=[{"document": "Floor 3 has outdoor roof terraces.", "metadata": {}}])
     _force_intent(monkeypatch, "BOOKING")
-    _send(store, ops, graph, "conference for 180 on 2026-09-15", kb=kb)
+    _send(store, ops, graph, "conference for 180 on 2026-09-15 from 9am to 5pm", kb=kb)
     assert graph.calls == 1  # plan established
     # A venue question WITH a plan standing now routes to RAG (the classifier separates it
     # from plan-relative chatter) — old keyword gate would have re-served the plan instead.
