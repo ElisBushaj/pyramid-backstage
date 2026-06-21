@@ -264,6 +264,21 @@ def test_classifier_routes_venue_question_even_after_a_plan(patched_plan, monkey
     assert asyncio.run(store.get("sess-A"))["plan"] is not None     # plan preserved for "yes"
 
 
+def test_other_midgather_is_not_discarded(patched_plan, monkeypatch) -> None:
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+
+    # The classifier mislabels the terse date reply "today" as OTHER (a realistic LLM slip).
+    # Mid-gather it must NOT nudge-and-discard — it should feed the gather and complete.
+    async def _fake(message, *, has_plan, awaiting=""):
+        return "OTHER" if message.strip().lower() == "today" else "BOOKING"
+
+    monkeypatch.setattr(chat, "_classify_intent", _fake)
+    _send(store, ops, graph, "15 people event from 10am to 12pm")  # gather: still needs a date
+    assert graph.calls == 0
+    r = _send(store, ops, graph, "today")  # mislabeled OTHER, but completes the brief
+    assert graph.calls == 1 and r.plan is not None  # planned, not nudged back to start
+
+
 def test_classifier_other_without_a_plan_nudges_without_polluting_brief(monkeypatch) -> None:
     store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
     _force_intent(monkeypatch, "OTHER")

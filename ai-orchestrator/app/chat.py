@@ -338,8 +338,10 @@ async def _classify_intent(message: str, *, has_plan: bool, awaiting: str = "") 
             system=(
                 "Classify the user's latest message in a venue-booking chat into ONE intent. "
                 "Reply with EXACTLY one word and nothing else:\n"
-                "BOOKING — gives details for a NEW event to plan (type, headcount, date, layout, "
-                "requirements) or asks to start one.\n"
+                "BOOKING — gives details for an event to plan (type, headcount, date, time, "
+                "layout, requirements) or asks to start one. A SHORT reply that answers what "
+                "the assistant just asked — a number, a date like 'today'/'next Friday', or a "
+                "time like '10am' — is BOOKING.\n"
                 "MODIFY — changes the event already being planned (different headcount/date/"
                 "layout, add or remove catering or AV).\n"
                 "VENUE_QUESTION — asks about the VENUE itself (halls, capacity, floors, outdoor "
@@ -405,14 +407,16 @@ async def handle_chat(
                 ChatResponse(reply=answer, plan=None, proposedActions=[], requiresApproval=False),
             )
 
-    # OTHER -> re-serve the standing plan (a plan-relative question / thanks), or nudge
-    # for details when there's nothing to plan yet. Brief untouched either way.
-    if intent == "OTHER":
-        if has_plan:
-            return await _finish(
-                sessions, session_id, sess,
-                _plan_response(OperationalPlan.model_validate(sess["plan"])),
-            )
+    # OTHER -> re-serve the standing plan (a plan-relative question / thanks). With no plan
+    # AND nothing gathered yet, nudge for details. But MID-GATHER (a brief already in
+    # progress), a terse reply the classifier mislabels — "Today", "15", "10am" — must NOT
+    # be discarded: fall through so it feeds the gather and can complete the brief.
+    if intent == "OTHER" and has_plan:
+        return await _finish(
+            sessions, session_id, sess,
+            _plan_response(OperationalPlan.model_validate(sess["plan"])),
+        )
+    if intent == "OTHER" and not sess.get("messages"):
         return await _finish(
             sessions, session_id, sess,
             ChatResponse(
