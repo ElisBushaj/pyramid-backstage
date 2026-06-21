@@ -63,8 +63,8 @@ export default function PortalNewRequest() {
           <FormField label={t('portal.fAttendees')} htmlFor="pax"><Input id="pax" type="number" min={1} value={attendees} onChange={(e) => setAttendees(e.target.value)} placeholder={t('intake.attendeesPlaceholder')} /></FormField>
           <FormField label={t('portal.fEventType')}><Select value={eventType} onValueChange={setEventType} options={EVENT_TYPES.map((v) => ({ value: v, label: t(`eventType.${v}`) }))} /></FormField>
           <FormField label={t('portal.fLayout')}><Select value={layout} onValueChange={setLayout} placeholder={t('portal.layoutAny')} options={LAYOUTS.map((v) => ({ value: v, label: t(`layout.${v}`) }))} /></FormField>
-          <FormField label={t('portal.fStart')} htmlFor="start"><Input id="start" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></FormField>
-          <FormField label={t('portal.fEnd')} htmlFor="end"><Input id="end" type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></FormField>
+          <FormField label={t('portal.fStart')} htmlFor="start"><Input id="start" type="datetime-local" lang="en-GB" className="[color-scheme:light]" value={start} onChange={(e) => setStart(e.target.value)} /></FormField>
+          <FormField label={t('portal.fEnd')} htmlFor="end"><Input id="end" type="datetime-local" lang="en-GB" className="[color-scheme:light]" value={end} onChange={(e) => setEnd(e.target.value)} /></FormField>
         </div>
 
         <div className="mt-4 flex items-center justify-between rounded-md border border-border-subtle px-3.5 py-3">

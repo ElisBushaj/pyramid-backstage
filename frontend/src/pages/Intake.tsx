@@ -252,7 +252,8 @@ export default function Intake() {
                 <Input
                   id="intake-start"
                   type="datetime-local"
-                  className="font-mono tabular-nums"
+                  lang="en-GB"
+                  className="font-mono tabular-nums [color-scheme:light]"
                   value={form.start}
                   onChange={(e) => set('start', e.target.value)}
                   invalid={!!fieldError('start', 'preferredDates')}
@@ -267,7 +268,8 @@ export default function Intake() {
                 <Input
                   id="intake-end"
                   type="datetime-local"
-                  className="font-mono tabular-nums"
+                  lang="en-GB"
+                  className="font-mono tabular-nums [color-scheme:light]"
                   value={form.end}
                   onChange={(e) => set('end', e.target.value)}
                   invalid={!!fieldError('end', 'preferredDates')}
