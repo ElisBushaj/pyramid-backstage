@@ -7,11 +7,20 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ConflictBanner } from '@/components/command/ConflictBanner'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 
+function defaultWindow() {
+  const now = new Date()
+  const start = new Date(now)
+  start.setDate(start.getDate() - 60)
+  const end = new Date(now)
+  end.setDate(end.getDate() + 60)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
 export default function Conflicts() {
   const t = useT()
   const navigate = useNavigate()
 
-  const { data, isLoading, isError, refetch } = useConflicts({})
+  const { data, isLoading, isError, refetch } = useConflicts(defaultWindow())
   const conflicts = data ?? []
 
   const subtitle = useMemo(() => {
