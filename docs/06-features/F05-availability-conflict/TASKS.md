@@ -1,7 +1,7 @@
 ---
 id: F05
 name: Availability & Conflict Engine
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F05 — Tasks
@@ -72,7 +72,7 @@ last_updated: 2026-06-19
   - Property tests run in CI; tsc clean.
 
 ### F05-T07 — pass conflicts window on Dashboard + AppShell; restore conflict alert + nav badge (XC-2)
-- Status: not_started
+- Status: done
 - Depends on: F05-T03
 - Estimate: 0.25d
 - Acceptance:

@@ -101,7 +101,7 @@ last_updated: 2026-06-21
   - Integration test (real Postgres): staff list paginates with correct meta; admin-only gate unchanged. tsc + vitest green.
 
 ### F01-T10 — Login + Users admin hardening
-- Status: not_started
+- Status: done
 - Depends on: F13-T07
 - Estimate: 0.75d
 - Acceptance:

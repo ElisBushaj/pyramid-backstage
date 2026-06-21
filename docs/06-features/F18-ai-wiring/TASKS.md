@@ -1,7 +1,7 @@
 ---
 id: F18
 name: Frontend AI Wiring
-last_updated: 2026-06-20
+last_updated: 2026-06-21
 ---
 
 # F18 — Tasks
@@ -69,7 +69,7 @@ last_updated: 2026-06-20
   - Manual verification noted: copilot opened with the AI down still renders and is interactive; tsc clean; vitest passing.
 
 ### F18-T07 — AppShell Copilot wire + ⌘K command palette + NATS pill; RequestDetail narrative data-driven
-- Status: not_started
+- Status: done
 - Depends on: F13-T07
 - Estimate: 0.75d
 - Acceptance:

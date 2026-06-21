@@ -1,7 +1,7 @@
 ---
 id: F08
 name: Tasks
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F08 — Tasks
@@ -46,7 +46,7 @@ last_updated: 2026-06-19
   - tsc clean; runs in CI.
 
 ### F08-T05 — Tasks board: status transitions (optimistic) + New-task dialog
-- Status: not_started
+- Status: done
 - Depends on: F13-T07
 - Estimate: 0.75d
 - Acceptance:

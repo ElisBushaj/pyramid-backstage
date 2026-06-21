@@ -1,7 +1,7 @@
 ---
 id: F04
 name: Event Requests
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F04 — Tasks
@@ -76,7 +76,7 @@ last_updated: 2026-06-19
   - Backs the design's "Search requests…" box (design §4.1). Indexed/efficient enough for the demo dataset; tests cover match + no-match + combined-with-status.
 
 ### F04-T08 — Requests list + Intake hardening (pager, dead column, debounce, field errors)
-- Status: not_started
+- Status: done
 - Depends on: F13-T07
 - Estimate: 0.75d
 - Acceptance:

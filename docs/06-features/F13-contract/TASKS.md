@@ -1,7 +1,7 @@
 ---
 id: F13
 name: Contract Finalize + Type-Sharing + E2E
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F13 — Tasks
@@ -56,7 +56,7 @@ last_updated: 2026-06-19
   - tsc clean; unit test asserts each KPI against a seeded fixture.
 
 ### F13-T06 — contract sync: ListEnvelope + Gone + ScheduleEntry; client getList threads meta (ADR-0015/16/17)
-- Status: not_started
+- Status: done
 - Depends on: F06-T08 , F09-T05 , F01-T09
 - Estimate: 0.75d
 - Acceptance:
@@ -65,7 +65,7 @@ last_updated: 2026-06-19
   - `frontend/src/api/types/{reservations,_envelope}.ts` mirror the new DTOs verbatim; ops-core contract test green; frontend tsc green.
 
 ### F13-T07 — frontend shared spine: abilities, apiError+useMutationToast, useDebouncedValue, venue-TZ format, Pager
-- Status: not_started
+- Status: done
 - Depends on: F13-T06
 - Estimate: 1d
 - Acceptance:
@@ -75,7 +75,7 @@ last_updated: 2026-06-19
   - New i18n keys (`error.rateLimited`, `roles.PARTNER`, `intake.invalid.contact*`, `timeline.legend.*`, `inventory.status`, pager keys) added to BOTH al.json/en.json (parity verified). tsc + build green.
 
 ### F13-T08 — verify & close: ops-core + contract + integration green; FE tsc/build/parity; STATUS regen
-- Status: not_started
+- Status: done
 - Depends on: F10-T06 , F11-T07 , F14-T06 , F16-T08 , F08-T05 , F04-T08 , F01-T10 , F15-T07 , F18-T07
 - Estimate: 0.5d
 - Acceptance:

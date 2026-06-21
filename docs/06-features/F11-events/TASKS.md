@@ -1,7 +1,7 @@
 ---
 id: F11
 name: Events / NATS
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F11 — Tasks
@@ -68,7 +68,7 @@ last_updated: 2026-06-19
   - Runs in CI alongside the other integration tests; tsc clean.
 
 ### F11-T07 — Calendar date-nav + remove Week + live bars; Dashboard/SpaceDetail live timelines via useSchedule (XC-1)
-- Status: not_started
+- Status: done
 - Depends on: F06-T08 , F13-T07
 - Estimate: 1d
 - Acceptance:

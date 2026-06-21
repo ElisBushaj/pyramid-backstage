@@ -1,7 +1,7 @@
 ---
 id: F15
 name: Partner Portal & Approval Chain
-last_updated: 2026-06-20
+last_updated: 2026-06-21
 ---
 
 # F15 — Tasks
@@ -72,7 +72,7 @@ last_updated: 2026-06-20
   - `tsc` clean; vitest + FE tests passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F15-T07 — Portal: detail route, pager, validation, error mapping
-- Status: not_started
+- Status: done
 - Depends on: F13-T07
 - Estimate: 0.5d
 - Acceptance:

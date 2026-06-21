@@ -60,7 +60,7 @@ last_updated: 2026-06-21
   - `approvals.test.ts` expired-uncontested case flips 429→410 `reservation.hold_expired`; retaken case stays 409; state unchanged on 410. tsc + vitest green; conforms to CORE_PATTERNS.
 
 ### F10-T06 — RequestDetail/Approvals: hold-validity gate, approve/reject error + 410 re-hold, RBAC, reject parity
-- Status: not_started
+- Status: done
 - Depends on: F10-T05 , F13-T07
 - Estimate: 0.75d
 - Acceptance:

@@ -1,7 +1,7 @@
 ---
 id: F16
 name: QR/NFC Asset Tracking
-last_updated: 2026-06-20
+last_updated: 2026-06-21
 ---
 
 # F16 — Tasks
@@ -80,7 +80,7 @@ last_updated: 2026-06-20
   - tsc clean; runs in CI.
 
 ### F16-T08 — Scanner RBAC + check-in/qty UX; AssetDetail status label + movements pager
-- Status: not_started
+- Status: done
 - Depends on: F13-T07
 - Estimate: 0.5d
 - Acceptance:
