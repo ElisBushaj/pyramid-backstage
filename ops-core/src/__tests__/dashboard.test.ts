@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { loginAs, anon, resetDb, prisma } from "./helpers/integration";
 import { seedSpace, seedAsset, seedRequest, seedReservation } from "./helpers/fixtures";
-import { runSeed } from "../scripts/seed";
+import { runSeed, SEED } from "../scripts/seed";
 
 const STATS = "/api/v1/private/dashboard/stats";
 
@@ -354,7 +354,7 @@ describe("GET /dashboard/stats — against the demo seed (F12/F15 reality)", () 
     expect(res.status).toBe(200);
 
     expect(res.body.data.pendingApprovals.value).toBe(2); // E2 + E3 both PROPOSED (F15)
-    expect(res.body.data.spacesInUse).toEqual({ inUse: 2, total: 19 }); // Blue CONFIRMED + Green live-HELD; F14 19-space catalog
+    expect(res.body.data.spacesInUse).toEqual({ inUse: 2, total: SEED.SPACES.length }); // Blue CONFIRMED + Green live-HELD; total = every ACTIVE space in the real-floor catalog (PR#7)
     expect(res.body.data.eventsThisWeek.value).toBe(3); // all 3 requests created during the seed
     expect(res.body.data.eventsThisWeek.delta).toBe(3); // 3 this week − 0 last week
     expect(res.body.data.lowStockAssets.value).toBe(0); // no asset line reaches 90% in the seed

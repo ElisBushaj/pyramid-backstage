@@ -19,20 +19,22 @@ describe("F13-T03 e2e: intake → match → hold → quote → tasks → approve
     // 1. intake
     const intake = await ops.post(`${P}/requests`).send({
       title: "Robotics Demo Day", organizerName: "Polytechnic", contactEmail: "rd@poly.al",
-      expectedAttendees: 180, eventType: "CONFERENCE", preferredDates: [W3], requirements: { layout: "THEATER", avNeeded: true },
+      expectedAttendees: 100, eventType: "CONFERENCE", preferredDates: [W3], requirements: { layout: "THEATER", avNeeded: true },
     });
     expect(intake.status).toBe(201);
     const reqId = intake.body.data.id;
     expect(intake.body.data.status).toBe("DRAFT");
 
-    // 2. match — Blue (220 theater) is free in W3
-    const match = await ops.get(`${P}/spaces?minCapacity=180&layout=THEATER&start=${W3.start}&end=${W3.end}`);
+    // 2. match — Blue (Space 1 — Main hall, 106 theater, the largest in the
+    // real-floor catalog) is free in W3.
+    const match = await ops.get(`${P}/spaces?minCapacity=100&layout=THEATER&start=${W3.start}&end=${W3.end}`);
     expect(match.status).toBe(200);
     const blue = match.body.data.find((s: any) => s.id === SEED.BLUE);
+    expect(blue, "the seeded plenary hall (BLUE) is in the match set").toBeTruthy();
     expect(blue.available).toBe(true);
 
     // 3. hold (→ request PROPOSED)
-    const hold = await ops.post(`${P}/reservations`).send({ requestId: reqId, spaceId: SEED.BLUE, dateRange: W3, assets: [{ assetId: SEED.CHAIRS, quantity: 180 }] });
+    const hold = await ops.post(`${P}/reservations`).send({ requestId: reqId, spaceId: SEED.BLUE, dateRange: W3, assets: [{ assetId: SEED.CHAIRS, quantity: 100 }] });
     expect(hold.status).toBe(201);
     expect(hold.body.data.status).toBe("HELD");
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: reqId } })).status).toBe("PROPOSED");
@@ -41,7 +43,7 @@ describe("F13-T03 e2e: intake → match → hold → quote → tasks → approve
     const quote = await ops.post(`${P}/quotes`).send({ requestId: reqId, reservationId: hold.body.data.id });
     expect(quote.status).toBe(201);
     expect(quote.body.data.totalMinor).toBe(quote.body.data.netMinor + quote.body.data.vatMinor);
-    expect(quote.body.data.netMinor).toBe(80000); // Blue 1 day, chairs free
+    expect(quote.body.data.netMinor).toBe(90000); // Blue 1 day @ 90000, chairs free
 
     // 5. tasks — dueAt computed from the reserved window
     const tasks = await ops.post(`${P}/requests/${reqId}/tasks`).send({
@@ -59,7 +61,7 @@ describe("F13-T03 e2e: intake → match → hold → quote → tasks → approve
     const agg = (await ops.get(`${P}/requests/${reqId}`)).body.data;
     expect(agg.request.status).toBe("SCHEDULED");
     expect(agg.reservation.status).toBe("CONFIRMED");
-    expect(agg.quote.totalMinor).toBe(96000);
+    expect(agg.quote.totalMinor).toBe(108000); // net 90000 + 20% VAT 18000
     expect(agg.tasks.length).toBe(2);
     expect(agg.conflicts).toEqual([]); // excludes itself
 

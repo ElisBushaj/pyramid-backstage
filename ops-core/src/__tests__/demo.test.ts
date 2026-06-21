@@ -25,15 +25,19 @@ beforeAll(async () => {
 describe("demo beats", () => {
   it("Beat 1 — 'Yes, we can make this happen' (intake → match → hold → quote → tasks)", async () => {
     const intake = await ops.post(`${P}/requests`).send({
-      title: "FinTech Conference (demo)", organizerName: "Acme", expectedAttendees: 180, eventType: "CONFERENCE", preferredDates: [FRESH], requirements: { layout: "THEATER", avNeeded: true },
+      title: "FinTech Conference (demo)", organizerName: "Acme", expectedAttendees: 100, eventType: "CONFERENCE", preferredDates: [FRESH], requirements: { layout: "THEATER", avNeeded: true },
     });
     expect(intake.status, "intake should create a DRAFT").toBe(201);
     reqId = intake.body.data.id;
 
-    const match = await ops.get(`${P}/spaces?minCapacity=180&layout=THEATER&start=${FRESH.start}&end=${FRESH.end}`);
-    expect(match.body.data.some((s: any) => s.available), "at least one 180-theater space is free").toBe(true);
+    // The real-floor catalog (PR#7) tops out at 106 theater seats (Space 1 — Main
+    // hall, the seeded BLUE), so the plenary query is sized to what the venue can
+    // genuinely seat theater-style.
+    const match = await ops.get(`${P}/spaces?minCapacity=100&layout=THEATER&start=${FRESH.start}&end=${FRESH.end}`);
+    expect(match.body.data.some((s: any) => s.available), "at least one 100-seat theater space is free").toBe(true);
+    expect(match.body.data.some((s: any) => s.id === SEED.BLUE && s.available), "the seeded plenary hall (BLUE) is the free match").toBe(true);
 
-    const hold = await ops.post(`${P}/reservations`).send({ requestId: reqId, spaceId: SEED.BLUE, dateRange: FRESH, assets: [{ assetId: SEED.CHAIRS, quantity: 180 }] });
+    const hold = await ops.post(`${P}/reservations`).send({ requestId: reqId, spaceId: SEED.BLUE, dateRange: FRESH, assets: [{ assetId: SEED.CHAIRS, quantity: 100 }] });
     expect(hold.status, "hold should succeed").toBe(201);
 
     const quote = await ops.post(`${P}/quotes`).send({ requestId: reqId, reservationId: hold.body.data.id });
