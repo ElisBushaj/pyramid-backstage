@@ -20,6 +20,7 @@ Run locally::
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -32,6 +33,7 @@ from .config import settings
 from .graph import build_planning_graph
 from .ops_core_client import OpsCoreClient
 from .planning import build_operational_plan
+from .rag.chroma import connect_knowledge_base, seed_knowledge
 from .schemas import (
     ChatRequest,
     ChatResponse,
@@ -55,6 +57,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Conversation memory: Redis when reachable, else an in-memory fallback (the call
     # never raises — it pings once and degrades silently). Shared across requests.
     app.state.sessions = await create_session_store()
+    # Venue knowledge (RAG): connect to ChromaDB if present, else a no-op KB. Seeding
+    # runs in the BACKGROUND so a first-time embedding-model download can't block
+    # readiness; early queries just fall back until it finishes.
+    app.state.kb = connect_knowledge_base()
+    seed_task: asyncio.Task | None = None
+    if app.state.kb.available:
+        async def _seed() -> None:
+            try:
+                from .venue import get_venue
+
+                await asyncio.to_thread(seed_knowledge, app.state.kb, get_venue())
+            except Exception:
+                pass
+
+        seed_task = asyncio.create_task(_seed())
     # Warm the Anthropic connection so the first user request isn't a cold start.
     if settings.ANTHROPIC_API_KEY:
         try:
@@ -69,6 +86,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        if seed_task is not None:
+            seed_task.cancel()
         await app.state.ops.aclose()
         await app.state.sessions.aclose()
 
@@ -114,7 +133,8 @@ async def chat(req: ChatRequest) -> ChatResponse:
     """
     return await handle_chat(
         req.sessionId, req.message,
-        ops=app.state.ops, graph=app.state.graph, sessions=app.state.sessions,
+        ops=app.state.ops, graph=app.state.graph,
+        sessions=app.state.sessions, kb=app.state.kb,
     )
 
 

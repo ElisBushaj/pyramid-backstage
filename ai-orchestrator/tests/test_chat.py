@@ -18,6 +18,7 @@ import asyncio
 import pytest
 
 import app.chat as chat
+from app.config import settings
 from app.schemas import (
     ChatResponse,
     DateRange,
@@ -28,6 +29,13 @@ from app.schemas import (
 from app.session import SessionStore
 
 
+@pytest.fixture(autouse=True)
+def _no_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Force the offline/template paths (a real key lives in .env) so the whole suite
+    # is hermetic — no network in _phrase_question or _answer_venue_question.
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
+
+
 class FakeOps:
     """Records release calls so we can assert at-most-one-live-hold."""
 
@@ -36,6 +44,22 @@ class FakeOps:
 
     async def release_reservation(self, reservation_id: str) -> None:
         self.released.append(reservation_id)
+
+
+class FakeKB:
+    """A knowledge base that returns canned venue_facts hits + records queries."""
+
+    def __init__(self, hits: list[dict] | None = None) -> None:
+        self._hits = hits or []
+        self.queries: list[tuple[str, str]] = []
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    def query(self, collection: str, text: str, n_results: int = 5) -> list[dict]:
+        self.queries.append((collection, text))
+        return list(self._hits) if collection == "venue_facts" else []
 
 
 class FakeGraph:
@@ -79,9 +103,11 @@ def patched_plan(monkeypatch: pytest.MonkeyPatch):
     return seq
 
 
-def _send(store: SessionStore, ops: FakeOps, graph: FakeGraph, msg: str) -> ChatResponse:
+def _send(
+    store: SessionStore, ops: FakeOps, graph: FakeGraph, msg: str, kb=None
+) -> ChatResponse:
     return asyncio.run(
-        chat.handle_chat("sess-A", msg, ops=ops, graph=graph, sessions=store)
+        chat.handle_chat("sess-A", msg, ops=ops, graph=graph, sessions=store, kb=kb)
     )
 
 
@@ -147,6 +173,32 @@ def test_history_keeps_user_and_assistant_turns(patched_plan) -> None:
     # Two user turns, each answered -> alternating transcript, assistant replies stored.
     assert roles == ["user", "assistant", "user", "assistant"]
     assert all(h["content"] for h in sess["history"])
+
+
+def test_venue_question_answered_from_kb_without_planning() -> None:
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+    kb = FakeKB(hits=[{"document": "Space 1 is the largest hall (~300 people).", "metadata": {}}])
+    r = _send(store, ops, graph, "what's the biggest hall?", kb=kb)
+    assert graph.calls == 0  # answered from RAG, never ran the planner
+    assert "Space 1 is the largest hall" in r.reply
+    assert r.plan is None and ("venue_facts", "what's the biggest hall?") in kb.queries
+    # The brief is left untouched — a question mid-conversation doesn't derail intake.
+    assert asyncio.run(store.get("sess-A"))["messages"] == []
+
+
+def test_venue_question_falls_through_to_gather_when_kb_empty() -> None:
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+    r = _send(store, ops, graph, "do you have outdoor space?", kb=FakeKB(hits=[]))
+    assert graph.calls == 0 and r.plan is None  # no hit -> normal intake gather
+    assert asyncio.run(store.get("sess-A"))["messages"] == ["do you have outdoor space?"]
+
+
+def test_booking_brief_is_not_hijacked_by_the_rag_path(patched_plan) -> None:
+    # A full brief (count + date) plans even though a KB is present — booking wins.
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+    kb = FakeKB(hits=[{"document": "irrelevant", "metadata": {}}])
+    r = _send(store, ops, graph, "conference for 180 people on 2026-09-15", kb=kb)
+    assert graph.calls == 1 and r.plan is not None
 
 
 def test_memory_store_roundtrips_without_redis() -> None:

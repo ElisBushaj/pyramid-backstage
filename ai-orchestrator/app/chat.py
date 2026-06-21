@@ -13,12 +13,14 @@ phrasing of clarifying questions.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import UTC, datetime
 
 from .config import settings
 from .intake import _anthropic
 from .planning import build_operational_plan
+from .rag.chroma import KnowledgeBase
 from .schemas import ChatResponse, OperationalPlan, ProposedAction
 from .session import SessionStore
 
@@ -78,6 +80,56 @@ def _has_change(t: str) -> bool:
 def _is_affirmation(msg: str) -> bool:
     m = msg.strip().lower().rstrip("!.")
     return m in _AFFIRM or "approve" in m
+
+
+# A question we can answer from venue knowledge (RAG) rather than treat as booking
+# data — starts with an interrogative or ends with "?".
+_QSTART = (
+    "what", "which", "where", "how", "do you", "does", "is ", "are ", "can ", "could ",
+    "tell me", "list", "show me", "who", "when does", "why",
+)
+
+
+def _is_venue_question(msg: str) -> bool:
+    low = msg.strip().lower()
+    return bool(low) and (low.endswith("?") or low.startswith(_QSTART))
+
+
+async def _answer_venue_question(message: str, *, kb: KnowledgeBase | None) -> str | None:
+    """Grounded RAG answer from the venue knowledge base, or None to fall through.
+
+    Retrieves venue_facts + setup_templates and answers ONLY from them (FAST_MODEL,
+    or the top fact verbatim with no key). Returns None when the KB is off or has no
+    hit, so the caller degrades to the normal intake gather. Never invents live
+    availability or prices — those route back to a plan."""
+    if kb is None:
+        return None
+    hits = await asyncio.to_thread(kb.query, "venue_facts", message, 5)
+    hits += await asyncio.to_thread(kb.query, "setup_templates", message, 2)
+    if not hits:
+        return None
+    context = "\n".join(f"- {h['document']}" for h in hits if h.get("document"))
+    if not settings.ANTHROPIC_API_KEY:
+        return f"{hits[0]['document']} Want me to put a plan together?"
+    try:
+        resp = await _anthropic().messages.create(
+            model=settings.FAST_MODEL,
+            max_tokens=220,
+            system=(
+                "You are the Pyramid of Tirana's booking copilot. Answer the question "
+                "using ONLY the venue facts provided — never invent spaces, numbers, or "
+                "features. If the facts don't cover it, say so briefly and offer to help "
+                "plan. You do NOT know live availability or exact prices; for those, offer "
+                "to draft a plan. Reply in ONE or two friendly sentences, under 60 words."
+            ),
+            messages=[
+                {"role": "user", "content": f"Venue facts:\n{context}\n\nQuestion: {message}"}
+            ],
+        )
+        txt = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+        return txt or f"{hits[0]['document']} Want me to put a plan together?"
+    except Exception:
+        return f"{hits[0]['document']} Want me to put a plan together?"
 
 
 def _approve_action(plan: OperationalPlan) -> list[ProposedAction]:
@@ -174,7 +226,8 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
 
 
 async def handle_chat(
-    session_id: str, message: str, *, ops, graph, sessions: SessionStore
+    session_id: str, message: str, *, ops, graph, sessions: SessionStore,
+    kb: KnowledgeBase | None = None,
 ) -> ChatResponse:
     sess = await sessions.get(session_id)
     sess.setdefault("history", []).append({"role": "user", "content": message})
@@ -195,6 +248,17 @@ async def handle_chat(
                     proposedActions=_approve_action(plan),
                     requiresApproval=True,
                 ),
+            )
+
+    # 1b. A venue QUESTION carrying no booking signal, before any plan stands -> answer
+    #     it from the knowledge base (RAG). Leaves the brief untouched, so a question
+    #     asked mid-gather doesn't derail the intake. Falls through if RAG is off/empty.
+    if not sess.get("plan") and _is_venue_question(message) and not _has_change(message):
+        answer = await _answer_venue_question(message, kb=kb)
+        if answer is not None:
+            return await _finish(
+                sessions, session_id, sess,
+                ChatResponse(reply=answer, plan=None, proposedActions=[], requiresApproval=False),
             )
 
     # 2. A self-contained NEW event (count AND date in one message, once a plan already
