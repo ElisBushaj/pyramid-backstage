@@ -23,6 +23,7 @@ dependencies = [
     "anthropic>=0.40",
     "chromadb>=0.5",
     "redis>=5.2",
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]

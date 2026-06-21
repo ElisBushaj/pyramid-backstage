@@ -81,6 +81,37 @@ def _default_window(days_ahead: int = 30) -> DateRange:
     return _window_on(datetime.now(UTC) + timedelta(days=days_ahead))
 
 
+# The Pyramid is in Tirana; the frontend renders every time in Europe/Tirane. The
+# organizer speaks LOCAL time, so the wall-clock the intake emits (as a trailing-Z
+# string) must be re-interpreted as venue-local and converted to the true UTC instant —
+# otherwise "10am" stores as 10:00 UTC and the UI shows it as 12:00 (UTC+2 in summer).
+try:
+    from zoneinfo import ZoneInfo
+
+    _VENUE_TZ = ZoneInfo("Europe/Tirane")
+except Exception:  # tzdata absent (e.g. bare Windows) -> Tirana summer offset
+    from datetime import timezone
+
+    _VENUE_TZ = timezone(timedelta(hours=2))
+
+
+def _localize_to_utc(iso_z: str) -> str:
+    """Treat an intake wall-clock time as Europe/Tirane local; return the true UTC instant."""
+    try:
+        local = datetime.fromisoformat(iso_z.replace("Z", "")).replace(tzinfo=_VENUE_TZ)
+        return local.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    except Exception:
+        return iso_z
+
+
+def _localized(req: EventRequestInput) -> EventRequestInput:
+    """Convert every preferred window from venue-local wall-clock to UTC (in place)."""
+    for w in req.preferredDates:
+        w.start = _localize_to_utc(w.start)
+        w.end = _localize_to_utc(w.end)
+    return req
+
+
 def _heuristic_attendees(low: str) -> int:
     """Best-effort headcount: explicit "<n> people" → word-quantity → a safe bare number.
 
@@ -209,14 +240,15 @@ _FEWSHOT: list[tuple[str, dict]] = [
 
 
 def _system_prompt() -> str:
-    now = datetime.now(UTC)
+    now = datetime.now(_VENUE_TZ)
     today, weekday = now.strftime("%Y-%m-%d"), now.strftime("%A")
     examples = "\n".join(f'IN: "{text}"\nOUT: {json.dumps(out)}' for text, out in _FEWSHOT)
     return (
         "You turn a free-text enquiry into ONE structured event request "
         "for the Pyramid of Tirana.\n"
-        f"Today is {weekday}, {today} (UTC). Resolve EVERY relative date against it; "
-        "never output a past date:\n"
+        f"Today is {weekday}, {today}, the venue's LOCAL date (Tirana, Albania). "
+        "All times the organizer gives are venue-local. Resolve EVERY relative date "
+        "against today; never output a past date:\n"
         "  - 'next week' -> the following Mon-Fri; 'this weekend' -> the coming Sat-Sun.\n"
         "  - 'next month' -> a weekday in the next calendar month.\n"
         "  - a weekday name ('this Monday', 'Friday') -> the next such day on/after today.\n"
@@ -230,8 +262,10 @@ def _system_prompt() -> str:
         "  expectedAttendees (int >= 1),\n"
         "  eventType: one of CONFERENCE, EXHIBITION, WORKSHOP, PERFORMANCE, "
         "COMMUNITY, PRIVATE, OTHER,\n"
-        "  preferredDates: array (>=1) of {start, end} RFC-3339 UTC (trailing Z). "
-        "ONE entry per distinct\n"
+        "  preferredDates: array (>=1) of {start, end}. Write the organizer's stated "
+        "LOCAL wall-clock\n"
+        "    time with a trailing Z exactly as said — do NOT convert to UTC yourself "
+        "(the system does). ONE entry per distinct\n"
         "    date the user offers ('the 22nd or 24th' -> two entries). "
         "A single day defaults to 09:00-17:00Z;\n"
         "    honour stated times ('evening' -> 18:00-23:00, 'afternoon' -> 13:00-17:00, "
@@ -285,13 +319,13 @@ async def parse_event_request(text: str) -> EventRequestInput:
     validate twice, or the SDK/network errors — the flow never crashes (#4).
     """
     if not settings.ANTHROPIC_API_KEY:
-        return heuristic_parse(text)
+        return _localized(heuristic_parse(text))
     try:
-        return await _llm_attempt(text)
+        return _localized(await _llm_attempt(text))
     except (ValidationError, json.JSONDecodeError) as first:
         try:
-            return await _llm_attempt(text, repair_hint=str(first)[:300])
+            return _localized(await _llm_attempt(text, repair_hint=str(first)[:300]))
         except Exception:
-            return heuristic_parse(text)
+            return _localized(heuristic_parse(text))
     except Exception:
-        return heuristic_parse(text)
+        return _localized(heuristic_parse(text))
