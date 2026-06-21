@@ -133,13 +133,6 @@ services:
       # Mount the app so code changes load on recreate (+ hot-reload) without a full
       # image rebuild — mirrors how ops-core/frontend mount their source.
       - ../ai-orchestrator/app:/app/app
-    # Load ANTHROPIC_API_KEY from the service's own .env (the source of truth for the
-    # key). The container-specific URLs in `environment:` below override this file's
-    # localhost values, since `environment:` wins over `env_file:`. Do NOT re-add an
-    # `ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}` line here — an empty override would
-    # shadow this file and silently drop the AI into key-less fallback mode.
-    env_file:
-      - ../ai-orchestrator/.env
     environment:
       OPS_CORE_URL: ${OPS_CORE_URL:-http://ops-core:4000/api/v1}
       REDIS_URL: redis://redis:6379
