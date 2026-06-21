@@ -101,7 +101,15 @@ export default function Spaces() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(data ?? []).map((s) => {
             const cap = capacityFor(s, layout)
-            const activeLayout = (layout || Object.keys(s.capacities ?? {})[0] || '').toLowerCase()
+            // When a layout filter is active, use that label. Otherwise find the
+            // key whose value equals the max so the label matches the displayed number.
+            const activeLayout = layout
+              ? layout.toLowerCase()
+              : (() => {
+                  const entries = Object.entries(s.capacities ?? {})
+                  if (!entries.length) return ''
+                  return entries.reduce((a, b) => (b[1] > a[1] ? b : a), entries[0])[0].toLowerCase()
+                })()
             return (
               <SpaceCard
                 key={s.id}
