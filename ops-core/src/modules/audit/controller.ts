@@ -8,6 +8,9 @@ export class AuditController {
     return auditService.list({
       requestId: req.query.requestId as string | undefined,
       entityType: req.query.entityType as string | undefined,
+      page: req.query.page ? Number(req.query.page) : undefined,
+      pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
+      order: req.query.order === "desc" ? "desc" : undefined,
     });
   }
 }

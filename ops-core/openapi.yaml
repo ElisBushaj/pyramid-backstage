@@ -275,7 +275,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties: { data: { type: array, items: { $ref: "#/components/schemas/AssetMovement" } } }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -296,7 +296,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties:
                       data:
@@ -575,20 +575,24 @@ paths:
   /private/audit:
     get:
       tags: [audit]
-      summary: Decision / change history
+      summary: Decision / change history (paginated, oldest-first by default — ADR-0017)
       parameters:
         - { name: requestId, in: query, schema: { type: string } }
         - { name: entityType, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
       responses:
         "200":
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties:
                       data: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ── dashboard (read-model for the command-center KPIs) ───────────────────────
   /private/dashboard/stats:
@@ -609,14 +613,17 @@ paths:
   /admin/users:
     get:
       tags: [admin]
-      summary: List staff users (ADMIN)
+      summary: List staff users (ADMIN, paginated — ADR-0017)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
         "200":
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties: { data: { type: array, items: { $ref: "#/components/schemas/User" } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -736,6 +743,17 @@ components:
         message: { type: string }
         messageKey: { type: string, example: request.created.success }
         data: {}
+    ListEnvelope:
+      description: A ServiceEnvelope plus pagination metadata for list endpoints (ADR-0017).
+      allOf:
+        - $ref: "#/components/schemas/ServiceEnvelope"
+        - type: object
+          required: [total, page, pageSize, totalPages]
+          properties:
+            total: { type: integer, example: 137 }
+            page: { type: integer, example: 1 }
+            pageSize: { type: integer, example: 20 }
+            totalPages: { type: integer, example: 7 }
 
     # ── User / auth ──────────────────────────────────────────────────────────────
     User:

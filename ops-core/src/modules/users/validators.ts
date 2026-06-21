@@ -1,5 +1,10 @@
-import { body, type ValidationChain } from "express-validator";
+import { body, query, type ValidationChain } from "express-validator";
 import { ValidationHelpers } from "../../utils/validation.utils";
+
+export const listUsersValidators: ValidationChain[] = [
+  query("page").optional().isInt({ min: 1 }).withMessage("validation.int"),
+  query("pageSize").optional().isInt({ min: 1, max: 100 }).withMessage("validation.int"),
+];
 
 // Full role ladder incl. PARTNER (F15 / ADR-0010). Mirrors Role in types/api/auth.ts;
 // omitting PARTNER here made it un-creatable/un-assignable via /admin/users.

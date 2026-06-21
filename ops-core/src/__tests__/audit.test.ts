@@ -125,6 +125,34 @@ describe("GET /audit (F09-T03)", () => {
 // ---------------------------------------------------------------------------
 // RBAC — who can read the ledger (anon 401, PARTNER 403, VIEWER+ allowed)
 // ---------------------------------------------------------------------------
+describe("GET /audit pagination (F09-T05, ADR-0017)", () => {
+  it("bounds the ledger with page/pageSize + meta; order=desc flips to newest-first; pageSize>100 → 422", async () => {
+    const admin = await loginAs("ADMIN");
+    const base = Date.parse("2026-01-01T00:00:00Z");
+    await prisma.auditEntry.createMany({
+      data: Array.from({ length: 25 }, (_, i) => ({
+        action: "space.update", entityType: "Space", entityId: `sp_${String(i).padStart(2, "0")}`,
+        at: new Date(base + i * 60_000),
+      })),
+    });
+
+    const p1 = await admin.get(`${AUDIT}?pageSize=10&page=1`);
+    expect(p1.status).toBe(200);
+    expect(p1.body.data).toHaveLength(10);
+    expect(p1.body).toMatchObject({ total: 25, page: 1, pageSize: 10, totalPages: 3 });
+    expect(p1.body.data[0].entityId).toBe("sp_00"); // asc default → oldest first
+
+    const p3 = await admin.get(`${AUDIT}?pageSize=10&page=3`);
+    expect(p3.body.data).toHaveLength(5);
+    expect(p3.body.totalPages).toBe(3);
+
+    const desc = await admin.get(`${AUDIT}?order=desc&pageSize=5`);
+    expect(desc.body.data[0].entityId).toBe("sp_24"); // newest first
+
+    expect((await admin.get(`${AUDIT}?pageSize=500`)).status).toBe(422); // bounded
+  });
+});
+
 describe("GET /audit RBAC", () => {
   it("anonymous → 401 unauthorized", async () => {
     const res = await anon().get(AUDIT);

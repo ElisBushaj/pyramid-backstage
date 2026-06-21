@@ -1,16 +1,22 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { APIError } from "../../errors";
-import { ok, type ServiceResponse, type Actor } from "../../types";
+import { ok, okList, type ServiceResponse, type ListResponse, type Actor } from "../../types";
 import type { User, UserInput } from "../../types/api/auth";
 import { hashPassword } from "../../utils/password";
 import { writeAudit } from "../audit/audit.writer";
 import { userToDto } from "../auth/service";
 
 class UsersService {
-  async list(): Promise<ServiceResponse<User[]>> {
-    const rows = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
-    return ok(rows.map(userToDto), "user.list.success");
+  /** Bounded staff list, oldest-first (ADR-0017). */
+  async list(p: { page?: number; pageSize?: number } = {}): Promise<ListResponse<User>> {
+    const page = Math.max(1, p.page ?? 1);
+    const pageSize = Math.min(Math.max(1, p.pageSize ?? 20), 100);
+    const [rows, total] = await prisma.$transaction([
+      prisma.user.findMany({ orderBy: { createdAt: "asc" }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.user.count(),
+    ]);
+    return okList(rows.map(userToDto), total, page, pageSize, "user.list.success");
   }
 
   async create(actor: Actor, input: UserInput): Promise<ServiceResponse<User>> {
