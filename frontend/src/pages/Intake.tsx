@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { Info } from 'lucide-react'
 import { useCreateRequest } from '@/api/hooks'
 import { APIError } from '@/api/api-error'
+import { useMutationToast } from '@/lib/apiError'
 import { useT } from '@/i18n/useT'
 import type { EventRequestInput } from '@/api/types/requests'
 import type { Layout } from '@/api/types/spaces'
@@ -45,10 +46,17 @@ type FormState = {
 
 const REQUIRED_FIELDS: (keyof FormState)[] = ['title', 'organizerName', 'expectedAttendees', 'start', 'end']
 
+// Attendee count must be a whole number ≥ 1 before we POST.
+const isPositiveInt = (v: string) => {
+  const n = Number(v)
+  return Number.isInteger(n) && n >= 1
+}
+
 export default function Intake() {
   const t = useT()
   const navigate = useNavigate()
   const create = useCreateRequest()
+  const onMutationError = useMutationToast()
   const apiErr = create.error instanceof APIError ? create.error : undefined
 
   const [tab, setTab] = useState<'form' | 'chat'>('form')
@@ -79,6 +87,9 @@ export default function Intake() {
     for (const f of REQUIRED_FIELDS) {
       if (!String(form[f]).trim()) errs[f] = t(`intake.required.${f}`)
     }
+    if (!errs.expectedAttendees && form.expectedAttendees.trim() && !isPositiveInt(form.expectedAttendees)) {
+      errs.expectedAttendees = t('intake.invalid.expectedAttendees')
+    }
     if (!errs.start && !errs.end && form.start && form.end && new Date(form.start) >= new Date(form.end)) {
       errs.end = t('intake.invalid.end')
     }
@@ -98,8 +109,9 @@ export default function Intake() {
     e.preventDefault()
     setTouched(true)
     const missing = REQUIRED_FIELDS.some((f) => !String(form[f]).trim())
+    const badAttendees = !!form.expectedAttendees.trim() && !isPositiveInt(form.expectedAttendees)
     const badRange = !!form.start && !!form.end && new Date(form.start) >= new Date(form.end)
-    if (missing || badRange) return
+    if (missing || badAttendees || badRange) return
 
     const body: EventRequestInput = {
       title: form.title.trim(),
@@ -118,7 +130,11 @@ export default function Intake() {
         notes: form.notes.trim() || undefined,
       },
     }
-    create.mutate(body, { onSuccess: (r) => navigate(`/requests/${r.id}`) })
+    create.mutate(body, {
+      onSuccess: (r) => navigate(`/requests/${r.id}`),
+      // 422 field errors render inline via apiErr; this surfaces 403/429/5xx as a toast.
+      onError: onMutationError,
+    })
   }
 
   const seededTurns: ChatMessageData[] = [
@@ -196,23 +212,33 @@ export default function Intake() {
                 />
               </FormField>
 
-              <FormField label={t('field.contactEmail')} htmlFor="intake-email">
+              <FormField
+                label={t('field.contactEmail')}
+                htmlFor="intake-email"
+                error={fieldError('contactEmail', 'contactEmail')}
+              >
                 <Input
                   id="intake-email"
                   type="email"
                   value={form.contactEmail}
                   onChange={(e) => set('contactEmail', e.target.value)}
                   placeholder={t('intake.emailPlaceholder')}
+                  invalid={!!fieldError('contactEmail', 'contactEmail')}
                 />
               </FormField>
 
-              <FormField label={t('field.contactPhone')} htmlFor="intake-phone">
+              <FormField
+                label={t('field.contactPhone')}
+                htmlFor="intake-phone"
+                error={fieldError('contactPhone', 'contactPhone')}
+              >
                 <Input
                   id="intake-phone"
                   type="tel"
                   value={form.contactPhone}
                   onChange={(e) => set('contactPhone', e.target.value)}
                   placeholder={t('intake.phonePlaceholder')}
+                  invalid={!!fieldError('contactPhone', 'contactPhone')}
                 />
               </FormField>
 

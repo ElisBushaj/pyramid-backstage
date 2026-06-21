@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Plus, FileText, AlertTriangle } from 'lucide-react'
 import { useRequests } from '@/api/hooks'
@@ -6,12 +6,17 @@ import type { EventRequest, RequestStatus } from '@/api/types/requests'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { formatDate } from '@/lib/format'
+import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { DataTable, type DataTableColumn } from '@/components/command/DataTable'
+import { Pager } from '@/components/command/Pager'
+
+// Friendly request reference derived from the raw UUID — last 6 chars, uppercased.
+const refOf = (id: string) => `REQ-${id.slice(-6).toUpperCase()}`
 
 type Filter = 'ALL' | 'PROPOSED' | 'APPROVED' | 'SCHEDULED'
 
@@ -23,21 +28,29 @@ export default function Requests() {
   const locale = useLocaleStore((s) => s.locale)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('ALL')
+  const [page, setPage] = useState(1)
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   const statusParam = filter === 'ALL' ? undefined : filter
   const { data, isLoading, isError, refetch } = useRequests({
-    q: search || undefined,
+    q: debouncedSearch || undefined,
     status: statusParam,
+    page,
   })
 
-  const rows = data ?? []
+  // A narrowed search/filter can leave us on a now-empty page — snap back to 1.
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, statusParam])
+
+  const rows = data?.data ?? []
 
   const subtitle = useMemo(() => {
-    if (!data || data.length === 0) return t('requests.noActive')
-    const active = data.filter((r) => ACTIVE_STATUSES.includes(r.status)).length
-    const awaiting = data.filter((r) => r.status === 'PROPOSED').length
+    if (rows.length === 0) return t('requests.noActive')
+    const active = rows.filter((r) => ACTIVE_STATUSES.includes(r.status)).length
+    const awaiting = rows.filter((r) => r.status === 'PROPOSED').length
     return t('requests.subtitle', { active, awaiting })
-  }, [data, t])
+  }, [rows, t])
 
   const columns: DataTableColumn<EventRequest>[] = [
     {
@@ -45,7 +58,7 @@ export default function Requests() {
       header: t('requests.idHeader'),
       width: '160px',
       render: (r) => (
-        <span className="truncate font-mono text-[13px] text-accent">{r.id}</span>
+        <span className="truncate font-mono text-[13px] text-accent">{refOf(r.id)}</span>
       ),
     },
     {
@@ -74,13 +87,6 @@ export default function Requests() {
           {formatDate(r.preferredDates[0]?.start, locale)}
         </span>
       ),
-    },
-    {
-      key: 'value',
-      header: t('requests.value'),
-      width: '120px',
-      align: 'right',
-      render: () => <span className="font-mono tabular-nums text-text-disabled">—</span>,
     },
     {
       key: 'status',
@@ -147,6 +153,16 @@ export default function Requests() {
           onAction: () => void refetch(),
         }}
       />
+
+      {data && (
+        <Pager
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          totalPages={data.totalPages}
+          onPageChange={(p) => setPage(p)}
+        />
+      )}
     </div>
   )
 }
