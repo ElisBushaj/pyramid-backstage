@@ -25,7 +25,10 @@ const END_OF_DAY = 'T20:00:00Z'
 const DEFAULT_DAY = '2026-07-22'
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
 }
 
 /** Largest layout capacity → the "cap N" mono lane sublabel. */
@@ -223,7 +226,7 @@ export default function Calendar() {
           message={t('calendar.emptyBody')}
           action={{
             label: t('calendar.jumpToToday'),
-            onClick: () => setDay(DEFAULT_DAY),
+            onClick: () => setDay(todayIso()),
           }}
         />
       ) : view === 'week' ? (

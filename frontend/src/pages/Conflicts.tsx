@@ -20,7 +20,8 @@ export default function Conflicts() {
   const t = useT()
   const navigate = useNavigate()
 
-  const { data, isLoading, isError, refetch } = useConflicts(defaultWindow())
+  const window = useMemo(defaultWindow, [])
+  const { data, isLoading, isError, refetch } = useConflicts(window)
   const conflicts = data ?? []
 
   const subtitle = useMemo(() => {

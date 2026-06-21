@@ -80,6 +80,16 @@
     "ACCEPTED": "E pranuar",
     "EXPIRED": "E skaduar"
   },
+  "assetType": {
+    "SEATING": "Ulëse",
+    "TABLE": "Tavolinë",
+    "MICROPHONE": "Mikrofon",
+    "SCREEN": "Ekran",
+    "PROJECTOR": "Projektor",
+    "STAGE_UNIT": "Njësi skene",
+    "LIGHTING": "Ndriçim",
+    "OTHER": "Tjetër"
+  },
   "roles": {
     "ADMIN": "Admin",
     "MANAGER": "Menaxher",
@@ -310,7 +320,10 @@
     "noMovements": "Ende asnjë lëvizje e regjistruar.",
     "liveLocation": "Vendndodhja aktuale",
     "checkedOut": "Jashtë",
-    "scan": "Skano"
+    "scan": "Skano",
+    "notFoundTitle": "Aktivi nuk u gjet",
+    "notFoundBody": "Ky aktiv mund të jetë hequr, ose lidhja është e vjetëruar.",
+    "backToList": "Kthehu te inventari"
   },
   "audit": {
     "title": "Auditimi",

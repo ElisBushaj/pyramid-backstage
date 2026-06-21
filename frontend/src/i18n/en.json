@@ -80,6 +80,16 @@
     "ACCEPTED": "Accepted",
     "EXPIRED": "Expired"
   },
+  "assetType": {
+    "SEATING": "Seating",
+    "TABLE": "Table",
+    "MICROPHONE": "Microphone",
+    "SCREEN": "Screen",
+    "PROJECTOR": "Projector",
+    "STAGE_UNIT": "Stage unit",
+    "LIGHTING": "Lighting",
+    "OTHER": "Other"
+  },
   "roles": {
     "ADMIN": "Admin",
     "MANAGER": "Manager",
@@ -310,7 +320,10 @@
     "noMovements": "No movements recorded yet.",
     "liveLocation": "Live location",
     "checkedOut": "Checked out",
-    "scan": "Scan"
+    "scan": "Scan",
+    "notFoundTitle": "Asset not found",
+    "notFoundBody": "This asset may have been removed, or the link is out of date.",
+    "backToList": "Back to inventory"
   },
   "audit": {
     "title": "Audit",

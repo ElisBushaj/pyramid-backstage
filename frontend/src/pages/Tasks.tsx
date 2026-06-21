@@ -27,11 +27,11 @@ export default function Tasks() {
   // /tasks is cross-event. When ALL is selected, fetch tasks for every active
   // request and merge; otherwise fetch for the chosen request only.
   const [scope, setScope] = useState<string>(ALL)
-  const allIds = withPlans.map((r) => r.id)
+  const allIds = useMemo(() => withPlans.map((r) => r.id), [withPlans])
   const allTasksQuery = useAllTasks(scope === ALL ? allIds : [])
   const singleTaskQuery = useTasks(scope !== ALL ? scope : undefined)
-  const { data: tasks, isLoading, isError } = scope === ALL ? allTasksQuery : singleTaskQuery
-  const refetch = scope !== ALL ? singleTaskQuery.refetch : () => Promise.resolve()
+  const { data: tasks, isLoading, isError, refetch } =
+    scope === ALL ? allTasksQuery : singleTaskQuery
 
   const options: SegmentedOption[] = [
     { label: t('tasks.allEvents'), value: ALL },

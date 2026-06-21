@@ -31,11 +31,23 @@ export function SpaceCard({
   const held = availability === 'held'
   return (
     <div
-      className="w-[280px] cursor-pointer rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised transition-shadow hover:shadow-md"
+      className={cn(
+        'w-[280px] rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised transition-shadow hover:shadow-md',
+        onSelect && 'cursor-pointer',
+      )}
       onClick={onSelect}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect?.()}
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect()
+              }
+            }
+          : undefined
+      }
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -81,7 +93,14 @@ export function SpaceCard({
           {rate}
           <span className="font-sans text-[12px] font-normal text-text-tertiary"> {t('spaces.perDay')}</span>
         </p>
-        <Button variant="secondary" size="sm" onClick={onSelect}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelect?.()
+          }}
+        >
           {t('spaces.select')}
         </Button>
       </div>

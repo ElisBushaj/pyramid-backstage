@@ -1,20 +1,47 @@
 import { useState } from 'react'
-import { useParams } from 'react-router'
-import { Pencil, ArrowRight, MapPin } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router'
+import { Pencil, ArrowRight, MapPin, PackageSearch } from 'lucide-react'
 import { useAssets, useAssetMovements, useMe, useUpdateAsset } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { cn } from '@/lib/cn'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/Feedback'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AssetQr } from '@/components/command/AssetQr'
-import type { AssetInput, AssetMovement } from '@/api/types/assets'
+import type {
+  AssetInput,
+  AssetMovement,
+  AssetMovementAction,
+  AssetStatus,
+  AssetType,
+} from '@/api/types/assets'
+
+const ASSET_TYPES: AssetType[] = [
+  'SEATING',
+  'TABLE',
+  'MICROPHONE',
+  'SCREEN',
+  'PROJECTOR',
+  'STAGE_UNIT',
+  'LIGHTING',
+  'OTHER',
+]
+const ASSET_STATUSES: AssetStatus[] = ['ACTIVE', 'MAINTENANCE', 'RETIRED']
+
+const MOVEMENT_LABEL_KEY: Record<AssetMovementAction, string> = {
+  CHECK_OUT: 'scanner.checkOut',
+  CHECK_IN: 'scanner.checkIn',
+  RELOCATE: 'scanner.relocate',
+}
 
 export default function AssetDetail() {
   const { id } = useParams()
   const t = useT()
+  const navigate = useNavigate()
   const locale = useLocaleStore((s) => s.locale)
   const assetsQuery = useAssets({})
   const me = useMe().data
@@ -36,8 +63,20 @@ export default function AssetDetail() {
       </div>
     )
   }
-  if (assetsQuery.isError || !asset) {
+  if (assetsQuery.isError) {
     return <ErrorState title={t('inventory.loadError')} message={t('error.generic')} onRetry={() => assetsQuery.refetch()} retryLabel={t('ui.common.retry')} />
+  }
+  // List loaded but the :id isn't in it — a stale/invalid URL. Refetching won't
+  // help; offer a way back to the inventory list instead of a retry loop.
+  if (!asset) {
+    return (
+      <EmptyState
+        icon={PackageSearch}
+        title={t('inventory.notFoundTitle')}
+        message={t('inventory.notFoundBody')}
+        action={{ label: t('inventory.backToList'), onClick: () => navigate('/inventory') }}
+      />
+    )
   }
 
   const total = asset.totalQuantity
@@ -49,6 +88,10 @@ export default function AssetDetail() {
   function saveEdit() {
     update.mutate(draft, { onSuccess: () => setEditing(false) })
   }
+  function set<K extends keyof AssetInput>(key: K, value: AssetInput[K]) {
+    setDraft((d) => ({ ...d, [key]: value }))
+  }
+  const cur = { ...asset, ...draft }
 
   return (
     <div>
@@ -83,13 +126,66 @@ export default function AssetDetail() {
         {/* Details */}
         <section className="min-w-[280px] flex-1 rounded-lg border border-border-subtle p-5">
           <h2 className="mb-2 text-[15px] font-[600] text-text-primary">{t('inventory.details')}</h2>
-          <Field label={t('inventory.type')} value={<span className="capitalize">{asset.type.toLowerCase().replace('_', ' ')}</span>} />
-          <Field label={t('inventory.location')} value={asset.location} />
-          <Field label={t('inventory.totalUnits')} value={String(total)} />
-          <div className="flex items-center justify-between py-[11px]">
-            <span className="text-[14px] text-text-secondary">{t('audit.action')}</span>
-            <StatusBadge status={asset.status} />
-          </div>
+          {editing ? (
+            <>
+              <Field
+                label={t('inventory.type')}
+                value={
+                  <Select
+                    aria-label={t('inventory.type')}
+                    value={cur.type}
+                    onValueChange={(v) => set('type', v as AssetType)}
+                    options={ASSET_TYPES.map((ty) => ({ value: ty, label: t(`assetType.${ty}`) }))}
+                    triggerClassName="w-[180px]"
+                  />
+                }
+              />
+              <Field
+                label={t('inventory.location')}
+                value={
+                  <Input
+                    aria-label={t('inventory.location')}
+                    value={cur.location}
+                    onChange={(e) => set('location', e.target.value)}
+                    className="w-[180px]"
+                  />
+                }
+              />
+              <Field
+                label={t('inventory.totalUnits')}
+                value={
+                  <Input
+                    aria-label={t('inventory.totalUnits')}
+                    type="number"
+                    min={0}
+                    value={String(cur.totalQuantity)}
+                    onChange={(e) => set('totalQuantity', Math.max(0, Number(e.target.value) || 0))}
+                    className="w-[120px]"
+                  />
+                }
+              />
+              <div className="flex items-center justify-between py-[11px]">
+                <span className="text-[14px] text-text-secondary">{t('audit.action')}</span>
+                <Select
+                  aria-label={t('audit.action')}
+                  value={cur.status}
+                  onValueChange={(v) => set('status', v as AssetStatus)}
+                  options={ASSET_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) }))}
+                  triggerClassName="w-[180px]"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <Field label={t('inventory.type')} value={t(`assetType.${asset.type}`)} />
+              <Field label={t('inventory.location')} value={asset.location} />
+              <Field label={t('inventory.totalUnits')} value={String(total)} />
+              <div className="flex items-center justify-between py-[11px]">
+                <span className="text-[14px] text-text-secondary">{t('audit.action')}</span>
+                <StatusBadge status={asset.status} />
+              </div>
+            </>
+          )}
         </section>
 
         {/* F16 — QR tag + live movement ledger. */}
@@ -191,7 +287,7 @@ function MovementList({
           <span className="absolute -left-[21px] top-1 size-2 rounded-full bg-accent" />
           <div className="flex items-center gap-2 text-[13px]">
             <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-[600] uppercase text-text-secondary">
-              {t(`scanner.${m.action === 'CHECK_OUT' ? 'checkOut' : m.action === 'CHECK_IN' ? 'checkIn' : 'relocate'}`)}
+              {t(MOVEMENT_LABEL_KEY[m.action])}
             </span>
             <span className="font-mono font-[600] tabular-nums text-text-primary">{m.quantity}</span>
             <span className="flex items-center gap-1 text-text-secondary">

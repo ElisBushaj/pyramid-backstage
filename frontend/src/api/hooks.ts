@@ -99,6 +99,7 @@ export const useAllTasks = (requestIds: string[]) =>
       data: results.flatMap((r) => r.data ?? []),
       isLoading: results.some((r) => r.isLoading),
       isError: results.some((r) => r.isError),
+      refetch: () => Promise.all(results.map((r) => r.refetch())),
     }),
   })
 
