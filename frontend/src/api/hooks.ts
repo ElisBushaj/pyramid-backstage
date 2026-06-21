@@ -128,13 +128,22 @@ export function useUpdateTask() {
       api.patch<Task>(`/private/tasks/${id}`, { body, idempotency: true }),
     onMutate: async ({ id, body, requestId }) => {
       await qc.cancelQueries({ queryKey: q('tasks', requestId) })
-      const prev = qc.getQueryData<Task[]>(q('tasks', requestId))
-      if (prev && body.status) {
-        qc.setQueryData<Task[]>(q('tasks', requestId), prev.map((t) => (t.id === id ? { ...t, status: body.status! } : t)))
+      await qc.cancelQueries({ queryKey: q('request', requestId) })
+      const prevTasks = qc.getQueryData<Task[]>(q('tasks', requestId))
+      // The RequestDetail tasks tab reads the aggregate, not the per-request tasks
+      // query — patch both so the status flips optimistically on either surface.
+      const prevAgg = qc.getQueryData<RequestAggregate>(q('request', requestId))
+      if (body.status) {
+        const patch = (t: Task) => (t.id === id ? { ...t, status: body.status! } : t)
+        if (prevTasks) qc.setQueryData<Task[]>(q('tasks', requestId), prevTasks.map(patch))
+        if (prevAgg) qc.setQueryData<RequestAggregate>(q('request', requestId), { ...prevAgg, tasks: prevAgg.tasks.map(patch) })
       }
-      return { prev, requestId }
+      return { prevTasks, prevAgg, requestId }
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(q('tasks', ctx.requestId), ctx.prev) },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prevTasks) qc.setQueryData(q('tasks', ctx.requestId), ctx.prevTasks)
+      if (ctx?.prevAgg) qc.setQueryData(q('request', ctx.requestId), ctx.prevAgg)
+    },
     onSettled: (_d, _e, vars) => { invalidateRequest(qc, vars.requestId); qc.invalidateQueries({ queryKey: q('tasks') }) },
   })
 }

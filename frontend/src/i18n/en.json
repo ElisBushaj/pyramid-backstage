@@ -153,7 +153,8 @@
     "whereIsItSub": "Assets currently checked out",
     "nothingOut": "Everything is in its home location.",
     "unitsOut": "out",
-    "spacesInUseSub_one": "{{count}} space in use"
+    "spacesInUseSub_one": "{{count}} space in use",
+    "lowStockSub": "stock levels"
   },
   "requests": {
     "title": "Requests",
@@ -274,7 +275,7 @@
     "newPhase": "Phase",
     "newOwner": "Owner",
     "newDueOffset": "Due offset",
-    "newDueOffsetHint": "Hours relative to the event start. Leave empty for no due date.",
+    "newDueOffsetHint": "Hours relative to the event — negative before start (setup), positive after end (teardown). Leave empty for no due date.",
     "newDueOffsetSuffix": "hrs",
     "newSubmit": "Create task"
   },

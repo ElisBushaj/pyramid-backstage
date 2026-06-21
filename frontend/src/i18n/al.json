@@ -153,7 +153,8 @@
     "whereIsItSub": "Asetet aktualisht jashtë",
     "nothingOut": "Çdo gjë është në vendndodhjen e vet.",
     "unitsOut": "jashtë",
-    "spacesInUseSub_one": "{{count}} hapësirë në përdorim"
+    "spacesInUseSub_one": "{{count}} hapësirë në përdorim",
+    "lowStockSub": "nivelet e stokut"
   },
   "requests": {
     "title": "Kërkesat",
@@ -274,7 +275,7 @@
     "newPhase": "Faza",
     "newOwner": "Përgjegjësi",
     "newDueOffset": "Afati relativ",
-    "newDueOffsetHint": "Orë në raport me fillimin e eventit. Lëre bosh për pa afat.",
+    "newDueOffsetHint": "Orë në raport me eventin — negative para fillimit (përgatitje), pozitive pas mbarimit (çmontim). Lëre bosh për pa afat.",
     "newDueOffsetSuffix": "orë",
     "newSubmit": "Krijo detyrën"
   },

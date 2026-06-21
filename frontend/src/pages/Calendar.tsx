@@ -9,22 +9,8 @@ import {
   AvailabilityTimeline,
   type TimelineLane,
 } from '@/components/command/AvailabilityTimeline'
-import { scheduleToLanes } from '@/lib/schedule'
+import { scheduleToLanes, venueToday, venueDayWindow, shiftDay } from '@/lib/schedule'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
-
-function todayIso(): string {
-  const d = new Date()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
-
-/** Shift a YYYY-MM-DD day string by `delta` whole days (UTC-anchored to avoid DST drift). */
-function shiftDay(day: string, delta: number): string {
-  const d = new Date(`${day}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + delta)
-  return d.toISOString().slice(0, 10)
-}
 
 /** Localized long date, e.g. "Tuesday, 22 July 2026". */
 function formatLongDate(day: string, locale: 'al' | 'en'): string {
@@ -63,11 +49,10 @@ function TimelineSkeleton() {
 export default function Calendar() {
   const t = useT()
   const locale = useLocaleStore((s) => s.locale)
-  const [day, setDay] = useState(todayIso())
+  const [day, setDay] = useState(venueToday())
 
-  // The full venue day window: this day 00:00Z → next day 00:00Z.
-  const start = `${day}T00:00:00Z`
-  const end = `${shiftDay(day, 1)}T00:00:00Z`
+  // The full venue-local day window (Tirana midnight → next midnight, DST-aware).
+  const { start, end } = venueDayWindow(day)
 
   const {
     data: spaces,
@@ -123,7 +108,7 @@ export default function Calendar() {
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
-      <Button size="sm" variant="secondary" onClick={() => setDay(todayIso())}>
+      <Button size="sm" variant="secondary" onClick={() => setDay(venueToday())}>
         {t('calendar.today')}
       </Button>
     </>
@@ -159,7 +144,7 @@ export default function Calendar() {
           message={t('calendar.emptyBody')}
           action={{
             label: t('calendar.jumpToToday'),
-            onClick: () => setDay(todayIso()),
+            onClick: () => setDay(venueToday()),
           }}
         />
       ) : (

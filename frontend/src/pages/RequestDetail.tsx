@@ -77,6 +77,19 @@ export default function RequestDetail() {
     }
   }, [reject.isSuccess, toast, t])
 
+  // A hold can lapse while the manager reads the plan — schedule a re-render at
+  // expiry so "Feasible — ready to approve" flips to not-feasible instead of
+  // staying stale (review). The 410 toast on approve is the backstop.
+  const [, setExpiryTick] = useState(0)
+  const reservationExpiresAt = data?.reservation?.expiresAt
+  useEffect(() => {
+    if (!reservationExpiresAt) return
+    const ms = new Date(reservationExpiresAt).getTime() - Date.now()
+    if (ms <= 0) return
+    const timer = setTimeout(() => setExpiryTick((n) => n + 1), ms + 500)
+    return () => clearTimeout(timer)
+  }, [reservationExpiresAt])
+
   if (isLoading) return <PlanSkeleton t={t} />
   if (isError || !data)
     return (

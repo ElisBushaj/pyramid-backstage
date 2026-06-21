@@ -7,7 +7,7 @@ import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { formatMinor } from '@/lib/money'
 import { cn } from '@/lib/cn'
-import { scheduleToBars } from '@/lib/schedule'
+import { scheduleToBars, venueToday, venueDayWindow } from '@/lib/schedule'
 import { useMutationToast } from '@/lib/apiError'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -15,15 +15,6 @@ import { Skeleton } from '@/components/ui/Feedback'
 import { ErrorState } from '@/components/ui/Feedback'
 import { AvailabilityTimeline } from '@/components/command/AvailabilityTimeline'
 import type { SpaceInput } from '@/api/types/spaces'
-
-/** Today's [00:00, +1d) window in venue-anchored ISO instants for the schedule query. */
-function todayWindow(): { start: string; end: string } {
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(start)
-  end.setDate(end.getDate() + 1)
-  return { start: start.toISOString(), end: end.toISOString() }
-}
 
 const LAYOUT_ORDER = ['THEATER', 'CLASSROOM', 'BANQUET', 'RECEPTION', 'CABARET', 'BOARDROOM', 'CUSTOM']
 
@@ -41,7 +32,7 @@ export default function SpaceDetail() {
   const [draft, setDraft] = useState<Partial<SpaceInput>>({})
 
   const onMutationError = useMutationToast()
-  const dayWindow = useMemo(todayWindow, [])
+  const dayWindow = useMemo(() => venueDayWindow(venueToday()), [])
   const schedule = useSchedule({ spaceId: id, start: dayWindow.start, end: dayWindow.end })
   // Defensive: only this space's bars belong in this lane, regardless of how the
   // server scopes the windowed read.

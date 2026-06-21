@@ -20,23 +20,14 @@ import { AssetLocationBoard } from '@/components/command/AssetLocationBoard'
 import { FloorMapPanel, deriveFloorStatuses } from '@/components/command/FloorMap'
 import { AvailabilityTimeline } from '@/components/command/AvailabilityTimeline'
 import { AuditTimeline } from '@/components/command/AuditTimeline'
-import { scheduleToLanes } from '@/lib/schedule'
+import { scheduleToLanes, venueToday, venueDayWindow } from '@/lib/schedule'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 
-/** Today's UTC day window [00:00Z, +1d 00:00Z) — the live schedule's range. */
-function todayUtcWindow(): { start: string; end: string } {
-  const now = new Date()
-  const start = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  )
-  const end = new Date(start.getTime() + 86_400_000)
-  return { start: start.toISOString(), end: end.toISOString() }
-}
-
-/** "Tuesday, 22 July 2026" in the active locale (no clipping in AL). */
+/** "Tuesday, 22 July 2026" in the active locale, in venue time (no clipping in AL). */
 function formatToday(locale: 'al' | 'en'): string {
   const intl = locale === 'al' ? 'sq-AL' : 'en-GB'
   return new Intl.DateTimeFormat(intl, {
+    timeZone: 'Europe/Tirana',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -55,8 +46,9 @@ export default function Dashboard() {
   const { data: audit } = useAudit({ pageSize: 8, order: 'desc' })
   const { data: spaces } = useSpaces({})
 
-  // XC-1 — the live schedule timeline runs on real reservation windows for today.
-  const scheduleWindow = useMemo(todayUtcWindow, [])
+  // XC-1 — the live schedule timeline runs on real reservation windows for today
+  // (the venue-local day, DST-aware, so events near venue midnight aren't misfiled).
+  const scheduleWindow = useMemo(() => venueDayWindow(venueToday()), [])
   const { data: scheduleEntries, isLoading: scheduleLoading } = useSchedule(scheduleWindow)
 
   const conflictList = conflicts ?? []
@@ -177,7 +169,7 @@ export default function Dashboard() {
           value={s?.eventsThisWeek.value ?? 0}
           trend={s?.eventsThisWeek.delta ? Math.abs(s.eventsThisWeek.delta) : undefined}
           trendUp={(s?.eventsThisWeek.delta ?? 0) >= 0}
-          sub={s?.eventsThisWeek.hint ?? t('dashboard.eventsSub')}
+          sub={t('dashboard.eventsSub')}
         />
         <KPIStat
           label={t('dashboard.spacesInUse')}
@@ -188,7 +180,7 @@ export default function Dashboard() {
           label={t('dashboard.lowStock')}
           value={s?.lowStockAssets.value ?? 0}
           alert={(s?.lowStockAssets.value ?? 0) > 0}
-          sub={s?.lowStockAssets.hint}
+          sub={t('dashboard.lowStockSub')}
         />
         <KPIStat
           label={t('dashboard.pendingApprovals')}
@@ -197,7 +189,7 @@ export default function Dashboard() {
             s?.pendingApprovals.delta ? Math.abs(s.pendingApprovals.delta) : undefined
           }
           trendUp={(s?.pendingApprovals.delta ?? 0) >= 0}
-          sub={s?.pendingApprovals.hint ?? t('dashboard.awaitingManager')}
+          sub={t('dashboard.awaitingManager')}
         />
       </div>
 

@@ -3,6 +3,45 @@ import type { TimelineLane, TimelineReservation } from '@/components/command/Ava
 
 const VENUE_TZ = 'Europe/Tirana'
 
+/** Today's calendar date (YYYY-MM-DD) in venue time, regardless of the viewer's tz. */
+export function venueToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: VENUE_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+
+/** Europe/Tirana's offset from UTC, in ms, at a given instant (handles DST). */
+function venueOffsetMs(utcMs: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(new Date(utcMs))
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+  const hour = get('hour') % 24 // Intl can emit 24 for midnight
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), hour, get('minute'), get('second'))
+  return asUtc - utcMs
+}
+
+/** The UTC instant whose Europe/Tirana wall-clock is `${day} 00:00`. */
+function venueMidnight(day: string): string {
+  const naive = new Date(`${day}T00:00:00Z`).getTime()
+  return new Date(naive - venueOffsetMs(naive)).toISOString()
+}
+
+/** Shift a YYYY-MM-DD date by `n` days (UTC-safe date arithmetic). */
+export function shiftDay(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * UTC instants bounding a VENUE-LOCAL calendar day, so the schedule query and the
+ * venue-pinned bar positions agree on which day a reservation belongs to — an event
+ * just after venue-midnight no longer lands in the adjacent UTC day (review XC-7).
+ */
+export function venueDayWindow(day: string): { start: string; end: string } {
+  return { start: venueMidnight(day), end: venueMidnight(shiftDay(day, 1)) }
+}
+
 /** ISO instant → decimal hour-of-day in VENUE time (14:30 in Tirana → 14.5). (XC-7) */
 function venueDecimalHour(iso: string): number {
   const parts = new Intl.DateTimeFormat('en-GB', {
