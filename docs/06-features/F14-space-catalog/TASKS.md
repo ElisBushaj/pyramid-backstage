@@ -59,3 +59,11 @@ last_updated: 2026-06-20
   - `locales/al.json` ↔ `locales/en.json` key-count parity holds (the enforced check passes) for any keys F14 added.
   - A read of `GET /private/spaces` returns the 19 spaces with their extension fields populated (and `null`s omitted) — a quick smoke assertion covers the new fields surfacing end-to-end.
   - tsc clean; runs in CI.
+
+### F14-T06 — Spaces/SpaceDetail: full edit scope, dead control + copy cleanup
+- Status: not_started
+- Depends on: F13-T07
+- Estimate: 0.5d
+- Acceptance:
+  - SpaceDetail edit covers rate (money), setup/teardown buffers, and features (not just capacities) and persists them via `useUpdateSpace`.
+  - Spaces redundant “Change window” header button removed (FilterRow pills already drive the window); “capacity for requested layout” copy only shows under an active layout filter (neutral “max capacity” otherwise).

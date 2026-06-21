@@ -66,3 +66,12 @@ last_updated: 2026-06-19
   - The test exercises at-least-once: a duplicate delivery does not corrupt the consumer's view (idempotent handling).
   - Covers at least `reservation.held` and `conflict.detected` (the two the AI keys off).
   - Runs in CI alongside the other integration tests; tsc clean.
+
+### F11-T07 — Calendar date-nav + remove Week + live bars; Dashboard/SpaceDetail live timelines via useSchedule (XC-1)
+- Status: not_started
+- Depends on: F06-T08 , F13-T07
+- Estimate: 1d
+- Acceptance:
+  - Calendar defaults to today; adds prev/next-day + a date picker; the Week toggle (unimplemented) is removed (no dead control).
+  - `useSchedule(window)` feeds `reservationsToBars`; Calendar, Dashboard “Live schedule”, and SpaceDetail “Today’s schedule” render REAL reservation bars; `SAMPLE_TIMELINE_LANES` dropped from production paths; “• live” only on live data.
+  - Timeline bar hours render in `Europe/Tirana` (isoToDecimalHour fixed); timeline legend localized. tsc + build green.

@@ -70,3 +70,11 @@ last_updated: 2026-06-19
   - Half-open boundary property: windows that merely touch (`aEnd == bStart`) never produce a conflict.
   - The generators cover edge cases: zero-length buffers, large buffers that make non-overlapping events collide, exact-boundary touches.
   - Property tests run in CI; tsc clean.
+
+### F05-T07 — pass conflicts window on Dashboard + AppShell; restore conflict alert + nav badge (XC-2)
+- Status: not_started
+- Depends on: F05-T03
+- Estimate: 0.25d
+- Acceptance:
+  - Dashboard and AppShell `useConflicts` receive a memoized today±60d window (shared `defaultWindow`); no more `{}` → 422.
+  - Dashboard conflict-alert banner + FloorMap red-lighting render with a seeded overlapping reservation; sidebar Conflicts nav badge shows a count. Verified: network 200, no 422/page.

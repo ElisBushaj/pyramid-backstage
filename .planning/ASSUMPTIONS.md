@@ -81,3 +81,18 @@ Assumed defaults (no explicit guidance; logged so they can be overridden):
 
 - Assumed: **a quote with no resolvable reservation → 404 `not_found`** (not a silent empty zero-quote).
   Rationale: QUOTES.md frames a quote as pricing "a request + its reservation"; F07-T03 already mandates 404 for an unknown `reservationId`, so an *implicitly* missing reservation (no `reservationId` and no `HELD|CONFIRMED` hold) should fail the same way rather than persist a meaningless net=0/total=0 DRAFT (a money-correctness trap after a hold expires/releases). Fixed `quotesService.generate` to `throw APIError.notFound()` when no reservation resolves; reuses the existing `common.not_found` key (no new messageKey). [assumption: no-reservation-quote=404] — flagged in OPEN.md Q-13 in case a services-only (reservation-less, extraLineItems-only) quote should instead be allowed.
+
+## 2026-06-21 — Frontend-audit remediation (branch `fix/frontend-audit-remediation`)
+
+User-confirmed scope decisions (asked explicitly, recorded for traceability):
+- Decided: **Calendar Week view is REMOVED**, not built — ship day-view + prev/next/date-picker navigation only. Rationale: the Week toggle was an unimplemented placeholder; a date-navigable day view delivers the value without a dead control.
+- Decided: **Global ⌘K Search becomes a real command palette** over requests/spaces/assets with a working keybind (not a relabel). Rationale: honor the affordance the UI already advertises.
+- Decided: **Global Copilot is wired to the live `/chat`** with the same graceful 503 degrade as Intake — NO AI logic is built (stays in Alvin's A00 lane). Rationale: a dead send button is a production-readiness defect; degrade-to-canned is already proven on Intake.
+
+Remediation-execution assumptions:
+- Assumed: **all work lands on a dedicated branch**, not `main`, because push-to-main auto-deploys to production (Hetzner CI→GHCR→VPS). Rationale: no half-finished production deploys; clean PR per the remediation plan.
+- Assumed: **fixes slot into existing features (F01–F19) with new task IDs**, not new F20+ features — matching the prior remediation session's established practice (multi-feature commits). The REMEDIATION_PLAN.md's proposed F20–F30 is superseded by this slotting.
+- Decided (ADR-0015): **expired-uncontested hold → 410 `reservation.hold_expired`** (re-hold), retaken → 409, contention → 429. Refines F10-T01's "expired → 409" promise and flips the deliberately-asserted 429 test. [assumption: expired-uncontested=410]
+- Decided (ADR-0016): **a new `GET /private/reservations?start&end[&spaceId][&status]` read endpoint** powers the live timelines, rather than embedding windows on `/spaces` or fanning out `/spaces/:id/availability`.
+- Decided (ADR-0017): **`/audit` and `/admin/users` gain server-side okList pagination**; `/requests` + `/movements` already paginate (client-only fix); one shared `ListEnvelope` + `Pager`.
+- Assumed: **dead controls with no backend (Forgot-password, RequestDetail "Use this"/"Adjust") are removed or context-carried**, not stubbed — ops-core has no password-reset/re-hold-swap endpoint, so a real flow is out of scope. Flagged where removed. [assumption: remove-dead-controls-without-backend]

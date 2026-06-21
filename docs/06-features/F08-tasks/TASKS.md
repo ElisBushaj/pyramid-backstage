@@ -44,3 +44,11 @@ last_updated: 2026-06-19
   - Unit test asserts `dueAt` computation: a SETUP task with `dueOffsetHours: -4` resolves to 4h before the reserved start; a TEARDOWN task with `+2` to 2h after the reserved end.
   - Integration tests cover: persist a task list (with `dueAt` computed) → fetch it grouped; PATCH assignment + status → `task.update` audit row written; `404` on unknown request/task id; `422` on invalid `TaskInput`.
   - tsc clean; runs in CI.
+
+### F08-T05 — Tasks board: status transitions (optimistic) + New-task dialog
+- Status: not_started
+- Depends on: F13-T07
+- Estimate: 0.75d
+- Acceptance:
+  - `TaskBoard` gains an interactive status control wired to `onStatusChange` → `useUpdateTask` (PATCH /private/tasks/:id) with optimistic `onMutate`/rollback; per-task `requestId` resolution for the ALL scope; broadened `q('tasks')` invalidation.
+  - “New task” opens a create-task dialog (title/phase/owner/dueOffset) → `usePersistTasks` (POST /requests/:id/tasks), gated on a concrete selected request. tsc + build green.

@@ -78,3 +78,11 @@ last_updated: 2026-06-20
   - Movements-history test: `GET /private/assets/:id/movements` returns rows newest-first and paginates; an asset with no movements → an empty page; the `GET /private/assets` rollup reports the right `currentLocation` + `checkedOutQuantity`.
   - Idempotent-replay test: replaying the same `Idempotency-Key` returns the original `AssetMovement` with no second ledger row and no second location flip; the role matrix (OPS+/MANAGER/ADMIN allowed; VIEWER/PARTNER → 403; anonymous → 401) is asserted.
   - tsc clean; runs in CI.
+
+### F16-T08 — Scanner RBAC + check-in/qty UX; AssetDetail status label + movements pager
+- Status: not_started
+- Depends on: F13-T07
+- Estimate: 0.5d
+- Acceptance:
+  - Scanner gates the “Record a movement” form on `can(me.role,'scanAsset')` (OPS+) — read-only roles see a notice, not a write form; Check-In defaults `toLocation` to the asset home (no required-dest gate); quantity gets a `max` from the asset.
+  - AssetDetail status row labeled `inventory.status` (not `audit.action`) in view+edit; movements use the okList pager (page/pageSize + “N of M”).
