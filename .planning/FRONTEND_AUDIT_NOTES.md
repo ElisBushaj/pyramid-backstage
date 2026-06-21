@@ -256,8 +256,10 @@ The 2 extra /conflicts 422s on this page are the AppShell's useConflicts({}) (sh
   No search field, no command palette. ⌘K is a decorative <Kbd> hint with no keybinding handler. Misleading affordance.
 - [MAJOR] useConflicts({}) called AGAIN in AppShell:52 (2nd consumer → the duplicate 422). Sidebar "Conflicts" nav
   badge (badges.conflicts = conflicts?.length) is ALWAYS undefined → conflict count never shows in nav.
-- [MINOR/MAJOR] "NATS connected" pill is mislabeled. live = meQuery.isError ? 'degraded':'connected' (AppShell:87) —
-  reflects whether /me succeeded, NOT NATS. Claims event-bus connectivity it never checks.
+- [MINOR/MAJOR] freshness pill copy/state. live = meQuery.isError ? 'degraded':'connected' (AppShell:87) —
+  reflects whether /me succeeded. Relabel to "Up to date"/"Stale" and drive it off the polling freshness
+  state (time since the last successful REST poll). The async event subsystem was removed in ADR-0018, so
+  there is no bus to reflect.
 - [ok] Nav badges: inventory=lowStockAssets (0→hidden), approvals=pendingApprovals (shows "2" ✓), conflicts=broken.
 - [ok] RBAC: /settings/users ("Staff") nav only for ADMIN; user-menu "Users" item disabled if !admin; PARTNER→/portal redirect.
 - [ok] Sidebar collapse toggle, mobile drawer present.

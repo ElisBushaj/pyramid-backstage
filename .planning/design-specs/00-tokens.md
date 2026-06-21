@@ -133,7 +133,7 @@ Header bar `background:#F7F8FA; border-bottom:1px solid #ECEEF1; 12px/500; lette
 |---|---|---|---|---|
 | Available / Confirmed / Done / Feasible | `success` | `#1A7F4B` | `#E9F6EF` | space free, reservation CONFIRMED, task DONE, plan feasible |
 | Held / Low inventory / Proposed | `warning` | `#9A6B00` | `#FBF3E0` | reservation HELD + expiresAt, inventory low, request PROPOSED |
-| Conflict / Rejected / Overdue | `danger` | `#C8372D` | `#FBECEA` | conflict.detected, request REJECTED, task overdue |
+| Conflict / Rejected / Overdue | `danger` | `#C8372D` | `#FBECEA` | conflict detected, request REJECTED, task overdue |
 | Scheduled / Informational | `info` | `#2F6FED` | `#EEF3FE` | request SCHEDULED, neutral banners |
 | Draft / Released / Inactive | `neutral` | `#8A8F98` | `#F1F3F5` | request DRAFT, reservation RELEASED |
 
