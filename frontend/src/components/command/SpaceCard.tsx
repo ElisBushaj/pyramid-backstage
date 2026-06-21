@@ -30,7 +30,13 @@ export function SpaceCard({
   const t = useT()
   const held = availability === 'held'
   return (
-    <div className="w-[280px] rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised">
+    <div
+      className="w-[280px] cursor-pointer rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised transition-shadow hover:shadow-md"
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect?.()}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[16px] font-[600] text-text-primary">{name}</h3>

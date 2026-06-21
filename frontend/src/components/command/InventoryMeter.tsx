@@ -21,6 +21,7 @@ export interface InventoryMeterProps {
    * Drives the available-segment color and the right-rail badge.
    */
   state?: InventoryState
+  onClick?: () => void
   className?: string
 }
 
@@ -42,6 +43,7 @@ export function InventoryMeter({
   held = 0,
   total,
   state,
+  onClick,
   className,
 }: InventoryMeterProps) {
   const t = useT()
@@ -56,8 +58,13 @@ export function InventoryMeter({
     <div
       className={cn(
         'grid grid-cols-[200px_1fr_150px] items-center gap-5 border-b border-border-subtle py-3.5',
+        onClick && 'cursor-pointer transition-colors hover:bg-surface-subtle',
         className,
       )}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
     >
       {/* Col 1 — name + location */}
       <div className="min-w-0">

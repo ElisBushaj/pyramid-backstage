@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { AlertTriangle, Boxes, CalendarDays } from 'lucide-react'
 import { useAssets } from '@/api/hooks'
 import type { AssetWithAvailability } from '@/api/types/assets'
@@ -32,6 +33,7 @@ function toRow(a: AssetWithAvailability): Row {
 
 export default function Inventory() {
   const t = useT()
+  const navigate = useNavigate()
   const [type, setType] = useState('')
   const [start] = useState('')
   const [end] = useState('')
@@ -114,6 +116,7 @@ export default function Inventory() {
               held={r.held}
               total={r.total}
               state={r.state}
+              onClick={() => navigate(`/inventory/${r.id}`)}
               className="px-5 last:border-b-0"
             />
           ))}
