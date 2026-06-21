@@ -82,6 +82,28 @@ Every backing service has a healthcheck; `ops-core` waits for `db`, `nats`, and
 reachable) as its own probe. `ai-orchestrator` exposes `GET /health`, the
 frontend serves the Vite dev server on `:5173`.
 
+## Seeding the database
+
+On a fresh stack the `ops-core` container migrates the schema **and** reconciles
+the space catalog on boot (`npm run db:seed:spaces`), so the venue's spaces are
+present immediately — no manual step. That catalog sync is idempotent and
+catalog-only (it upserts every space in `docs/03-data/spaces.catalog.json` and
+prunes rows the catalog dropped, but never one that already has reservations).
+
+For the full demo dataset — users you can log in as, plus the three seeded events
+and the planted Blue-Hall conflict — run the full seed once against the running
+`ops-core`:
+
+```bash
+docker compose exec ops-core npm run db:seed         # spaces + assets + users + demo events
+docker compose exec ops-core npm run db:seed -- --reset   # wipe domain data first, then reseed
+docker compose exec ops-core npm run db:seed:spaces  # ONLY reconcile the space catalog (prod-safe)
+```
+
+`db:seed:spaces` is the same command `scripts/deploy.sh` runs on **every** deploy,
+so catalog growth (new floors/halls) always reaches a live database; it touches no
+users or events and is therefore safe under `NODE_ENV=production`.
+
 ## Database init
 
 `db/init.sql` runs once on a fresh volume: it pins the database timezone to UTC

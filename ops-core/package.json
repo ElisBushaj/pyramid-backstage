@@ -16,6 +16,7 @@
     "db:migrate:dev": "prisma migrate dev && prisma generate",
     "db:migrate:prod": "prisma migrate deploy && prisma generate",
     "db:seed": "tsx src/scripts/seed.ts",
+    "db:seed:spaces": "tsx src/scripts/seed.ts --spaces-only",
     "db:reset": "tsx src/scripts/seed.ts --reset",
     "db:studio": "prisma studio",
     "create:admin": "tsx src/scripts/create-admin.ts",
