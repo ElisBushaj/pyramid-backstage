@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/Feedback'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AssetQr } from '@/components/command/AssetQr'
+import { Pager } from '@/components/command/Pager'
 import type {
   AssetInput,
   AssetMovement,
@@ -46,7 +47,11 @@ export default function AssetDetail() {
   const assetsQuery = useAssets({})
   const me = useMe().data
   const asset = assetsQuery.data?.find((a) => a.id === id)
-  const movements = useAssetMovements(id).data ?? []
+  const [movePage, setMovePage] = useState(1)
+  const MOVE_PAGE_SIZE = 20
+  const movementsQuery = useAssetMovements(id, { page: movePage, pageSize: MOVE_PAGE_SIZE })
+  const movements = movementsQuery.data?.data ?? []
+  const moveMeta = movementsQuery.data
   const update = useUpdateAsset(id ?? '')
 
   const canEdit = me ? ['OPS', 'MANAGER', 'ADMIN'].includes(me.role) : false
@@ -165,9 +170,9 @@ export default function AssetDetail() {
                 }
               />
               <div className="flex items-center justify-between py-[11px]">
-                <span className="text-[14px] text-text-secondary">{t('audit.action')}</span>
+                <span className="text-[14px] text-text-secondary">{t('inventory.status')}</span>
                 <Select
-                  aria-label={t('audit.action')}
+                  aria-label={t('inventory.status')}
                   value={cur.status}
                   onValueChange={(v) => set('status', v as AssetStatus)}
                   options={ASSET_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) }))}
@@ -181,7 +186,7 @@ export default function AssetDetail() {
               <Field label={t('inventory.location')} value={asset.location} />
               <Field label={t('inventory.totalUnits')} value={String(total)} />
               <div className="flex items-center justify-between py-[11px]">
-                <span className="text-[14px] text-text-secondary">{t('audit.action')}</span>
+                <span className="text-[14px] text-text-secondary">{t('inventory.status')}</span>
                 <StatusBadge status={asset.status} />
               </div>
             </>
@@ -202,7 +207,18 @@ export default function AssetDetail() {
             {movements.length === 0 ? (
               <EmptyState title={t('inventory.noMovements')} message={`${available}/${total} ${t('inventory.available').toLowerCase()}`} />
             ) : (
-              <MovementSections movements={movements} fmtAt={fmtAt} t={t} />
+              <>
+                <MovementSections movements={movements} fmtAt={fmtAt} t={t} />
+                {moveMeta && (
+                  <Pager
+                    page={moveMeta.page}
+                    pageSize={moveMeta.pageSize}
+                    total={moveMeta.total}
+                    totalPages={moveMeta.totalPages}
+                    onPageChange={setMovePage}
+                  />
+                )}
+              </>
             )}
           </div>
         </section>
