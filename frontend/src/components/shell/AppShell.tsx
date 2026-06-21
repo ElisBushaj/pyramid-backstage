@@ -104,8 +104,6 @@ export function AppShell() {
     return location.pathname === path || location.pathname.startsWith(path + '/')
   }
 
-  const live = meQuery.isError ? 'degraded' : 'connected'
-
   // F15 — a partner has no staff surface; send them to their portal. (After all hooks.)
   if (me && me.role === 'PARTNER') return <Navigate to="/portal" replace />
 
@@ -169,7 +167,6 @@ export function AppShell() {
           </button>
 
           <div className="ml-auto flex items-center gap-3">
-            <LiveStatusPill status={live} t={t} />
             <LocaleToggle />
             <button
               onClick={toggleCopilot}
@@ -300,25 +297,6 @@ function NavGroupBlock({
         )
       })}
     </div>
-  )
-}
-
-function LiveStatusPill({ status, t }: { status: 'connected' | 'degraded'; t: (k: string) => string }) {
-  const connected = status === 'connected'
-  return (
-    <span
-      className={cn(
-        'inline-flex h-[30px] items-center gap-2 rounded-pill border px-3',
-        connected ? 'border-[rgba(26,127,75,0.2)] bg-success-subtle' : 'border-[rgba(154,107,0,0.25)] bg-warning-subtle',
-      )}
-    >
-      <span
-        className={cn('size-[7px] rounded-pill', connected ? 'bg-success [animation:pulse-dot_1.8s_ease-in-out_infinite]' : 'bg-warning')}
-      />
-      <span className={cn('text-[12px] font-[600]', connected ? 'text-[#15613A]' : 'text-[#7A5500]')}>
-        {connected ? t('shell.sessionLive') : t('shell.sessionDegraded')}
-      </span>
-    </span>
   )
 }
 

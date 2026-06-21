@@ -45,9 +45,7 @@
   },
   "shell": {
     "searchPlaceholder": "Search or start a request…",
-    "copilot": "Copilot",
-    "sessionLive": "Session live",
-    "sessionDegraded": "Session degraded"
+    "copilot": "Copilot"
   },
   "auth": {
     "title": "Sign in",

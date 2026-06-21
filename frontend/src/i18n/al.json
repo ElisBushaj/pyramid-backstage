@@ -45,9 +45,7 @@
   },
   "shell": {
     "searchPlaceholder": "Kërko ose nis një kërkesë…",
-    "copilot": "Kopilot",
-    "sessionLive": "Sesioni aktiv",
-    "sessionDegraded": "Sesioni i degraduar"
+    "copilot": "Kopilot"
   },
   "auth": {
     "title": "Hyr",

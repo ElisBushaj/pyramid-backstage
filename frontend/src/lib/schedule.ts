@@ -1,14 +1,14 @@
 import type { ScheduleEntry } from '@/api/types/reservations'
 import type { TimelineLane, TimelineReservation } from '@/components/command/AvailabilityTimeline'
 
-const VENUE_TZ = 'Europe/Tirana'
+const VENUE_TZ = 'Europe/Tirane'
 
 /** Today's calendar date (YYYY-MM-DD) in venue time, regardless of the viewer's tz. */
 export function venueToday(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: VENUE_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 }
 
-/** Europe/Tirana's offset from UTC, in ms, at a given instant (handles DST). */
+/** Europe/Tirane's offset from UTC, in ms, at a given instant (handles DST). */
 function venueOffsetMs(utcMs: number): number {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: VENUE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -20,7 +20,7 @@ function venueOffsetMs(utcMs: number): number {
   return asUtc - utcMs
 }
 
-/** The UTC instant whose Europe/Tirana wall-clock is `${day} 00:00`. */
+/** The UTC instant whose Europe/Tirane wall-clock is `${day} 00:00`. */
 function venueMidnight(day: string): string {
   const naive = new Date(`${day}T00:00:00Z`).getTime()
   return new Date(naive - venueOffsetMs(naive)).toISOString()

@@ -27,7 +27,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 function formatToday(locale: 'al' | 'en'): string {
   const intl = locale === 'al' ? 'sq-AL' : 'en-GB'
   return new Intl.DateTimeFormat(intl, {
-    timeZone: 'Europe/Tirana',
+    timeZone: 'Europe/Tirane',
     weekday: 'long',
     day: 'numeric',
     month: 'long',

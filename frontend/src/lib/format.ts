@@ -5,9 +5,9 @@ const intlLocale = (l: Loc) => (l === 'al' ? 'sq-AL' : 'en-GB')
  * Pyramid of Tirana — every event/venue time renders in VENUE-local time, not the
  * viewer's browser timezone, so a booking's hours are identical for every viewer
  * regardless of where they sit (XC-7). The API stores ISO-Z instants; we pin the
- * wall-clock to Europe/Tirana on render.
+ * wall-clock to Europe/Tirane on render.
  */
-const VENUE_TZ = 'Europe/Tirana'
+const VENUE_TZ = 'Europe/Tirane'
 
 /** A parsed Date, or null for a missing/malformed ISO (so we render '—', not "Invalid Date"). */
 function valid(iso?: string | null): Date | null {
