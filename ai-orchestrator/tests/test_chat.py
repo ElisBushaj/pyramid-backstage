@@ -63,13 +63,15 @@ class FakeKB:
 
 
 class FakeGraph:
-    """Counts invocations — each ainvoke == one (would-be) request + hold."""
+    """Counts invocations + records the brief each one planned from."""
 
     def __init__(self) -> None:
         self.calls = 0
+        self.briefs: list[str] = []
 
     async def ainvoke(self, state: dict) -> dict:
         self.calls += 1
+        self.briefs.append(state.get("nl_text"))
         return {"_brief": state.get("nl_text")}
 
 
@@ -199,6 +201,36 @@ def test_booking_brief_is_not_hijacked_by_the_rag_path(patched_plan) -> None:
     kb = FakeKB(hits=[{"document": "irrelevant", "metadata": {}}])
     r = _send(store, ops, graph, "conference for 180 people on 2026-09-15", kb=kb)
     assert graph.calls == 1 and r.plan is not None
+
+
+def test_needs_condense_only_on_conflict() -> None:
+    assert chat._needs_condense(["conference for 180 on 2026-09-15"]) is False  # single msg
+    assert chat._needs_condense(["180 people", "on 2026-09-15"]) is False       # additive gather
+    assert chat._needs_condense(["180 people", "actually 250 people"]) is True  # two headcounts
+    assert chat._needs_condense(["80 on the 3rd", "make it banquet"]) is True    # edit verb later
+
+
+def test_condense_falls_back_to_join_without_a_key() -> None:
+    # _no_llm blanks the key -> plain concatenation; a single fragment is returned as-is.
+    assert asyncio.run(
+        chat._condense_brief(["180 people", "actually 250 people"])
+    ) == "180 people  actually 250 people"
+    assert asyncio.run(chat._condense_brief(["just the one"])) == "just the one"
+
+
+def test_condense_feeds_a_resolved_brief_to_the_planner(patched_plan, monkeypatch) -> None:
+    store, ops, graph = SessionStore(), FakeOps(), FakeGraph()
+
+    async def _fake_condense(messages):
+        return "Conference for 250 people on 2026-09-15"
+
+    monkeypatch.setattr(chat, "_condense_brief", _fake_condense)
+    _send(store, ops, graph, "conference for 180 people on 2026-09-15")  # first plan
+    _send(store, ops, graph, "actually make it 250")  # a change -> re-plan via condense
+    assert graph.calls == 2
+    # The planner saw the RECONCILED brief (250), not the raw "180 ... 250" concatenation.
+    assert graph.briefs[-1] == "Conference for 250 people on 2026-09-15"
+    assert ops.released == ["resv-1"]  # prior hold still released before the re-plan
 
 
 def test_memory_store_roundtrips_without_redis() -> None:

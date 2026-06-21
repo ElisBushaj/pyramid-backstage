@@ -189,6 +189,55 @@ async def _finish(
     return resp
 
 
+def _needs_condense(messages: list[str]) -> bool:
+    """True only when the brief fragments could CONFLICT (so a merge is worth a call).
+
+    A clean multi-turn gather ("180 people" then "on the 15th") is purely additive —
+    naive concatenation already parses right, so we skip the LLM. We condense only when
+    the same parameter appears twice (two headcounts / two dates) or a later turn carries
+    an edit verb / requirement change ("actually 250", "make it banquet", "add catering")."""
+    if len(messages) < 2:
+        return False
+    counts = sum(1 for m in messages if _has_num(m))
+    dates = sum(1 for m in messages if _has_date(m))
+    changed = any(_CHANGE_HINT.search(m) for m in messages[1:])
+    return counts >= 2 or dates >= 2 or changed
+
+
+async def _condense_brief(messages: list[str]) -> str:
+    """Merge the brief fragments into ONE standalone request, latest value wins.
+
+    Fixes the "make it 250" caseː naive concatenation keeps both "180 people" and "250",
+    and the parser takes the FIRST — so an override is silently ignored. Here a cheap
+    FAST_MODEL call resolves the conversation to a single coherent line. Skipped (returns
+    the plain join) when there's nothing to reconcile or no API key, and guarded so a bad
+    rewrite that loses the headcount falls back to the join — never a worse brief."""
+    joined = "  ".join(messages)
+    if not _needs_condense(messages) or not settings.ANTHROPIC_API_KEY:
+        return joined
+    try:
+        turns = "\n".join(f"- {m}" for m in messages)
+        resp = await _anthropic().messages.create(
+            model=settings.FAST_MODEL,
+            max_tokens=120,
+            system=(
+                "You merge a short back-and-forth about ONE event into a SINGLE standalone "
+                "request line. Combine every detail the organizer gave. When they change "
+                "their mind — a new headcount, date, layout, or an added/removed requirement "
+                "— the LATEST statement WINS; drop the superseded value. Output ONE plain-text "
+                "line, no preamble and no JSON. Example: 'Conference for 250 people on "
+                "2026-09-15 with catering'."
+            ),
+            messages=[
+                {"role": "user", "content": f"Conversation:\n{turns}\n\nThe single request line:"}
+            ],
+        )
+        txt = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+        return txt if (txt and _has_num(txt)) else joined
+    except Exception:
+        return joined
+
+
 async def _phrase_question(brief: str, missing: list[str]) -> str:
     """Phrase the clarifying question. LLM when a key is set; template otherwise."""
     template = "Happy to help plan that. Could you tell me " + " and ".join(missing) + "?"
@@ -303,9 +352,12 @@ async def handle_chat(
         )
 
     # 4. First plan, or a genuine change -> release the prior hold (so leases never
-    #    stack), then run the deterministic DAG exactly once.
+    #    stack), then run the deterministic DAG exactly once. Condense the accumulated
+    #    fragments into a standalone brief first so a later override (e.g. "make it 250")
+    #    wins over the earlier value instead of being lost in the concatenation.
     await _release_current(ops, sess)
-    result = await graph.ainvoke({"ops": ops, "nl_text": brief})
+    planned_brief = await _condense_brief(sess["messages"])
+    result = await graph.ainvoke({"ops": ops, "nl_text": planned_brief})
     plan = build_operational_plan(result, None)
     sess["plan"] = plan.model_dump()
     sess["brief_planned"] = brief
