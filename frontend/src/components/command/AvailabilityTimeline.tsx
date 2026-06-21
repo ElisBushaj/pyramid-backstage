@@ -1,5 +1,6 @@
 import { forwardRef, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { useT } from '@/i18n/useT'
 import { Badge } from '@/components/ui/Badge'
 import {
   Popover,
@@ -156,21 +157,13 @@ function defaultDetail(r: TimelineReservation): string[] {
   return lines
 }
 
-interface LegendItem {
-  status: TimelineStatus
-  label: string
-}
-const LEGEND: LegendItem[] = [
-  { status: 'confirmed', label: 'confirmed' },
-  { status: 'held', label: 'held' },
-  { status: 'scheduled', label: 'scheduled' },
-  { status: 'conflict', label: 'conflict' },
-]
+const LEGEND: TimelineStatus[] = ['confirmed', 'held', 'scheduled', 'conflict']
 
 function Legend() {
+  const t = useT()
   return (
     <div className="mb-[18px] flex flex-wrap items-center gap-[18px]">
-      {LEGEND.map(({ status, label }) => {
+      {LEGEND.map((status) => {
         const c = STATUS[status]
         return (
           <div key={status} className="flex items-center gap-2">
@@ -182,7 +175,7 @@ function Legend() {
               )}
               aria-hidden
             />
-            <span className="text-[12px] text-text-secondary">{label}</span>
+            <span className="text-[12px] text-text-secondary">{t(`timeline.legend.${status}`)}</span>
           </div>
         )
       })}
@@ -193,7 +186,7 @@ function Legend() {
           aria-hidden
         />
         <span className="text-[12px] text-text-secondary">
-          setup / teardown buffer
+          {t('timeline.legend.buffer')}
         </span>
       </div>
     </div>

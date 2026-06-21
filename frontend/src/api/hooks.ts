@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { aiPlan, aiConfigured } from './ai'
@@ -6,7 +7,7 @@ import type { User, UserInput } from './types/auth'
 import type { Space, SpaceInput, SpaceWithAvailability, SpaceAvailability } from './types/spaces'
 import type { Asset, AssetInput, AssetWithAvailability, AssetMovement, AssetScanInput, AssetScanResult } from './types/assets'
 import type { EventRequest, EventRequestInput, RequestAggregate, DashboardStats } from './types/requests'
-import type { Reservation, ReservationInput } from './types/reservations'
+import type { Reservation, ReservationInput, ScheduleEntry } from './types/reservations'
 import type { Quote, LineItemInput } from './types/quotes'
 import type { Task, TaskInput, TaskUpdateInput } from './types/tasks'
 import type { Conflict } from './types/_envelope'
@@ -40,8 +41,11 @@ export const useDashboardStats = () =>
   useQuery({ queryKey: q('dashboard'), queryFn: () => api.get<DashboardStats>('/private/dashboard/stats') })
 
 // ── requests ─────────────────────────────────────────────────────────────────
-export const useRequests = (params: Query) =>
-  useQuery({ queryKey: q('requests', params), queryFn: () => api.get<EventRequest[]>('/private/requests', { query: { pageSize: 100, ...params } }) })
+// Returns the Paginated envelope (data + total/page/pageSize/totalPages) so list
+// pages can page + show "N of M" (ADR-0017). Consumers read `.data?.data` for the
+// rows and `.data` for the meta.
+export const useRequests = (params: Query = {}) =>
+  useQuery({ queryKey: q('requests', params), queryFn: () => api.getList<EventRequest>('/private/requests', { query: { pageSize: 20, ...params } }) })
 
 export const useRequest = (id?: string) =>
   useQuery({ queryKey: q('request', id), queryFn: () => api.get<RequestAggregate>(`/private/requests/${id}`), enabled: !!id })
@@ -111,11 +115,27 @@ export function usePersistTasks(requestId: string) {
   })
 }
 
-export function useUpdateTask(requestId: string) {
+/**
+ * Optimistic task status/assignee update. `requestId` rides in the mutate vars
+ * (not the constructor) so the cross-event Tasks board — which holds tasks from
+ * many requests — can update any card's owning request cache. Broadens the
+ * invalidation to the whole q('tasks') prefix so the ALL-scope aggregate refreshes.
+ */
+export function useUpdateTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: TaskUpdateInput }) => api.patch<Task>(`/private/tasks/${id}`, { body, idempotency: true }),
-    onSuccess: () => { invalidateRequest(qc, requestId); qc.invalidateQueries({ queryKey: q('tasks', requestId) }) },
+    mutationFn: ({ id, body }: { id: string; body: TaskUpdateInput; requestId: string }) =>
+      api.patch<Task>(`/private/tasks/${id}`, { body, idempotency: true }),
+    onMutate: async ({ id, body, requestId }) => {
+      await qc.cancelQueries({ queryKey: q('tasks', requestId) })
+      const prev = qc.getQueryData<Task[]>(q('tasks', requestId))
+      if (prev && body.status) {
+        qc.setQueryData<Task[]>(q('tasks', requestId), prev.map((t) => (t.id === id ? { ...t, status: body.status! } : t)))
+      }
+      return { prev, requestId }
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(q('tasks', ctx.requestId), ctx.prev) },
+    onSettled: (_d, _e, vars) => { invalidateRequest(qc, vars.requestId); qc.invalidateQueries({ queryKey: q('tasks') }) },
   })
 }
 
@@ -163,8 +183,9 @@ export function useUpdateAsset(id: string) {
 }
 
 // ── F16: QR/NFC asset tracking ─────────────────────────────────────────────────
-export const useAssetMovements = (id?: string) =>
-  useQuery({ queryKey: q('asset-movements', id), queryFn: () => api.get<AssetMovement[]>(`/private/assets/${id}/movements`), enabled: !!id })
+// Paginated ledger (ADR-0017): pass { page, pageSize }; reads `.data?.data` + meta.
+export const useAssetMovements = (id?: string, params: Query = {}) =>
+  useQuery({ queryKey: q('asset-movements', id, params), queryFn: () => api.getList<AssetMovement>(`/private/assets/${id}/movements`, { query: params }), enabled: !!id })
 
 export function useScanAsset(id: string) {
   const qc = useQueryClient()
@@ -177,15 +198,46 @@ export function useScanAsset(id: string) {
   })
 }
 
-export const useConflicts = (params: Query, enabled = true) =>
-  useQuery({ queryKey: q('conflicts', params), queryFn: () => api.get<Conflict[]>('/private/conflicts', { query: params }), enabled })
+/** A wide today±60d window — the default when a caller (Dashboard/AppShell) omits one. */
+function defaultConflictWindow(): { start: string; end: string } {
+  const now = Date.now()
+  const span = 60 * 86_400_000
+  return { start: new Date(now - span).toISOString(), end: new Date(now + span).toISOString() }
+}
+
+/**
+ * GET /conflicts requires start+end. Callers that omit them (Dashboard, AppShell)
+ * used to 422 on every page (XC-2); we default a wide window so the conflict alert,
+ * FloorMap red-lighting, and the nav badge work everywhere. Memoized so the default
+ * window stays stable across renders (no refetch storm).
+ */
+export const useConflicts = (params: Query, enabled = true) => {
+  const query = useMemo(
+    () => (params.start && params.end ? params : { ...params, ...defaultConflictWindow() }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.start, params.end, params.spaceId, params.status],
+  )
+  return useQuery({ queryKey: q('conflicts', query), queryFn: () => api.get<Conflict[]>('/private/conflicts', { query }), enabled })
+}
+
+// ── schedule (ADR-0016: live reservation windows for the timelines) ─────────────
+export const useSchedule = (params: Query, enabled = true) =>
+  useQuery({
+    queryKey: q('schedule', params),
+    queryFn: () => api.get<ScheduleEntry[]>('/private/reservations', { query: params }),
+    enabled: enabled && !!params.start && !!params.end,
+  })
 
 // ── audit ────────────────────────────────────────────────────────────────────
-export const useAudit = (params: Query) =>
-  useQuery({ queryKey: q('audit', params), queryFn: () => api.get<AuditEntry[]>('/private/audit', { query: params }) })
+export const useAudit = (params: Query = {}) =>
+  useQuery({ queryKey: q('audit', params), queryFn: () => api.getList<AuditEntry>('/private/audit', { query: params }) })
 
 // ── admin users ──────────────────────────────────────────────────────────────
-export const useUsers = () => useQuery({ queryKey: q('users'), queryFn: () => api.get<User[]>('/admin/users') })
+// ADMIN-gated so non-admins skip the 403 round-trip (XC-6); returns Paginated (ADR-0017).
+export const useUsers = (params: Query = {}) => {
+  const isAdmin = useMe().data?.role === 'ADMIN'
+  return useQuery({ queryKey: q('users', params), queryFn: () => api.getList<User>('/admin/users', { query: params }), enabled: isAdmin })
+}
 
 export function useCreateUser() {
   const qc = useQueryClient()
@@ -198,7 +250,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<UserInput> }) => api.patch<User>(`/admin/users/${id}`, { body, idempotency: false }),
+    mutationFn: ({ id, body }: { id: string; body: Partial<UserInput> }) => api.patch<User>(`/admin/users/${id}`, { body, idempotency: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: q('users') }),
   })
 }

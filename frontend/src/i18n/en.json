@@ -1,5 +1,11 @@
 {
   "ui": {
+    "pagination": {
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "prev": "Prev",
+      "next": "Next",
+      "page": "Page {{page}} of {{totalPages}}"
+    },
     "common": {
       "loading": "Loading…",
       "save": "Save",
@@ -39,7 +45,9 @@
   },
   "shell": {
     "searchPlaceholder": "Search or start a request…",
-    "copilot": "Copilot"
+    "copilot": "Copilot",
+    "sessionLive": "Session live",
+    "sessionDegraded": "Session degraded"
   },
   "auth": {
     "title": "Sign in",
@@ -53,7 +61,8 @@
     "footerNote": "Staff only · access is audited",
     "invalid": "Wrong email or password.",
     "rateLimited": "Too many attempts. Please wait and try again.",
-    "required": "Email and password are required."
+    "required": "Email and password are required.",
+    "failed": "Couldn't sign you in. Please try again."
   },
   "status": {
     "DRAFT": "Draft",
@@ -94,7 +103,8 @@
     "ADMIN": "Admin",
     "MANAGER": "Manager",
     "OPS": "Ops",
-    "VIEWER": "Viewer"
+    "VIEWER": "Viewer",
+    "PARTNER": "Partner"
   },
   "conflict": {
     "SPACE_DOUBLE_BOOKED": "Space double-booked",
@@ -142,7 +152,8 @@
     "whereIsIt": "Where is it?",
     "whereIsItSub": "Assets currently checked out",
     "nothingOut": "Everything is in its home location.",
-    "unitsOut": "out"
+    "unitsOut": "out",
+    "spacesInUseSub_one": "{{count}} space in use"
   },
   "requests": {
     "title": "Requests",
@@ -221,7 +232,11 @@
     "loadError": "The connection to ops-core timed out.",
     "approvedToast": "Plan approved",
     "approvedToastBody": "Scheduled — reservations are confirmed.",
-    "rejectedToast": "Request rejected"
+    "rejectedToast": "Request rejected",
+    "narrativeFeasibleGeneric": "Yes — we can host this. {{space}} seats {{capacity}} in the requested layout and is free in the requested window, comfortably fitting {{attendees}} attendees. A reservation is held and a quote drafted.",
+    "narrativeDerivedNote": "AI summary unavailable — derived from the plan.",
+    "rejectReasonHint": "At least 3 characters — shared with the organizer.",
+    "alternativeFitsHint": "Fits the requested layout and headcount."
   },
   "quote": {
     "net": "Net",
@@ -249,7 +264,19 @@
     "loadError": "Couldn't load tasks",
     "loadErrorBody": "The connection to ops-core timed out.",
     "emptyTitle": "All caught up",
-    "emptyBody": "No open setup or teardown tasks. New tasks appear here when a plan is approved."
+    "emptyBody": "No open setup or teardown tasks. New tasks appear here when a plan is approved.",
+    "markTodo": "Mark as to do",
+    "markInProgress": "Mark as in progress",
+    "markDone": "Mark as done",
+    "newTitle": "New task",
+    "newEvent": "Event",
+    "newTaskTitle": "Task title",
+    "newPhase": "Phase",
+    "newOwner": "Owner",
+    "newDueOffset": "Due offset",
+    "newDueOffsetHint": "Hours relative to the event start. Leave empty for no due date.",
+    "newDueOffsetSuffix": "hrs",
+    "newSubmit": "Create task"
   },
   "spaces": {
     "title": "Spaces",
@@ -284,7 +311,10 @@
     "loadErrorList": "Couldn't load spaces",
     "held": "Held",
     "capacityForLayout": "capacity for requested layout",
-    "select": "Select"
+    "select": "Select",
+    "maxCapacity": "max capacity",
+    "featuresPlaceholder": "e.g. Stage, AV rig, Wi-Fi",
+    "featuresHint": "Separate features with commas"
   },
   "inventory": {
     "title": "Inventory",
@@ -323,7 +353,8 @@
     "scan": "Scan",
     "notFoundTitle": "Asset not found",
     "notFoundBody": "This asset may have been removed, or the link is out of date.",
-    "backToList": "Back to inventory"
+    "backToList": "Back to inventory",
+    "status": "Status"
   },
   "audit": {
     "title": "Audit",
@@ -344,7 +375,8 @@
     "emptyTitle": "No activity yet",
     "emptyBody": "Actions taken across the system will appear here as an append-only record.",
     "emptyFilter": "No activity for this filter",
-    "emptyFilterBody": "Try a different request or entity type."
+    "emptyFilterBody": "Try a different request or entity type.",
+    "entityTypeAll": "All types"
   },
   "users": {
     "title": "Staff",
@@ -381,7 +413,10 @@
     "notFound": "Page not found",
     "generic": "We hit an unexpected error.",
     "forbidden": "You don't have permission to view this.",
-    "timedOut": "The connection to ops-core timed out."
+    "timedOut": "The connection to ops-core timed out.",
+    "checkFields": "Please review the highlighted fields.",
+    "rateLimited": "Too many attempts — please wait and try again.",
+    "holdExpired": "This hold expired — re-hold the space to continue."
   },
   "intake": {
     "tabForm": "Form",
@@ -409,7 +444,9 @@
       "organizerName": "Please enter a valid organizer name.",
       "expectedAttendees": "Please enter a valid attendee count.",
       "start": "Please enter a valid start time.",
-      "end": "Please enter a valid end time."
+      "end": "Please enter a valid end time.",
+      "contactEmail": "Please enter a valid email address.",
+      "contactPhone": "Please enter a valid phone number."
     }
   },
   "eventType": {
@@ -430,11 +467,23 @@
     "BOARDROOM": "Boardroom",
     "CUSTOM": "Custom"
   },
+  "timeline": {
+    "legend": {
+      "confirmed": "confirmed",
+      "held": "held",
+      "scheduled": "scheduled",
+      "conflict": "conflict",
+      "buffer": "setup / teardown buffer"
+    }
+  },
   "calendar": {
     "day": "Day",
     "week": "Week",
     "viewMode": "View mode",
     "today": "Today",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "pickDate": "Pick a date",
     "loadError": "Couldn't load the calendar",
     "loadErrorBody": "The connection to ops-core timed out.",
     "emptyTitle": "Nothing scheduled",
@@ -483,7 +532,8 @@
     "stopCamera": "Stop camera",
     "cameraHint": "Point the camera at an asset QR",
     "history": "Movement history",
-    "emptyHistory": "No movements yet"
+    "emptyHistory": "No movements yet",
+    "readOnlyNotice": "You don't have permission to record movements. Ask an operations team member to check this asset in or out."
   },
   "portal": {
     "title": "Partner Portal",
@@ -507,14 +557,23 @@
     "fStart": "Start",
     "fEnd": "End",
     "fAv": "AV / sound needed",
-    "fAvSub": "Microphones, screens, projectors"
+    "fAvSub": "Microphones, screens, projectors",
+    "backToRequests": "Back to my requests",
+    "notFoundTitle": "Request not found",
+    "notFoundBody": "This request may have been removed, or the link is out of date.",
+    "detailsHeading": "Request details",
+    "preferredDates": "Preferred dates",
+    "quoteTotal": "Proposal total",
+    "quoteTotalSub": "Estimated cost from your proposal",
+    "endAfterStart": "End must be after the start time"
   },
   "approvals": {
     "title": "Pending approvals",
     "subtitle": "Review proposed requests and approve or decline.",
     "emptyTitle": "Nothing pending",
     "emptyBody": "There are no requests awaiting approval.",
-    "aiSlot": "AI recommendation will appear here once the copilot is connected."
+    "aiSlot": "AI recommendation will appear here once the copilot is connected.",
+    "managerOnly": "Manager approval required"
   },
   "floorMap": {
     "title": "Floor map",
@@ -527,5 +586,13 @@
       "circulation": "Access affected"
     },
     "venueTitle": "The Pyramid — at a glance"
+  },
+  "search": {
+    "placeholder": "Search requests, spaces, assets…",
+    "empty": "No matches found.",
+    "groupRequests": "Requests",
+    "groupSpaces": "Spaces",
+    "groupAssets": "Assets",
+    "spaceFloor": "Floor {{n}}"
   }
 }
