@@ -1,16 +1,31 @@
 import { useMemo, useState } from 'react'
 import { CircleCheckBig, Plus, TriangleAlert } from 'lucide-react'
-import { useRequests, useTasks, useAllTasks } from '@/api/hooks'
+import { useRequests, useTasks, useAllTasks, useUpdateTask, usePersistTasks } from '@/api/hooks'
 import type { EventRequest } from '@/api/types/requests'
-import type { Task } from '@/api/types/tasks'
+import type { Task, TaskPhase, TaskStatus } from '@/api/types/tasks'
 import { useT } from '@/i18n/useT'
+import { useMutationToast } from '@/lib/apiError'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl'
+import { Dialog, DialogContent } from '@/components/ui/Dialog'
+import { Input, Select } from '@/components/ui/Input'
+import { FormField } from '@/components/ui/FormField'
 import { TaskBoard } from '@/components/command/TaskBoard'
 import { ErrorState } from '@/components/ui/Feedback'
 
 const ALL = '__all__'
+
+const PHASES: TaskPhase[] = ['SETUP', 'TEARDOWN']
+
+interface NewTaskForm {
+  title: string
+  phase: TaskPhase
+  owner: string
+  dueOffsetHours: string
+}
+
+const EMPTY_NEW_TASK: NewTaskForm = { title: '', phase: 'SETUP', owner: '', dueOffsetHours: '' }
 
 function isOverdue(task: Task): boolean {
   return !!task.dueAt && task.status !== 'DONE' && new Date(task.dueAt).getTime() < Date.now()
@@ -18,9 +33,11 @@ function isOverdue(task: Task): boolean {
 
 export default function Tasks() {
   const t = useT()
+  const onError = useMutationToast()
   const { data: requests } = useRequests({ pageSize: 100 })
+  // Paginated envelope (ADR-0017): rows live under `.data`, meta on the envelope.
   const withPlans = useMemo<EventRequest[]>(
-    () => (requests ?? []).filter((r) => r.status !== 'DRAFT'),
+    () => (requests?.data ?? []).filter((r) => r.status !== 'DRAFT'),
     [requests],
   )
 
@@ -32,6 +49,20 @@ export default function Tasks() {
   const singleTaskQuery = useTasks(scope !== ALL ? scope : undefined)
   const { data: tasks, isLoading, isError, refetch } =
     scope === ALL ? allTasksQuery : singleTaskQuery
+
+  const updateTask = useUpdateTask()
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null)
+
+  function changeStatus(id: string, requestId: string, next: TaskStatus) {
+    setSavingTaskId(id)
+    updateTask.mutate(
+      { id, requestId, body: { status: next } },
+      {
+        onError,
+        onSettled: () => setSavingTaskId((cur) => (cur === id ? null : cur)),
+      },
+    )
+  }
 
   const options: SegmentedOption[] = [
     { label: t('tasks.allEvents'), value: ALL },
@@ -49,6 +80,45 @@ export default function Tasks() {
 
   const firstOverdue = (tasks ?? []).find(isOverdue)
 
+  // Create-task is scoped to one concrete request: the picked scope, or the first
+  // active plan when ALL is selected (the dialog also carries a request picker).
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [form, setForm] = useState<NewTaskForm>(EMPTY_NEW_TASK)
+  const [targetRequestId, setTargetRequestId] = useState<string>('')
+  const persist = usePersistTasks(targetRequestId)
+
+  function openCreate() {
+    const initial = scope !== ALL ? scope : (withPlans[0]?.id ?? '')
+    setTargetRequestId(initial)
+    setForm(EMPTY_NEW_TASK)
+    setDialogOpen(true)
+  }
+
+  const offsetRaw = form.dueOffsetHours.trim()
+  const offsetValue = offsetRaw === '' ? undefined : Number(offsetRaw)
+  const offsetValid = offsetValue === undefined || Number.isFinite(offsetValue)
+  const createValid = !!targetRequestId && !!form.title.trim() && offsetValid
+
+  function submitCreate() {
+    if (!createValid) return
+    persist.mutate(
+      [
+        {
+          title: form.title.trim(),
+          phase: form.phase,
+          ...(form.owner.trim() ? { owner: form.owner.trim() } : {}),
+          ...(offsetValue !== undefined ? { dueOffsetHours: offsetValue } : {}),
+        },
+      ],
+      {
+        onSuccess: () => setDialogOpen(false),
+        onError,
+      },
+    )
+  }
+
+  const canCreate = withPlans.length > 0
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -56,7 +126,7 @@ export default function Tasks() {
         title={t('nav.tasks')}
         subtitle={subtitle}
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={openCreate} disabled={!canCreate}>
             <Plus className="size-3.5" strokeWidth={2} aria-hidden />
             {t('tasks.new')}
           </Button>
@@ -93,10 +163,73 @@ export default function Tasks() {
       ) : isLoading ? (
         <TaskBoardSkeleton />
       ) : hasTasks ? (
-        <TaskBoard tasks={tasks!} />
+        <TaskBoard tasks={tasks!} savingTaskId={savingTaskId} onStatusChange={changeStatus} />
       ) : (
         <TasksEmpty title={t('tasks.emptyTitle')} message={t('tasks.emptyBody')} />
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        {dialogOpen ? (
+          <DialogContent title={t('tasks.newTitle')}>
+            <div className="flex flex-col gap-3.5">
+              <FormField label={t('tasks.newEvent')}>
+                <Select
+                  value={targetRequestId}
+                  onChange={(e) => setTargetRequestId(e.target.value)}
+                >
+                  {withPlans.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label={t('tasks.newTaskTitle')}>
+                <Input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  autoFocus
+                />
+              </FormField>
+              <FormField label={t('tasks.newPhase')}>
+                <Select
+                  value={form.phase}
+                  onChange={(e) => setForm((f) => ({ ...f, phase: e.target.value as TaskPhase }))}
+                >
+                  {PHASES.map((p) => (
+                    <option key={p} value={p}>
+                      {t(`tasks.${p === 'SETUP' ? 'setup' : 'teardown'}`)}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label={t('tasks.newOwner')}>
+                <Input
+                  value={form.owner}
+                  onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
+                />
+              </FormField>
+              <FormField label={t('tasks.newDueOffset')} hint={t('tasks.newDueOffsetHint')}>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={form.dueOffsetHours}
+                  onChange={(e) => setForm((f) => ({ ...f, dueOffsetHours: e.target.value }))}
+                  suffix={t('tasks.newDueOffsetSuffix')}
+                />
+              </FormField>
+              <div className="mt-1 flex justify-end gap-2.5">
+                <Button variant="secondary" onClick={() => setDialogOpen(false)}>
+                  {t('ui.common.cancel')}
+                </Button>
+                <Button loading={persist.isPending} disabled={!createValid} onClick={submitCreate}>
+                  {t('tasks.newSubmit')}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </div>
   )
 }
