@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   LayoutDashboard, FileText, CalendarDays, Building2, Boxes, ListChecks, AlertTriangle,
   CheckCircle2, Clock, Users, Sparkles, Search, ChevronLeft, ChevronRight, Menu, LogOut, QrCode,
 } from 'lucide-react'
 import { useMe, useLogout, useDashboardStats, useConflicts } from '@/api/hooks'
+import { useCopilot } from '@/hooks/useCopilot'
+import { aiConfigured } from '@/api/ai'
 import { useT } from '@/i18n/useT'
 import { cn } from '@/lib/cn'
 import { useUIStore } from '@/stores/ui'
@@ -17,6 +20,7 @@ import {
 } from '@/components/ui/DropdownMenu'
 import { LocaleToggle } from './LocaleToggle'
 import { CopilotPanel } from '@/components/command/CopilotPanel'
+import { CommandPalette } from '@/components/command/CommandPalette'
 
 interface NavItem {
   to: string
@@ -46,6 +50,22 @@ export function AppShell() {
   const isAdmin = me?.role === 'ADMIN'
 
   const { sidebarCollapsed, toggleSidebar, mobileNavOpen, setMobileNav, copilotOpen, toggleCopilot, setCopilot } = useUIStore()
+
+  // Global Copilot — same live POST /chat wiring Intake uses; degrades to canned on 503.
+  const copilot = useCopilot()
+
+  // Global ⌘K command palette.
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((o) => !o)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   // Nav badge counts from real data (not the canvas mock); absent → no pill.
   const stats = useDashboardStats().data
@@ -140,7 +160,7 @@ export function AppShell() {
         {/* Desktop top bar */}
         <header className="sticky top-0 z-sticky hidden h-14 items-center gap-3.5 border-b border-border-subtle bg-surface px-5 lg:flex">
           <button
-            onClick={() => navigate('/requests')}
+            onClick={() => setPaletteOpen(true)}
             className="flex h-[34px] max-w-[420px] flex-1 items-center gap-2 rounded-control border border-border-subtle bg-surface-subtle px-3 text-[13px] text-text-tertiary outline-none transition-colors hover:border-border-strong focus-visible:shadow-ring-soft"
           >
             <Search className="size-[15px]" />
@@ -205,10 +225,28 @@ export function AppShell() {
         <>
           <div className="fixed inset-0 z-drawer bg-[rgba(11,13,18,0.3)] lg:bg-transparent" onClick={() => setCopilot(false)} />
           <div className="fixed bottom-0 right-0 top-0 z-drawer w-full max-w-[380px] border-l border-[#DCE6FB] shadow-overlay">
-            <CopilotPanel state="idle" onClose={() => setCopilot(false)} className="h-full rounded-none border-0" />
+            <CopilotPanel
+              state={copilot.state}
+              messages={copilot.messages}
+              inputValue={copilot.input}
+              onInputChange={copilot.setInput}
+              onSend={copilot.send}
+              proposedAction={copilot.proposedAction}
+              headsUp={copilot.headsUp}
+              onDismiss={copilot.dismiss}
+              onIgnore={copilot.ignore}
+              onRetry={copilot.retry}
+              stateLabel={!aiConfigured() || copilot.degraded ? t('intake.chatOffline') : undefined}
+              onClose={() => setCopilot(false)}
+              fullHeight
+              className="h-full rounded-none border-0"
+            />
           </div>
         </>
       ) : null}
+
+      {/* ── Global ⌘K command palette ───────────────────────────────── */}
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   )
 }
@@ -278,7 +316,7 @@ function LiveStatusPill({ status, t }: { status: 'connected' | 'degraded'; t: (k
         className={cn('size-[7px] rounded-pill', connected ? 'bg-success [animation:pulse-dot_1.8s_ease-in-out_infinite]' : 'bg-warning')}
       />
       <span className={cn('text-[12px] font-[600]', connected ? 'text-[#15613A]' : 'text-[#7A5500]')}>
-        {connected ? t('live.connectedNats') : t('live.degradedNats')}
+        {connected ? t('shell.sessionLive') : t('shell.sessionDegraded')}
       </span>
     </span>
   )
