@@ -416,16 +416,15 @@ describe("POST /reservations/:id/confirm (F06-T04)", () => {
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: held.id } })).toBe(1);
   });
 
-  it("confirming an expired hold → 409 conflict (reservation.expired) with re-detected conflicts", async () => {
+  it("confirming an expired hold whose slot is FREE (merely lapsed) → 410 reservation.hold_expired, not confirmed (ADR-0015)", async () => {
     const client = await loginAs("OPS");
     const held = await heldReservation(client);
     await prisma.reservation.update({ where: { id: held.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
 
     const res = await client.post(`${RES}/${held.id}/confirm`);
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe("conflict");
-    expect(res.body.messageKey).toBe("reservation.expired");
-    expect(Array.isArray(res.body.conflicts)).toBe(true);
+    expect(res.status).toBe(410);
+    expect(res.body.error).toBe("gone");
+    expect(res.body.messageKey).toBe("reservation.hold_expired");
     // it was NOT confirmed
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: held.id } })).status).toBe("HELD");
   });

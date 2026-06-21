@@ -163,11 +163,14 @@ class ReservationsService {
     if (r.status === "RELEASED") throw APIError.invalidTransition("RELEASED", "CONFIRMED", "reservation.invalid_transition");
 
     if (r.expiresAt && r.expiresAt.getTime() <= Date.now()) {
+      // Symmetric with F10 approve (ADR-0015): a retaken slot → 409 {conflicts} (re-plan);
+      // a lease that merely lapsed with nobody contending → 410 hold_expired (re-hold).
       const conflicts = await detectConflicts({
         spaceId: r.spaceId, start: r.start, end: r.end,
         requestedAssets: r.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })),
         excludeReservationId: r.id,
       });
+      if (conflicts.length === 0) throw APIError.gone("reservation.hold_expired");
       throw APIError.conflict(conflicts, "reservation.expired");
     }
 

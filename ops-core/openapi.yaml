@@ -424,8 +424,10 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/InvalidTransition" }
-    # NB: if a held reservation expired before approval, approve returns 409 conflict
-    #     with the offending Conflict[] so the AI can re-plan.
+        "410": { $ref: "#/components/responses/Gone" }
+    # NB: if a held reservation expired before approval (ADR-0015): a RETAKEN slot returns
+    #     409 conflict with the offending Conflict[] (re-plan); a merely-lapsed lease with
+    #     no live conflict returns 410 gone reservation.hold_expired (re-hold the space).
 
   /private/requests/{id}/reject:
     parameters: [{ $ref: "#/components/parameters/PathId" }]
@@ -483,7 +485,10 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/ReservationEnvelope" }
         "404": { $ref: "#/components/responses/NotFound" }
+        # 409 covers both an illegal transition (RELEASED→CONFIRMED) and an expired-retaken
+        # hold (reservation.expired + Conflict[]); 410 is a lapsed-uncontested lease (ADR-0015).
         "409": { $ref: "#/components/responses/InvalidTransition" }
+        "410": { $ref: "#/components/responses/Gone" }
 
   /private/reservations/{id}/release:
     parameters: [{ $ref: "#/components/parameters/PathId" }]
@@ -1128,6 +1133,9 @@ components:
       content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
     RateLimited:
       description: Too many attempts
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Gone:
+      description: A held lease lapsed with no live conflict — re-hold the space (ADR-0015)
       content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
     Validation:
       description: Field validation failed

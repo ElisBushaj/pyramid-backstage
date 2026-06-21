@@ -77,6 +77,10 @@ export class APIError extends ExtendableError {
   static rateLimited(messageKey = "common.rate_limited") {
     return new APIError({ status: 429, error: "rate_limited", messageKey });
   }
+  /** 410 — a resource that existed is gone (e.g. a lapsed reservation lease). Re-acquire, don't retry. */
+  static gone(messageKey = "common.gone") {
+    return new APIError({ status: 410, error: "gone", messageKey });
+  }
   static internal(messageKey = "common.internal") {
     return new APIError({ status: 500, error: "internal", messageKey });
   }
@@ -89,6 +93,7 @@ function defaultErrorCode(status: number): string {
     case 403: return "forbidden";
     case 404: return "not_found";
     case 409: return "conflict";
+    case 410: return "gone";
     case 422: return "validation";
     case 429: return "rate_limited";
     default: return "internal";
