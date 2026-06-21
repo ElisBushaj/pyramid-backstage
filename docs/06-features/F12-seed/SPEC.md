@@ -38,7 +38,7 @@ This is the substrate the F13 e2e test and the demo beats stand on; the planted 
 
 ## Data model
 
-No new models — F12 populates `Space`, `Asset`, `User`, `EventRequest`, `Reservation`, `ReservationAsset` (and the audit/outbox rows their creation implies). See `docs/03-data/SCHEMA.md`.
+No new models — F12 populates `Space`, `Asset`, `User`, `EventRequest`, `Reservation`, `ReservationAsset` (and the audit rows their creation implies). See `docs/03-data/SCHEMA.md`.
 
 ## API surface
 

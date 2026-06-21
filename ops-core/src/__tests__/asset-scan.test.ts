@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { randomUUID } from "node:crypto";
-import { loginAs, anon, resetDb, prisma, auditEntriesFor, outboxFor, unpublishedOutbox } from "./helpers/integration";
+import { loginAs, anon, resetDb, prisma, auditEntriesFor } from "./helpers/integration";
 import { seedAsset, seedAssetMovement, seedRequest, seedReservation, seedSpace } from "./helpers/fixtures";
 
-// F16 — QR/NFC asset tracking: scan → movement + live location + audit + outbox.
+// F16 — QR/NFC asset tracking: scan → movement + live location + audit.
 const scanUrl = (id: string) => `/api/v1/private/assets/${id}/scan`;
 const movesUrl = (id: string) => `/api/v1/private/assets/${id}/movements`;
 const ASSETS = "/api/v1/private/assets";
@@ -33,7 +33,7 @@ describe("POST /assets/:id/scan — CHECK_OUT (F16-T02)", () => {
     expect(await prisma.assetMovement.count({ where: { assetId: asset.id } })).toBe(1);
   });
 
-  it("writes exactly one asset.scan AuditEntry (before/after location) AND one asset.moved OutboxEvent in the same tx", async () => {
+  it("writes exactly one asset.scan AuditEntry (before/after location) in the same tx", async () => {
     const ops = await loginAs("OPS");
     const asset = await seedAsset({ totalQuantity: 100, location: "Store -1" });
 
@@ -44,12 +44,6 @@ describe("POST /assets/:id/scan — CHECK_OUT (F16-T02)", () => {
     expect(audit[0]).toMatchObject({ action: "asset.scan", actorId: ops.user.id, actorName: ops.user.name });
     expect(audit[0]!.before).toMatchObject({ location: "Store -1" });
     expect(audit[0]!.after).toMatchObject({ location: "Blue Hall" });
-
-    const outbox = await outboxFor("asset.moved");
-    expect(outbox).toHaveLength(1);
-    expect(outbox[0]!.payload).toMatchObject({ assetId: asset.id, action: "CHECK_OUT", quantity: 10, fromLocation: "Store -1", toLocation: "Blue Hall" });
-    // Written, not yet published (relay is disabled in tests) — proves it lives in the outbox, not a dual-write.
-    expect((await unpublishedOutbox()).some((e) => e.subject === "asset.moved")).toBe(true);
   });
 
   it("persists the optional reservationId + note onto the movement", async () => {
@@ -87,7 +81,6 @@ describe("POST /assets/:id/scan — CHECK_OUT (F16-T02)", () => {
     expect(await prisma.assetMovement.count({ where: { assetId: asset.id } })).toBe(1);
     expect((await prisma.asset.findUniqueOrThrow({ where: { id: asset.id } })).location).toBe("Blue Hall");
     expect(await prisma.auditEntry.count({ where: { action: "asset.scan", entityId: asset.id } })).toBe(1);
-    expect(await prisma.outboxEvent.count({ where: { subject: "asset.moved" } })).toBe(1);
   });
 
   it("a single CHECK_OUT above total → 422 (no silent negative, no movement)", async () => {
@@ -264,7 +257,6 @@ describe("POST /assets/:id/scan — idempotency (F16-T02)", () => {
     expect(await prisma.assetMovement.count({ where: { assetId: asset.id } })).toBe(1);
     expect((await prisma.asset.findUniqueOrThrow({ where: { id: asset.id } })).location).toBe("Blue Hall");
     expect(await prisma.auditEntry.count({ where: { action: "asset.scan" } })).toBe(1);
-    expect(await prisma.outboxEvent.count({ where: { subject: "asset.moved" } })).toBe(1);
   });
 
   it("the same key + a DIFFERENT body → 409 idempotency_key_mismatch", async () => {

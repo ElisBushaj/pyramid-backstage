@@ -301,7 +301,7 @@ model Task {
   @@index([requestId, phase])
 }
 
-// ─────────────────────────────────────────────────────────── audit + outbox + idempotency
+// ─────────────────────────────────────────────────────────── audit + idempotency
 model AuditEntry {
   id         String   @id @default(uuid())
   actorId    String?
@@ -319,16 +319,6 @@ model AuditEntry {
 
   @@index([requestId, at])
   @@index([entityType, entityId])
-}
-
-model OutboxEvent {
-  id          String    @id @default(uuid())
-  subject     String    // e.g. conflict.detected
-  payload     Json
-  createdAt   DateTime  @default(now())
-  publishedAt DateTime?
-
-  @@index([publishedAt])
 }
 
 model IdempotencyKey {

@@ -24,8 +24,6 @@ The writer never opens its own transaction: it enlists in the caller's `prisma.$
 - Tests: actor recorded from `req.actor`, before/after diff captured, append-only (no update/delete path).
 
 ### Out of scope
-- The event bus / outbox — that is F11 (audit and events are siblings, both written in-transaction, but the outbox is its own feature).
-- Emitting specific domain events — F11-T04.
 - A UI audit timeline — outside ops-core scope.
 
 ## Acceptance criteria
@@ -54,5 +52,5 @@ None — backend.
 ## Notes
 
 - Audit semantics and the action vocabulary: `docs/02-domain/AUDIT.md`.
-- "Same transaction, no dual-write" discipline: `docs/04-api/CORE_PATTERNS.md` (Events / Audit) — the audit row and the `OutboxEvent` (F11) both enlist in the mutation's transaction.
+- "Same transaction, no dual-write" discipline: `docs/04-api/CORE_PATTERNS.md` (Audit) — the audit row enlists in the mutation's transaction so state and audit commit atomically.
 - `req.actor` comes from F01-T04.

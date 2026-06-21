@@ -23,7 +23,7 @@ owners: [elis]
 
 Elis owns the deterministic record end to end. That is every ops-core feature:
 
-- **Foundation:** `F00` Bootstrap, `F01` Auth & RBAC, `F09` Audit, `F11` Events/Outbox.
+- **Foundation:** `F00` Bootstrap, `F01` Auth & RBAC, `F09` Audit.
 - **Domain:** `F02` Spaces, `F03` Assets, `F04` Requests.
 - **Core:** `F05` Availability & Conflict (the correctness core), `F06` Reservations, `F07` Quotes, `F08` Tasks, `F10` Approvals.
 - **Integration:** `F12` Seed, `F13` Contract test.

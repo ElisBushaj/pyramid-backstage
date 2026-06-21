@@ -5,8 +5,6 @@ import {
   resetDb,
   prisma,
   auditEntriesFor,
-  outboxFor,
-  unpublishedOutbox,
   type Client,
 } from "./helpers/integration";
 import { seedSpace, seedAsset, seedRequest, seedReservation, seedQuote, seedTask } from "./helpers/fixtures";
@@ -33,7 +31,7 @@ beforeEach(resetDb);
 // CREATE (F04-T02)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("POST /requests — create (F04-T02)", () => {
-  it("staff create lands DRAFT with createdById = actor.id; writes request.create audit + request.created outbox in ONE tx", async () => {
+  it("staff create lands DRAFT with createdById = actor.id; writes request.create audit in ONE tx", async () => {
     const client = await loginAs("OPS");
     const res = await client.post(REQ).send(validBody);
 
@@ -57,11 +55,6 @@ describe("POST /requests — create (F04-T02)", () => {
     expect(audit[0]).toMatchObject({ action: "request.create", actorId: client.user.id, requestId: id });
     // after-snapshot captured
     expect((audit[0]!.after as { status?: string }).status).toBe("DRAFT");
-
-    const outbox = await outboxFor("request.created");
-    expect(outbox).toHaveLength(1);
-    expect((outbox[0]!.payload as { requestId?: string }).requestId).toBe(id);
-    // audit + outbox were committed together (one create => one of each)
     expect(await prisma.eventRequest.count()).toBe(1);
   });
 
@@ -133,7 +126,6 @@ describe("POST /requests — create (F04-T02)", () => {
       await client.post(REQ).send({ ...validBody, eventType: "WEDDING" });
       expect(await prisma.eventRequest.count()).toBe(0);
       expect(await prisma.auditEntry.count()).toBe(0);
-      expect(await outboxFor("request.created")).toHaveLength(0);
     });
   });
 
@@ -500,16 +492,9 @@ describe("PATCH /requests/:id — edit DRAFT only (F04-T06)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AUDIT + OUTBOX integrity across the lifecycle (sanity that mutations co-write)
+// AUDIT integrity across the lifecycle (sanity that mutations co-write audit)
 // ─────────────────────────────────────────────────────────────────────────────
-describe("audit + outbox integrity (REQUESTS.md)", () => {
-  it("create writes exactly one request.created outbox row, left unpublished for the relay", async () => {
-    const client = await loginAs("OPS");
-    await client.post(REQ).send(validBody);
-    const pending = await unpublishedOutbox();
-    expect(pending.filter((e) => e.subject === "request.created")).toHaveLength(1);
-  });
-
+describe("audit integrity (REQUESTS.md)", () => {
   it("each mutation's audit carries the real actor (never anonymous)", async () => {
     const client = await loginAs("MANAGER");
     const created = (await client.post(REQ).send(validBody)).body.data;

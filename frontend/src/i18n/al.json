@@ -120,13 +120,6 @@
     "requestedShort": "kërkuar",
     "availableShort": "në dispozicion"
   },
-  "live": {
-    "connected": "Drejtpërdrejt",
-    "degraded": "Sondazh",
-    "connectedNats": "NATS i lidhur",
-    "degradedNats": "NATS i kufizuar",
-    "lastEvent": "Ngjarja e fundit"
-  },
   "dashboard": {
     "title": "Paneli",
     "eventsThisWeek": "Eventet këtë javë",

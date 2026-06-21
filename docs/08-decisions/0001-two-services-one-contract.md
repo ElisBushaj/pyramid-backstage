@@ -13,7 +13,7 @@ The first job wants determinism, transactions, row locks, and a relational store
 
 **Split into two services with exactly one coupling: the contract.**
 
-- **`ops-core`** (Elis · Node 20 · Express 5 · Prisma 7 · Postgres 17 · NATS) is the **deterministic system of record**. Spaces, assets, requests, reservations, quotes, tasks, conflicts, audit, auth. **No AI lives here.** It knows what is true and enforces it.
+- **`ops-core`** (Elis · Node 20 · Express 5 · Prisma 7 · Postgres 17) is the **deterministic system of record**. Spaces, assets, requests, reservations, quotes, tasks, conflicts, audit, auth. **No AI lives here.** It knows what is true and enforces it.
 - **`ai-orchestrator`** (Alvin · Python · FastAPI · LangGraph · Claude · ChromaDB · Redis) is the **reasoning layer**. It holds **no domain state** — only conversation context in Redis and retrieval vectors in ChromaDB. Everything true comes from `ops-core`.
 
 The two share **only** the payload shapes in [`ops-core/openapi.yaml`](../../ops-core/openapi.yaml). **Neither service imports the other's code.** The only runtime coupling is one env var on the AI side: `OPS_CORE_URL`. `ai-orchestrator` treats each `ops-core` endpoint as a LangGraph **tool**.

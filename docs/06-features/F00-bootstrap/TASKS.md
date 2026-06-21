@@ -22,7 +22,7 @@ last_updated: 2026-06-19
 - Depends on: F00-T01
 - Estimate: 0.5d
 - Acceptance:
-  - `src/config/vars.ts` validates required env (`DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NATS_ENABLED`, `OPS_CORE_URL` not needed here) and **throws on boot** naming the first missing/invalid key — never starts misconfigured.
+  - `src/config/vars.ts` validates required env (`DATABASE_URL`, `SESSION_SECRET`, `PORT`; `OPS_CORE_URL` not needed here) and **throws on boot** naming the first missing/invalid key — never starts misconfigured.
   - `src/config/prisma.ts` exports a singleton `PrismaClient`; `src/config/logger.ts` exports a structured logger (no `console.log` on request paths).
   - The Express 5 app registers `helmet`, `cors` (credentials-aware), and `cookie-parser`; JSON body parsing is enabled.
   - App boots and binds `PORT`; a missing required var aborts startup with a clear message (covered by a unit test on `vars.ts`).
@@ -66,10 +66,10 @@ last_updated: 2026-06-19
 - Depends on: F00-T02
 - Estimate: 0.5d
 - Acceptance:
-  - `ops-core/prisma/schema.prisma` defines every model in `docs/03-data/SCHEMA.md`: `User`, `Session`, `Space`, `Asset`, `EventRequest`, `Reservation`, `ReservationAsset`, `Quote`, `Task`, `AuditEntry`, `OutboxEvent`, `IdempotencyKey`.
+  - `ops-core/prisma/schema.prisma` defines every model in `docs/03-data/SCHEMA.md`: `User`, `Session`, `Space`, `Asset`, `EventRequest`, `Reservation`, `ReservationAsset`, `Quote`, `Task`, `AuditEntry`, `IdempotencyKey`.
   - Every enum mirrors `openapi.yaml` exactly (`UPPER_SNAKE`): `Layout`, `SpaceKind`, `AssetType`, `AssetStatus`, `EventType`, `RequestStatus`, `ReservationStatus`, `QuoteStatus`, `TaskPhase`, `TaskStatus`, `LineItemKind`, `ConflictType`, `Role`.
   - Money columns are `Int` `*Minor` (no `Float`/`Decimal`); all `DateTime` are UTC; `Reservation` stores `dateRange` plus `effectiveStart`/`effectiveEnd`, `expiresAt`.
-  - The indexes from the SCHEMA "Indexes that matter" block are present: `Reservation [spaceId,status,effectiveStart,effectiveEnd]` and `[status,effectiveStart,effectiveEnd]`; `ReservationAsset [assetId]`; `AuditEntry [requestId,at]` + `[entityType,entityId]`; `OutboxEvent [publishedAt]`; `EventRequest [status,createdAt]`.
+  - The indexes from the SCHEMA "Indexes that matter" block are present: `Reservation [spaceId,status,effectiveStart,effectiveEnd]` and `[status,effectiveStart,effectiveEnd]`; `ReservationAsset [assetId]`; `AuditEntry [requestId,at]` + `[entityType,entityId]`; `EventRequest [status,createdAt]`.
   - An initial migration (`<timestamp>_init`) applies cleanly to an empty Postgres 17 DB via `prisma migrate deploy`; `prisma generate` produces a client tsc accepts.
 
 ### F00-T07 — Lock openapi.yaml + contract test (examples validate vs types/api) + gen:types script
@@ -89,7 +89,7 @@ last_updated: 2026-06-19
 - Estimate: 0.5d
 - Acceptance:
   - `GET /health` returns 200 (liveness, no auth) matching `openapi.yaml`.
-  - `GET /ready` returns 200 when the DB is reachable and 503 when it is not (readiness, no auth); the NATS check is added in F11 without changing the route shape.
+  - `GET /ready` returns 200 when the DB is reachable and 503 when it is not (readiness, no auth).
   - `ops-core/Dockerfile.dev` builds the service; `infrastructure/docker-compose` brings up Postgres + ops-core and reaches a ready state (`/ready` → 200).
   - CI runs `install → build → migrate → test` green on a fresh clone with no manual steps.
   - tsc clean; vitest passing.

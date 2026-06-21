@@ -44,5 +44,5 @@ last_updated: 2026-06-19
   - The seed creates 2–3 `EventRequest`s with reservations such that one pair **deliberately conflicts**: either two events whose effective windows overlap in the same hall (`SPACE_DOUBLE_BOOKED`/`SETUP_WINDOW_OVERLAP`) or two demands that over-allocate a scarce asset line (`ASSET_OVERALLOCATED`) — verified by `detectConflicts`/`POST /reservations` returning a real `409 conflict` (per `docs/02-domain/CONFLICTS.md`).
   - The planted conflict is the fixture A00-T09's conflict branch keys off and F13-T03's conflict→alternatives path exercises (per `docs/02-domain/AI_ORCHESTRATION.md`).
   - A reset script clears domain data and re-seeds to the same deterministic state, making the demo + e2e repeatable.
-  - Reservations are created through the real F06 hold path (so they carry valid effective windows + audit/outbox), not raw inserts that bypass invariants, where feasible.
+  - Reservations are created through the real F06 hold path (so they carry valid effective windows + audit), not raw inserts that bypass invariants, where feasible.
   - The seed/reset refuses `NODE_ENV=production`; tsc clean.

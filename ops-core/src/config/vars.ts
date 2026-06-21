@@ -45,8 +45,6 @@ export const vars = {
     ? optional("DATABASE_URL", "postgresql://stub:stub@localhost:5432/stub")
     : required("DATABASE_URL"),
   redisUrl: optional("REDIS_URL", "redis://localhost:6379"),
-  natsUrl: optional("NATS_URL", "nats://localhost:4222"),
-  natsEnabled: optional("NATS_ENABLED", "true") === "true",
   frontendUrl: optional("FRONTEND_URL", "http://localhost:5173"),
   sessionSecret: isTest ? "test-secret" : required("SESSION_SECRET"),
   sessionTtlHours: int("SESSION_TTL_HOURS", 12),

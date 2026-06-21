@@ -33,7 +33,7 @@ last_updated: 2026-06-19
 - Acceptance:
   - `POST /private/quotes` validates `{ requestId (required), reservationId?, extraLineItems? }` via `ValidationHelpers`: each `extraLineItem` is `{ label, qty ≥ 1, unitPriceMinor ≥ 0 }`; unknown `requestId`/`reservationId` → `404`.
   - Builds the quote via the pricing engine and persists it, returning `ServiceResponse<Quote>` (201) exactly matching the `Quote` schema (`lineItems`, `netMinor`, `vatRate`, `vatMinor`, `totalMinor`, `status: DRAFT`, `version`, `expiresAt`).
-  - Writes a `quote.generate` `AuditEntry` (and the relevant `OutboxEvent` if applicable) in the same transaction with `req.actor`.
+  - Writes a `quote.generate` `AuditEntry` in the same transaction with `req.actor`.
   - Controller uses `@controlledResponse`; tsc clean; vitest passing.
 
 ### F07-T04 — versioning + expiry

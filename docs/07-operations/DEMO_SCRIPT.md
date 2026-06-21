@@ -6,7 +6,7 @@
 
 1. `docker compose up` (from [`infrastructure/`](../../infrastructure/)) — brings up `ops-core`, the `ai-orchestrator`, and the frontend — and `pnpm db:seed` in `ops-core`. See [`RUNBOOK.md`](./RUNBOOK.md) § Bring-up and § AI orchestrator.
 2. Three browser sessions ready: one logged in as **OPS** (does the planning), one as **MANAGER** (approves), one as the demo **PARTNER** (files via the portal). Showing the role gate live is part of the story.
-3. Confirm the dashboard (`/`) is connected (the live-status pill reads connected; if demoing the degrade path, note it polls) and the copilot is live (the panel shows the AI is reachable; if not, it runs **canned** — the locked fallback, so this never blocks you). See [`RUNBOOK.md`](./RUNBOOK.md) § AI degrade-to-canned.
+3. Confirm the dashboard (`/`) is loading (it refreshes by polling ops-core) and the copilot is live (the panel shows the AI is reachable; if not, it runs **canned** — the locked fallback, so this never blocks you). See [`RUNBOOK.md`](./RUNBOOK.md) § AI degrade-to-canned.
 4. Have the messy request line ready to type verbatim, and a **printed/encoded `assetId` QR** for the scanner beat ([`RUNBOOK.md`](./RUNBOOK.md) § Scanner demo prep).
 
 ## Beat 1 — "Yes, we can make this happen"
@@ -66,22 +66,22 @@
 | | |
 |---|---|
 | **Pages** | §8.1 CopilotPanel (**`conflict-heads-up`** → re-plan → `plan-preview`) · §4.3 `/requests/:id` FloorMap (`conflict` + alternative) · §6.2 `/conflicts` (the conflict + alternatives) |
-| **Endpoints** | AI `POST /plan` → ops-core `POST /reservations` → **`409 { conflicts }`** (the deterministic branch) → the plan returns `feasible:false` + `alternatives` · NATS **`conflict.detected`** drives the unprompted heads-up · **Re-plan** re-calls `POST /plan` with the chosen alternative window |
+| **Endpoints** | AI `POST /plan` → ops-core `POST /reservations` → **`409 { conflicts }`** (the deterministic branch) → the plan returns `feasible:false` + `alternatives` · the copilot surfaces the unprompted heads-up from the `409`-carrying plan (and the dashboard polls `GET /conflicts`) · **Re-plan** re-calls `POST /plan` with the chosen alternative window |
 | **Proves** | the conflict engine (buffer-aware `SETUP_WINDOW_OVERLAP` / `SPACE_DOUBLE_BOOKED`, [ADR-0009](../08-decisions/0009-conflict-window-includes-buffers.md)), the `409`-carries-the-explanation contract ([ERROR_CONTRACT](../04-api/ERROR_CONTRACT.md)), the plan's `feasible:false` + `alternatives` shape ([AI_CONTRACT](../04-api/AI_CONTRACT.md)), the propose → conflict → re-plan loop, AI output staying grounded in the record |
 
 ## Beat 4 — Approve it (as a MANAGER), live to the dashboard
 
 **Do:** Back on the **first** request (`/requests/:id`), switch to the **MANAGER** session and **approve**. First, in the OPS session, show the approve button **disabled with a tooltip** — *VIEWER/OPS can't approve* — then approve as MANAGER. Then switch to the **dashboard** (`/`).
 
-**Watch the request go `SCHEDULED`** and the **dashboard update live**: held reservations flip to **CONFIRMED**, the **task list goes live**, an **audit entry** is written with the manager's name, and on the dashboard the pending-approvals count drops and the schedule strip shows the newly `SCHEDULED` event — **no refresh** (NATS `request.approved`).
+**Watch the request go `SCHEDULED`** and the **dashboard update on the next poll**: held reservations flip to **CONFIRMED**, the **task list goes live**, an **audit entry** is written with the manager's name, and on the dashboard the pending-approvals count drops and the schedule strip shows the newly `SCHEDULED` event — no manual refresh needed (the SPA polls ops-core).
 
 **Say:** *"Approving is gated to a manager — the record enforces it, not the UI. The moment it's approved, the holds are committed, the task list is live, the decision is on the record — who approved it, when, what changed — and the dashboard knew before I could blink."*
 
 | | |
 |---|---|
 | **Pages** | §6.3 Approvals in §4.3 `/requests/:id` (role-gated; VIEWER/OPS see disabled + tooltip → forbidden; MANAGER → submitting → success) · §3.1 `/` Dashboard (live flip) · §7.1 `/audit` (the new entry) |
-| **Endpoints** | **`POST /requests/:id/approve`** (MANAGER+) → reservations `CONFIRMED`, request `SCHEDULED`, `AuditEntry` written, **`request.approved`** emitted · a VIEWER/OPS attempt → **`403 forbidden`** · NATS `request.approved` drives the live dashboard (or polling fallback) · `GET /audit?requestId` |
-| **Proves** | RBAC (approvals MANAGER+, [ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md)), guarded lifecycle transition, **audit-with-actor** in the same transaction ([docs/02-domain/AUDIT.md](../02-domain/AUDIT.md)), the live signal ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)) |
+| **Endpoints** | **`POST /requests/:id/approve`** (MANAGER+) → reservations `CONFIRMED`, request `SCHEDULED`, `AuditEntry` written · a VIEWER/OPS attempt → **`403 forbidden`** · the dashboard reflects it on its next poll · `GET /audit?requestId` |
+| **Proves** | RBAC (approvals MANAGER+, [ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md)), guarded lifecycle transition, **audit-with-actor** in the same transaction ([docs/02-domain/AUDIT.md](../02-domain/AUDIT.md)) |
 
 ## Beat 5 — The partner files it themselves (no email)
 
@@ -108,8 +108,8 @@
 | | |
 |---|---|
 | **Pages** | §x Scanner page (camera → decode `assetId` → check-out/in/relocate form) · §3.1 `/` "Where is it?" widget (live rollup) · §x AssetDetail movement timeline + the per-asset QR |
-| **Endpoints** | **`POST /private/assets/:id/scan`** (OPS+, idempotent, over-checkout-guarded) → records the `AssetMovement`, updates the live `Asset.location`, writes `asset.scan` audit + `asset.moved` outbox in **one transaction** · `GET /private/assets/:id/movements` (the timeline) · `GET /private/assets` (live `currentLocation` + `checkedOutQuantity`) · NATS `asset.moved` drives the live widget |
-| **Proves** | aggregate-with-movement tracking ([ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md), [ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md)), the movement ledger making location live + historical, the over-checkout guard, audit + outbox in one transaction, idempotent scan |
+| **Endpoints** | **`POST /private/assets/:id/scan`** (OPS+, idempotent, over-checkout-guarded) → records the `AssetMovement`, updates the live `Asset.location`, writes the `asset.scan` audit in **one transaction** · `GET /private/assets/:id/movements` (the timeline) · `GET /private/assets` (live `currentLocation` + `checkedOutQuantity`) · the "Where is it?" widget refreshes on its next poll |
+| **Proves** | aggregate-with-movement tracking ([ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md), [ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md)), the movement ledger making location live + historical, the over-checkout guard, audit in one transaction, idempotent scan |
 
 ## The close
 
@@ -117,7 +117,7 @@
 >
 > **"This replaces the emails, the spreadsheets, and the phone calls."**
 
-(For the close, leave the **dashboard** (`/`) up — the FloorMap tile lit with what's live in the building, the schedule strip, the conflict resolved, the "Where is it?" widget current. If running the degrade path: it refreshes on poll — note the core loop is identical.)
+(For the close, leave the **dashboard** (`/`) up — the FloorMap tile lit with what's live in the building, the schedule strip, the conflict resolved, the "Where is it?" widget current. It refreshes by polling ops-core.)
 
 ## The thread through all six beats
 
@@ -126,7 +126,7 @@
 | 1 | "Yes, here's how." | NL → `OperationalPlan`: match + atomic hold + server VAT + tasks, numbers from ops-core |
 | 2 | "Here's the building." | the FloorMap digital twin lit from the plan (`main`/`bundle`/`circulation`) |
 | 3 | "Not as-is — here's the alternative." | buffer-aware conflict engine + `409`-carries-why + live heads-up + re-plan |
-| 4 | "Approved — on the record, on the dashboard." | RBAC gate + confirmed reservations + audit-with-actor + live NATS flip |
+| 4 | "Approved — on the record, on the dashboard." | RBAC gate + confirmed reservations + audit-with-actor, surfaced on the dashboard's next poll |
 | 5 | "The partner files it — no email." | `PARTNER` role + row-scoping + single-step approval queue |
 | 6 | "And we know where everything is." | the movement ledger: live location + history + audited scan |
 | ⟶ | "This replaces the emails, the spreadsheets, and the phone calls." | the live command center, one source of truth |
@@ -134,7 +134,6 @@
 ## If something goes sideways
 
 - **AI down / not reachable:** the demo still works — the copilot runs **canned** (the locked degrade-to-canned fallback) and the FloorMap renders from the catalog alone (v1, no AI dependency). Say *"the reasoning layer is offline; the system doesn't need it to be on"* and carry on. See [`RUNBOOK.md`](./RUNBOOK.md) § AI degrade-to-canned and [AI_CONTRACT.md](../04-api/AI_CONTRACT.md) § Degrade-to-canned. For Beat 1, the canned copilot still produces the deterministic plan from ops-core; for Beats 2/6, the FloorMap/widget read ops-core aggregate data directly.
-- **NATS down / not connected:** the demo still works — the loop is REST-only and the dashboard polls ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)). Say *"the live layer is degraded; the system doesn't care"* and carry on. See [`RUNBOOK.md`](./RUNBOOK.md) § NATS down. (In this mode Beats 4/6 land on poll, not instantly.)
 - **Stale demo data** (a prior run left holds, scans, or partner requests): reset the seed ([`RUNBOOK.md`](./RUNBOOK.md) § reset demo data) before the room.
 - **The planted conflict doesn't fire:** confirm the second request's window actually overlaps the seeded one's **effective** window (buffers included).
 - **The scanner camera is unavailable:** the Scanner page degrades to manual `assetId` entry — type the id from the QR label ([`RUNBOOK.md`](./RUNBOOK.md) § Scanner demo prep).

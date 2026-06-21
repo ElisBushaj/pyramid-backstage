@@ -10,7 +10,7 @@ Two services, one shared contract ([`ops-core/openapi.yaml`](./ops-core/openapi.
 
 | Service | Owner | Stack | Role |
 |---------|-------|-------|------|
-| **`ops-core`** | Elis | Express 5 · TS · Prisma 7 · Postgres · NATS | Deterministic source of truth (state + rules) |
+| **`ops-core`** | Elis | Express 5 · TS · Prisma 7 · Postgres | Deterministic source of truth (state + rules) |
 | **`ai-orchestrator`** | Alvin | FastAPI · LangGraph · Claude · ChromaDB · Redis | Reasoning layer (no state) — *scaffold + mock here* |
 | **`frontend`** | — | Vite · React 19 · React Router 7 · Tailwind 4 · Radix | Command Center (chat + live dashboard) |
 

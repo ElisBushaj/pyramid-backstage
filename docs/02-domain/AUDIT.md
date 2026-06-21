@@ -1,6 +1,6 @@
-# Domain — Audit & Events
+# Domain — Audit
 
-"Maintain a complete record of decisions, changes, and approvals" is an explicit requirement and an easy, high-value win. Two coupled mechanisms: the **audit ledger** (the record) and the **event bus** (the live signal). Both are written in the **same transaction** as the state change they describe.
+"Maintain a complete record of decisions, changes, and approvals" is an explicit requirement and an easy, high-value win. The **audit ledger** is the record, written in the **same transaction** as the state change it describes.
 
 ## Audit ledger (`AuditEntry`)
 Append-only. Written on **every** mutation and decision. Fully defined (the PDF left it as a stub):
@@ -12,19 +12,5 @@ Append-only. Written on **every** mutation and decision. Fully defined (the PDF 
 - `before`/`after` capture the diff for state changes; `reason` is required on rejects.
 - Never updated or deleted. `GET /audit?requestId` reconstructs an entity's full history.
 
-## Event bus (NATS / JetStream)
-Real-time signal for the command center + proactive AI. **Optional and degradable** — the core loop works over REST alone; NATS is the layer that makes the dashboard feel alive ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)).
-
-| Subject | Emitted when | Consumed by |
-|---------|--------------|-------------|
-| `request.created` | Request created | UI |
-| `reservation.held` | Hold placed | UI |
-| `reservation.confirmed` | Hold confirmed | UI |
-| `conflict.detected` | A hold/check found a clash | **ai-orchestrator** + UI |
-| `request.approved` | Approval written | UI |
-| `inventory.low` | An asset's availability crosses a threshold | UI |
-
-On `conflict.detected` the AI can push an **unprompted** "heads up — this clashes with X, want me to re-plan?" — the strongest moment on stage.
-
-## No dual-write
-The DB write and the event must not be two independent writes (lost/phantom events). Events are written to an **`OutboxEvent`** row inside the state transaction; a relay polls unpublished rows and publishes to NATS, marking `publishedAt`. At-least-once delivery; consumers are idempotent. ([CORE_PATTERNS.md](../04-api/CORE_PATTERNS.md))
+## Written in the state transaction
+The `AuditEntry` is written **inside the same transaction** as the state change it records — never a separate, after-the-fact write that could be lost or drift from the change it describes. ([CORE_PATTERNS.md](../04-api/CORE_PATTERNS.md))

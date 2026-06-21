@@ -9,10 +9,9 @@ One compose file brings up the whole system. A bare `docker compose up` needs **
 | Service | Image / build | In-container port | Host (default) | Healthcheck |
 |---|---|---|---|---|
 | **db** | `postgres:17` | 5432 | 5432 (`DB_PORT`) | `pg_isready` |
-| **nats** | `nats:2` (`-js -m 8222`) | 4222 / 8222 | 4222 / 8222 (`NATS_PORT` / `NATS_MONITOR_PORT`) | `GET :8222/healthz` |
 | **redis** | `redis:7-alpine` (AOF on) | 6379 | 6379 (`REDIS_PORT`) | `redis-cli ping` |
 | **chromadb** | `chromadb/chroma:latest` | 8000 | **8001** (`CHROMA_PORT`) | `GET /api/v1/heartbeat` |
-| **ops-core** | `../ops-core` (Dockerfile.dev) | 4000 | 4000 (`OPS_CORE_PORT`) | `GET /ready` (DB + NATS) |
+| **ops-core** | `../ops-core` (Dockerfile.dev) | 4000 | 4000 (`OPS_CORE_PORT`) | `GET /ready` (DB) |
 | **ai-orchestrator** | `../ai-orchestrator` (Dockerfile.dev) | 8000 | 8000 (`AI_PORT`) | `GET /health` |
 | **mock-ops-core** | `../mock-ops-core` (Dockerfile.dev) | 4010 | 4010 (`MOCK_OPS_CORE_PORT`, **profile only**) | — |
 | **frontend** | `../frontend` (Dockerfile.dev) | 5173 | 5173 (`FRONTEND_PORT`) | Vite dev server |
@@ -21,7 +20,7 @@ One compose file brings up the whole system. A bare `docker compose up` needs **
 
 ## Dependencies & startup order
 
-`ops-core` waits for `db`, `nats`, and `redis` to be **healthy** before starting, then exposes its own `GET /ready` (DB + NATS reachable) as the readiness gate. `ai-orchestrator` waits for `ops-core` (started) + `redis` (healthy) + `chromadb` (started). The `frontend` waits for `ops-core`. This ordering means a `docker compose up` converges to a working stack without manual sequencing.
+`ops-core` waits for `db` and `redis` to be **healthy** before starting, then exposes its own `GET /ready` (DB reachable) as the readiness gate. `ai-orchestrator` waits for `ops-core` (started) + `redis` (healthy) + `chromadb` (started). The `frontend` waits for `ops-core`. This ordering means a `docker compose up` converges to a working stack without manual sequencing.
 
 ## The `--profile mock` seam
 
@@ -54,7 +53,7 @@ Resolved with `${VAR:-default}`; defaults are local-dev only ([`infrastructure/R
 | `ANTHROPIC_API_KEY` | *(empty)* | ai-orchestrator |
 | `VITE_OPS_CORE_URL` / `VITE_AI_URL` | `:4000/api/v1` / `:8000` | frontend (`VITE_AI_URL` now **in use** — the `CopilotPanel` wire to `/chat` + `/plan`, [F18](../06-features/F18-ai-wiring/); degrades to a canned copilot if unset/unreachable) |
 
-Service-internal wiring (`REDIS_URL`, `NATS_URL`, `CHROMA_URL`, `DATABASE_URL`) is fixed to the compose network and not meant to be overridden for local dev. The NATS degrade switch (`NATS_ENABLED=false`, [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)) is the one knob that changes the runtime topology — see the cut-line in [`MASTER_PLAN.md`](../00-strategy/MASTER_PLAN.md) §5.
+Service-internal wiring (`REDIS_URL`, `CHROMA_URL`, `DATABASE_URL`) is fixed to the compose network and not meant to be overridden for local dev.
 
 ## CI overview
 
@@ -62,7 +61,7 @@ CI runs against the same stack shape (per [`CORE_PATTERNS.md`](../04-api/CORE_PA
 
 - **Type + lint:** `pnpm tsc --noEmit` clean.
 - **Unit tests:** Vitest, Prisma stubbed; the availability/conflict engine adds **property tests**.
-- **Integration tests:** real **Postgres** (+ NATS) service containers — no DB mocks — covering the concurrency path (two parallel `POST /reservations` → exactly one `409`).
+- **Integration tests:** real **Postgres** service containers — no DB mocks — covering the concurrency path (two parallel `POST /reservations` → exactly one `409`).
 - **Locale parity:** the key counts of `locales/al.json` and `en.json` must match.
 - **Contract test (`F13`):** payloads validated against `openapi.yaml` — the drift gate for the hand-mirrored types ([ADR-0008](../08-decisions/0008-hand-mirrored-api-types.md)).
 
@@ -72,5 +71,5 @@ A fuller CI/CD pipeline (build + deploy + rollback + environment matrix) is prod
 
 - **Bring-up & ops:** [`docs/07-operations/RUNBOOK.md`](../07-operations/RUNBOOK.md).
 - **Compose source:** [`infrastructure/docker-compose.yml`](../../infrastructure/docker-compose.yml), [`infrastructure/README.md`](../../infrastructure/README.md).
-- **The mock + the boundary:** [ADR-0001](../08-decisions/0001-two-services-one-contract.md). **Events/degrade:** [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md).
+- **The mock + the boundary:** [ADR-0001](../08-decisions/0001-two-services-one-contract.md).
 - **Observability probes:** [`OBSERVABILITY.md`](./OBSERVABILITY.md).

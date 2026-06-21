@@ -45,7 +45,7 @@ last_updated: 2026-06-20
 - Acceptance:
   - A mutation made over the service-token path writes its `AuditEntry` with the forwarded real `actorId` + name (the populated `req.actor`), through the existing F09 audit writer in the same transaction — never anonymous.
   - This is distinct from the reaper's `writeSystemAudit(actorId=null)`: an AI-driven action is attributed to the human it acted for, not to "system" (per `docs/02-domain/AUDIT.md`).
-  - Test asserts an end-to-end AI-style mutation (service token + forwarded MANAGER) produces an `AuditEntry` whose `actorId` equals the forwarded user's id, and an `OutboxEvent` in the same transaction.
+  - Test asserts an end-to-end AI-style mutation (service token + forwarded MANAGER) produces an `AuditEntry` whose `actorId` equals the forwarded user's id, written in the same transaction as the state change.
   - tsc clean; vitest passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
 
 ### F17-T05 — contract: securityScheme + X-Acting-User-* headers + mock parity

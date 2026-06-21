@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { loginAs, resetDb, prisma, outboxFor } from "./helpers/integration";
+import { loginAs, resetDb, prisma } from "./helpers/integration";
 import { seedSpace, seedAsset, seedRequest, seedReservation } from "./helpers/fixtures";
 import { reservationsService } from "../modules/reservations/service";
 
@@ -169,8 +169,7 @@ describe("F06-T06 concurrency: serializable tx + row locks kill the TOCTOU race"
     for (const r of [c1, c2]) if (r.status === 409) expect(r.body.error).toBe("invalid_transition");
 
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: held.id } })).status).toBe("CONFIRMED");
-    // the CAS guard means exactly one confirm actually mutated → exactly one event/audit.
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(1);
+    // the CAS guard means exactly one confirm actually mutated → exactly one audit.
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: held.id } })).toBe(1);
   });
 
@@ -196,9 +195,9 @@ describe("F06-T06 concurrency: serializable tx + row locks kill the TOCTOU race"
 
 // Sustained contention can abort the SAME hold transaction on every attempt. Real
 // Postgres can't be coerced into 4 back-to-back serialization aborts on demand, so
-// we force it: reject ONLY the serializable hold transaction (let the small
-// best-effort outbox writes through), proving the retry loop degrades to a clean
-// 429 / 409 and NEVER lets a raw serialization error escape as a 500.
+// we force it: reject ONLY the serializable hold transaction (let any other
+// transaction through), proving the retry loop degrades to a clean 429 / 409 and
+// NEVER lets a raw serialization error escape as a 500.
 describe("F06-T06 retry exhaustion: sustained serialization aborts degrade to 429/409, never 500", () => {
   // Capture the pristine method ONCE so the delegating mock never recurses into itself
   // and restoration is exact (Prisma's $transaction lives on a proxy, not as an own prop).
@@ -209,8 +208,7 @@ describe("F06-T06 retry exhaustion: sustained serialization aborts degrade to 42
   });
 
   /** Replace $transaction so it rejects ONLY the serializable hold tx with the given
-   *  error, while delegating every other call (e.g. the conflict.detected outbox)
-   *  to the pristine implementation. */
+   *  error, while delegating every other call to the pristine implementation. */
   function failHoldTxWith(err: unknown) {
     const impl = ((arg: unknown, opts?: { isolationLevel?: unknown }) => {
       if (typeof arg === "function" && opts?.isolationLevel === Prisma.TransactionIsolationLevel.Serializable) {
@@ -235,8 +233,7 @@ describe("F06-T06 retry exhaustion: sustained serialization aborts degrade to 42
       reservationsService.hold(client.user, { requestId: req.id, spaceId: space.id, dateRange: W }),
     ).rejects.toMatchObject({ status: 429, error: "rate_limited", messageKey: "common.rate_limited" });
 
-    // pure contention → no phantom conflict.detected emitted, nothing written
-    expect(await outboxFor("conflict.detected")).toHaveLength(0);
+    // pure contention → nothing written
     expect(await prisma.reservation.count({ where: { requestId: req.id } })).toBe(0);
   });
 
@@ -252,8 +249,7 @@ describe("F06-T06 retry exhaustion: sustained serialization aborts degrade to 42
       reservationsService.hold(client.user, { requestId: loser.id, spaceId: space.id, dateRange: W }),
     ).rejects.toMatchObject({ status: 409, error: "conflict", messageKey: "reservation.conflict" });
 
-    // the re-detect found the winner's booking → it emits the conflict.detected story
-    expect(await outboxFor("conflict.detected")).toHaveLength(1);
+    // the re-detect found the winner's booking → 409, and the loser wrote nothing
     expect(await prisma.reservation.count({ where: { requestId: loser.id } })).toBe(0);
   });
 

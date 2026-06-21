@@ -83,7 +83,7 @@ States declared in `renderVals`: **default · submitting · invalid-credentials 
 
 ## §3.1 — Dashboard
 
-States: **default · loading · empty · error(NATS degraded) · mobile·390**. Built by `dashboardBody(state)` + `mDash()`.
+States: **default · loading · empty · error(data stale) · mobile·390**. Built by `dashboardBody(state)` + `mDash()`.
 
 ### Default layout (`padding:24px 32px`)
 1. **Title block** (marginBottom `20px`): `h1` "Dashboard" `24px/600/-0.01em margin:0 0 4px`; `p` **"Tuesday, 22 July 2026 · 4 spaces in use"** `14px/#51555E`.
@@ -101,9 +101,9 @@ States: **default · loading · empty · error(NATS degraded) · mobile·390**. 
 ### Empty
 `padding:24px 32px`. `h1` "Dashboard"; `p` **"Tuesday, 22 July 2026"** (`14px/#51555E; mb:32`). Box `border:1px dashed #D7DBE0; borderRadius:12px; padding:56px 24px; text-align:center`. Icon tile `44×44; radius:11px; bg:#F1F3F5; color:#8A8F98` calendar icon `20px`. Title **"No events this week"** `16px/600/mb:6`. Body **"When requests are approved and scheduled, they'll show up here."** `14px/#8A8F98/mb:18`. Primary button **"New request"** with `+` icon (13px) left.
 
-### Error (NATS degraded board — topbar pill shows degraded)
+### Error (data-stale board — topbar pill shows stale)
 `padding:24px 32px`. `h1` "Dashboard" (`mb:32`). Box `border:1px solid #ECEEF1; radius:12px; padding:56px 24px; center`. Icon tile `44×44; radius:11; bg:#FBECEA; color:#C8372D` alert `20px`. Title **"Couldn't load the dashboard"**. Body **"The connection to ops-core timed out."** Secondary button **"Retry"**.
-- NATS-degraded topbar pill (from `topbar('degraded')`): `bg:#FBF3E0; border:1px solid rgba(154,107,0,.25)`, 7px `#9A6B00` dot (no pulse), text **"NATS degraded"** `12px/600/#7A5500`. (Connected = `#E9F6EF`, pulsing `#1A7F4B` dot, "NATS connected" `#15613A`.)
+- Stale topbar pill (from `topbar('degraded')`): `bg:#FBF3E0; border:1px solid rgba(154,107,0,.25)`, 7px `#9A6B00` dot (no pulse), text **"Stale"** `12px/600/#7A5500`. (Up to date = `#E9F6EF`, pulsing `#1A7F4B` dot, "Up to date" `#15613A`.)
 
 ### Mobile (`mDash()`, 390 wrapper)
 `mobile()` shell: width `390; height:780`. Header `48px`: hamburger icon `18px #0B0D12` + title **"Backstage"** `16px/600`; right "Live" pill `bg:#E9F6EF`, 6px `#1A7F4B` dot, **"Live"** `11px/600/#15613A`. Bottom tab bar `58px`: Home(active `#2F6FED`)/Requests/Calendar/More, icons `19px`, labels `10px`.
@@ -288,7 +288,7 @@ Method: each page's current `*.tsx` was read in full. "EXISTS" = present & rough
 - **Live schedule strip** — the whole horizontal schedule (Blue/Orange/Foyer lanes with colored status bars + the pulsing "live" pill + "Live schedule — today" header) is absent. Build shows a generic recent-requests list instead.
 - **Loading skeleton parity** — build relies on `KPIStat loading` only; canvas loading also skeletons the title (`200/24` + `280/14`) and the strip card (4 × `100%/14`).
 - **Error state** — canvas has a dedicated "Couldn't load the dashboard / The connection to ops-core timed out. / Retry" card; build has no dashboard error branch.
-- **NATS-degraded chrome** — canvas error board flips the topbar pill to "NATS degraded" warning; that lives in AppShell, not this page, but the page should still tolerate the degraded signal.
+- **Stale-data chrome** — canvas error board flips the topbar pill to "Stale" warning; that lives in AppShell, not this page, but the page should still tolerate the stale signal.
 - **Mobile** — canvas `mDash` (2-up KPI grid, conflict box, bottom-tab shell). Responsive handled by shell, but the 2-up KPI at 390 already matches (`grid-cols-2`).
 
 **WRONG:**
@@ -403,4 +403,4 @@ Method: each page's current `*.tsx` was read in full. "EXISTS" = present & rough
 - Radius: canvas uses `12px` and `14px` for cards/banners; tokens lock `--radius-md=10`, `--radius-lg=16`. Map canvas-12 → `--radius-md`(10) or a new `--radius-12`; canvas-14 → `--radius-lg`(16). Pick one convention and apply globally.
 - All buttons in canvas are `borderRadius:8px` = `--radius-control`; confirm the `Button` primitive uses `rounded-control` (8), not `rounded-sm`/`md`.
 - Mono numerals everywhere comparisons happen (`font-variant-numeric:tabular-nums`) — already used in KPIStat/QuoteTable; ensure Requests Value + Calendar tick labels + lease countdown all set it.
-- Live signals (NATS pill, "live" dot, lease countdown) use `pulse`/`spin` animations from the canvas `<style>`; ensure those keyframes exist in `globals.css`.
+- Live signals (freshness pill, "live" dot, lease countdown) use `pulse`/`spin` animations from the canvas `<style>`; ensure those keyframes exist in `globals.css`.

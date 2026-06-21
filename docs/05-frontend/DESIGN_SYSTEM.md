@@ -6,7 +6,7 @@
 
 The Pyramid team is non-technical and under time pressure. The product replaces email/Excel chaos, so it must feel **instantly legible, trustworthy, and quiet**. The reference is Apple's pro tools (the macOS system apps, Linear, Things) — not a colorful SaaS dashboard.
 
-1. **Monochrome by default, color only for meaning.** The interface is near-grayscale. The single calm-blue accent marks the *one* primary action on a screen and live signals. Color otherwise appears **only** to encode operational status (conflict / held / confirmed / scheduled). A screen with no problems is almost colorless — calm.
+1. **Monochrome by default, color only for meaning.** The interface is near-grayscale. The single calm-blue accent marks the *one* primary action on a screen. Color otherwise appears **only** to encode operational status (conflict / held / confirmed / scheduled). A screen with no problems is almost colorless — calm.
 2. **Whitespace is the layout.** Generous spacing, few borders, no boxes-in-boxes. Group by proximity and a hairline, not by heavy cards.
 3. **Typography carries the hierarchy.** One type family, a tight scale, strong weight contrast. Numbers (capacities, quantities, money, times) are tabular and prominent — this is an operational tool.
 4. **Depth is a whisper.** Elevation is a 1px border + a soft shadow, never a glow. Two surface levels on a page, max.
@@ -39,7 +39,7 @@ Defined as CSS custom properties on `:root` in `frontend/src/styles/tokens.css`,
 --border-strong     #D7DBE0      /* hover, emphasized inputs */
 --border-focus      #2F6FED      /* focus ring */
 
-/* Accent — ONE calm blue. Primary actions + live signals only. */
+/* Accent — ONE calm blue. Primary actions only. */
 --accent            #2F6FED
 --accent-hover      #2A63D4
 --accent-pressed    #244FB0
@@ -57,8 +57,8 @@ Defined as CSS custom properties on `:root` in `frontend/src/styles/tokens.css`,
 | Operational state | Token | Used by |
 |---|---|---|
 | Available / Confirmed / Done / Feasible | `success` | space free, reservation CONFIRMED, task DONE, plan feasible |
-| Held (lease ticking) / Low inventory / Proposed | `warning` | reservation HELD + `expiresAt`, `inventory.low`, request PROPOSED |
-| Conflict / Rejected / Overdue | `danger` | `conflict.detected`, request REJECTED, task overdue |
+| Held (lease ticking) / Low inventory / Proposed | `warning` | reservation HELD + `expiresAt`, low inventory, request PROPOSED |
+| Conflict / Rejected / Overdue | `danger` | detected conflict, request REJECTED, task overdue |
 | Scheduled / Informational | `info` | request SCHEDULED, neutral banners |
 | Draft / Released / Inactive | neutral (`text-tertiary`) | request DRAFT, reservation RELEASED |
 
@@ -128,16 +128,16 @@ The heart of the product. Generate each with its full state set. Each maps to co
 - **`StatusBadge`** — the universal status pill. Variants per the status→token table (DRAFT, PROPOSED, APPROVED, SCHEDULED, COMPLETED, REJECTED · HELD, CONFIRMED, RELEASED · TODO/IN_PROGRESS/DONE/BLOCKED · conflict). Dot + label; `mono` for the related ID.
 - **`ConflictBanner`** — the signature moment. A `danger`-tinted inset that renders a `Conflict[]`: type, the human `detail`, the colliding window, the `conflictingRequestIds`, and — for `ASSET_OVERALLOCATED` — a `requested / available` meter. Primary action "See alternatives", secondary "Adjust". This is what the AI's "Blue is taken — Orange seats 180, shall I hold it?" renders into.
 - **`AvailabilityTimeline` / `ScheduleCalendar`** — horizontal time axis per space (day/week). Bars = reservations colored by status; the lighter **buffer zone** (setup/teardown) is shown as a hatched extension so setup overlaps are visible. Hover → popover with the request. Empty lanes read "free". This is the "digital twin" surface.
-- **`InventoryMeter`** — for an asset: a horizontal bar `available / total` with the held portion in `warning`. Crosses to `danger` past a threshold (`inventory.low`). Tabular numbers.
+- **`InventoryMeter`** — for an asset: a horizontal bar `available / total` with the held portion in `warning`. Crosses to `danger` past a low-inventory threshold. Tabular numbers.
 - **`SpaceCard`** — name, floor, capacity for the requested layout (big tabular number), feature chips, day rate, and an availability dot for the active window.
 - **`ReservationCard`** — space, window, asset list, `StatusBadge`; for HELD shows a **lease countdown** to `expiresAt` (turns `warning` as it nears).
 - **`QuoteTable`** — line items (label, kind chip, qty, unit, subtotal), then NET / VAT (20%) / **TOTAL** emphasized. Currency `ALL`, tabular, grouped thousands.
 - **`TaskBoard`** — two lanes **SETUP** and **TEARDOWN**; cards show title, owner/assignee avatar, `dueAt` (relative + absolute), status. Overdue → `danger`.
 - **`OperationalPlanView`** — the headline artifact: a single scroll composing SpaceCard + ReservationCard + QuoteTable + TaskBoard + (ConflictBanner if any) + the AI **narrative** at top. Feasible vs not-feasible variants. This is the `GET /requests/:id` aggregate / `POST /plan` output rendered.
-- **`CopilotPanel`** — right-side or full chat, **now wired** to the AI service (`POST /chat` stateful via `sessionId`, `POST /plan` for the OperationalPlan — see [`../04-api/AI_CONTRACT.md`](../04-api/AI_CONTRACT.md)). `ChatMessage` (user / assistant), an **assistant "thinking" state**, `ProposedActionCard` (e.g. "Hold Blue Hall" with a confirm button → `requiresApproval`), and inline plan previews (incl. an embedded `FloorMap`). The copilot surface uses `accent-muted`. Includes the **unprompted conflict heads-up** state (a pushed message on `conflict.detected`). **Degrades to a canned copilot** (scripted responses) when the AI service is absent — the demo never blanks; design the `ai-degraded` state.
+- **`CopilotPanel`** — right-side or full chat, **now wired** to the AI service (`POST /chat` stateful via `sessionId`, `POST /plan` for the OperationalPlan — see [`../04-api/AI_CONTRACT.md`](../04-api/AI_CONTRACT.md)). `ChatMessage` (user / assistant), an **assistant "thinking" state**, `ProposedActionCard` (e.g. "Hold Blue Hall" with a confirm button → `requiresApproval`), and inline plan previews (incl. an embedded `FloorMap`). The copilot surface uses `accent-muted`. Includes the **unprompted conflict heads-up** state (surfaced when polling detects a conflict). **Degrades to a canned copilot** (scripted responses) when the AI service is absent — the demo never blanks; design the `ai-degraded` state.
 - **`FloorMap`** — the radial digital-twin: a stylized floor schematic that lights up `/plan` output (chosen `main`, bundle `bundle`, taken `conflict`, affected access `circulation`, else `free`), with a floor switcher (`-1 / 0 / 3`) and a legend. Pure/presentational behind `<FloorMap floor spaces={[{slug,status}]} />`; v1 catalog-radial now, v2 real-plan hotspots later behind identical props. Embedded in OperationalPlanView + Dashboard. Full spec: [`FLOOR_MAP.md`](./FLOOR_MAP.md).
 - **`AssetScanner`** — the mobile scan surface (`/scan`): a big-touch camera viewport (390px), a scanning state, an **asset-found** confirm card (current → new location), submitting/success/error (no-camera, unknown code). Records a movement via `POST /private/assets/:id/scan`. See [`../02-domain/ASSET_TRACKING.md`](../02-domain/ASSET_TRACKING.md).
-- **`AssetLocationWidget`** — the **"Where is it?"** live-location panel: an asset's current `Asset.location` + a recent-movements ledger (from/to, actor, time, mono). A Dashboard tile surfaces high-value / recently-moved assets; updates live on `asset.moved`. States: default, loading, empty(no movements), error.
+- **`AssetLocationWidget`** — the **"Where is it?"** location panel: an asset's current `Asset.location` + a recent-movements ledger (from/to, actor, time, mono). A Dashboard tile surfaces high-value / recently-moved assets; refreshed by polling. States: default, loading, empty(no movements), error.
 - **`KPIStat`** — dashboard tiles (events this week, spaces in use, low-stock assets, pending approvals): big tabular number + label + tiny trend/▲▼.
 - **`AuditTimeline`** — vertical, append-only: actor avatar + name, action verb, entity, timestamp (mono), expandable before/after diff, reason. The "complete record".
 - **`DataTable`** — sortable, paginated, empty/loading/error states, row hover, optional row-selection; used for requests, assets, audit, users.
@@ -146,7 +146,7 @@ The heart of the product. Generate each with its full state set. Each maps to co
 
 ## 5. Shells & navigation
 
-- **`AppShell`** — left sidebar (collapsible) + top bar. Sidebar groups: **Overview** (Dashboard), **Pipeline** (Requests, Calendar), **Resources** (Spaces, Inventory), **Operations** (Tasks, Conflicts, Approvals), **Record** (Audit), and (ADMIN) **Settings** (Users). Top bar: global search / request-intake launcher, a **live status pill** (NATS-connected, shows last event), the copilot toggle, the user menu + role badge.
+- **`AppShell`** — left sidebar (collapsible) + top bar. Sidebar groups: **Overview** (Dashboard), **Pipeline** (Requests, Calendar), **Resources** (Spaces, Inventory), **Operations** (Tasks, Conflicts, Approvals), **Record** (Audit), and (ADMIN) **Settings** (Users). Top bar: global search / request-intake launcher, the copilot toggle, the user menu + role badge.
 - **`AuthShell`** — centered, zero-distraction staff login.
 - **`PortalShell`** — the stripped **partner** shell (`PARTNER` role): no staff sidebar, no internal data — just the partner's intake form and their own requests. Calm, single-column, brand-light. Separate audience from `AppShell`. See [`../02-domain/PARTNER_PORTAL.md`](../02-domain/PARTNER_PORTAL.md).
 - **Mobile**: sidebar → bottom-anchored drawer; the copilot → full-screen sheet; tables → stacked cards; the **Scanner** (`/scan`) is a mobile-first, big-touch single-purpose screen. Designed at 390px.

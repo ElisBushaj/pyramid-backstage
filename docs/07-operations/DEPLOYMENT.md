@@ -6,7 +6,7 @@ frontend), pushes them to GHCR, SCPs the infra files to the VPS, and runs
 behind nginx. After the one-time setup below, **every deploy is just `git push`.**
 
 ```
-Browser ──HTTPS──> nginx (edge, :443) ┬─ /api/  → ops-core:4000  (Express + Prisma + Postgres + NATS + Redis)
+Browser ──HTTPS──> nginx (edge, :443) ┬─ /api/  → ops-core:4000  (Express + Prisma + Postgres + Redis)
                                        ├─ /ai/   → ai-orchestrator:8000 (FastAPI + Claude + ChromaDB)
                                        └─ /      → frontend:8080 (static Vite SPA)
 ```
@@ -119,7 +119,7 @@ Watch **Actions**. First run takes ~5–8 min (builds + first TLS issue). When g
 ## How it works (so you can debug it)
 
 - **Images** → `ghcr.io/elisbushaj/pyramid-backstage/{ops-core,ai-orchestrator,frontend}`.
-- **`deploy.sh`** (on the VPS, `/opt/pyramid`): pull → start db/nats/redis/chromadb →
+- **`deploy.sh`** (on the VPS, `/opt/pyramid`): pull → start db/redis/chromadb →
   `prisma migrate deploy` → seed once (marker `/opt/pyramid/.seeded`) → start
   ops-core + ai → obtain/verify TLS → start frontend + nginx → health-check →
   install the twice-daily cert-renewal cron.

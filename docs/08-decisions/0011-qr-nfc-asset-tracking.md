@@ -14,14 +14,14 @@ The modelling fork is identity. Either every individual chair becomes a tracked 
 **Track assets as aggregate counts with a movement ledger; the QR tag encodes the `assetId` (the SKU), and a scan records an `AssetMovement` while updating the live `Asset.location` in one transaction.**
 
 - **The tag is the SKU.** A QR/NFC tag encodes `assetId` — the chair-stack's type, not a serial number. Scanning identifies *which kind of asset*, and the operator supplies the count and the move type. See [docs/02-domain/ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md).
-- **A scan is a movement, not a PATCH.** `POST /private/assets/:id/scan` records an `AssetMovement { type: CHECK_OUT | CHECK_IN | RELOCATE, quantity, fromLocation?, toLocation }` **and** updates `Asset.location` to the destination, in a single transaction — together with the mandatory `AuditEntry` and an `asset.moved` `OutboxEvent`, per the every-mutation-is-audited rule of [CORE_PATTERNS](../04-api/CORE_PATTERNS.md).
+- **A scan is a movement, not a PATCH.** `POST /private/assets/:id/scan` records an `AssetMovement { type: CHECK_OUT | CHECK_IN | RELOCATE, quantity, fromLocation?, toLocation }` **and** updates `Asset.location` to the destination, in a single transaction — together with the mandatory `AuditEntry`, per the every-mutation-is-audited rule of [CORE_PATTERNS](../04-api/CORE_PATTERNS.md).
 - **The ledger is the history.** `GET /private/assets/:id/movements` returns the append-only movement log. `Asset.location` is a denormalized "where is it now" derived from the latest movement; the ledger is the source of truth for *how it got there*.
 - **Aggregate, not serialized.** Movements carry a `quantity`. Splitting a stack — 200 chairs to Blue Hall, 200 to storage — is two movements off the same `assetId`, not 400 unit records. Availability math is untouched: it still sums quantities.
 
 ## Consequences
 
 - **"Where is my gear" is answerable.** The dashboard widget reads `Asset.location` for the live snapshot; the per-asset ledger explains the trail. Both come from one write path, so they can never disagree.
-- **History and audit are preserved.** Because every move is an `AuditEntry` + an outbox event in the same transaction, a misplaced count is traceable to who scanned it and when — the audit posture of [ADR-0003](./0003-session-auth-rbac-in-ops-core.md) extends to physical movement.
+- **History and audit are preserved.** Because every move is an `AuditEntry` in the same transaction as the state change, a misplaced count is traceable to who scanned it and when — the audit posture of [ADR-0003](./0003-session-auth-rbac-in-ops-core.md) extends to physical movement.
 - **Model stays small.** One new table (`AssetMovement`) and one nullable denormalized column trend; no per-unit entity explosion. Buildable and testable inside the time box.
 - **Partial-quantity tracking has a known limit.** Aggregate location means an asset split across two rooms shows only its *latest* destination in `Asset.location`; the true split lives in the ledger. Accepted: the brief asks for counts + a current location, not a live per-room balance. A per-location balance is a future enhancement, not a demo blocker.
 

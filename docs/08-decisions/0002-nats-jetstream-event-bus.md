@@ -1,7 +1,9 @@
 # ADR-0002: NATS JetStream event bus, written via a transactional outbox
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0018](./0018-remove-nats-event-subsystem.md) (2026-06-21)
 - **Date**: 2026-06-18
+
+> **Superseded.** The NATS event bus, the transactional outbox, and the relay described below were removed from the project on 2026-06-21. See [ADR-0018](./0018-remove-nats-event-subsystem.md). This record is retained for history; the decision below no longer reflects the system.
 
 ## Context
 

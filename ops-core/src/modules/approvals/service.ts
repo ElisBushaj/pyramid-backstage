@@ -5,7 +5,6 @@ import { detectConflicts } from "../../services/conflict";
 import { confirmReservationTx, releaseReservationTx } from "../reservations/service";
 import { assertTransition } from "../requests/transitions";
 import { writeAudit } from "../audit/audit.writer";
-import { writeOutbox } from "../events/outbox.writer";
 import { eventRequestToDto } from "../requests/mapper";
 import { runSerializable } from "../../utils/tx";
 
@@ -56,7 +55,6 @@ class ApprovalsService {
         actor, action: "request.approve", entityType: "EventRequest", entityId: requestId, requestId,
         before: { status: "PROPOSED" }, after: { status: "SCHEDULED" },
       });
-      await writeOutbox(tx, "request.approved", { requestId, confirmedReservations: holds.map((h) => h.id) });
       return u!;
     });
     return ok(eventRequestToDto(updated), "request.approved");

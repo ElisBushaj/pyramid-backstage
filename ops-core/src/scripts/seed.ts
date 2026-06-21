@@ -1,7 +1,7 @@
 /**
  * Deterministic demo seed (F12). Stable ids for spaces/assets/users; events +
  * reservations are created through the REAL service paths (hold → quote → tasks
- * → approve) so they carry valid effective windows + audit + outbox. Plants a
+ * → approve) so they carry valid effective windows + audit. Plants a
  * conflict: Blue Hall is occupied at window W1, so a hold there returns 409 and
  * the conflict→alternatives demo/e2e works.
  *
@@ -85,7 +85,7 @@ const W2 = { start: "2026-07-24T09:00:00Z", end: "2026-07-24T18:00:00Z" };
 export const SEED = { SPACES, ASSETS, USERS, DEV_PASSWORD, BLUE, GREEN, CHAIRS, W1, W2 };
 
 async function resetDomain() {
-  const tables = ["AuditEntry", "OutboxEvent", "ReservationAsset", "Reservation", "Quote", "Task", "EventRequest", "IdempotencyKey", "Session", "Asset", "Space", "User"];
+  const tables = ["AuditEntry", "ReservationAsset", "Reservation", "Quote", "Task", "EventRequest", "IdempotencyKey", "Session", "Asset", "Space", "User"];
   await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"public"."${t}"`).join(", ")} RESTART IDENTITY CASCADE`);
 }
 

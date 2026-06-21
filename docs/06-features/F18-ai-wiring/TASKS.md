@@ -68,11 +68,11 @@ last_updated: 2026-06-21
   - Unit test: `ai.chat`/`ai.plan` return `null` when `VITE_AI_URL` is unset and when fetch rejects/times out; a component test asserts the panel does not enter `assistant-thinking` indefinitely on a degraded call (it falls back).
   - Manual verification noted: copilot opened with the AI down still renders and is interactive; tsc clean; vitest passing.
 
-### F18-T07 — AppShell Copilot wire + ⌘K command palette + NATS pill; RequestDetail narrative data-driven
+### F18-T07 — AppShell Copilot wire + ⌘K command palette + connectivity pill; RequestDetail narrative data-driven
 - Status: done
 - Depends on: F13-T07
 - Estimate: 0.75d
 - Acceptance:
   - Global Copilot input/send wired to the live `/chat` path with the same graceful 503 degrade as Intake (no AI logic built — Alvin’s lane).
-  - Top-bar Search becomes a real ⌘K command palette over requests/spaces/assets with a keybind; the “NATS connected” pill is relabeled to reflect what it actually checks (`/me` reachability).
+  - Top-bar Search becomes a real ⌘K command palette over requests/spaces/assets with a keybind; the connectivity pill reflects what it actually checks (`/me` reachability).
   - RequestDetail fallback narrative is request-agnostic (parameterized space/capacity from the aggregate, not the hardcoded “Blue Hall 180”). tsc + build green.

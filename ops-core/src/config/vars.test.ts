@@ -92,8 +92,6 @@ describe("config/vars — parsers and defaults", () => {
       ...base,
       PORT: undefined,
       REDIS_URL: undefined,
-      NATS_URL: undefined,
-      NATS_ENABLED: undefined,
       HOLD_MINUTES_DEFAULT: undefined,
       VAT_RATE: undefined,
       SESSION_TTL_HOURS: undefined,
@@ -103,8 +101,6 @@ describe("config/vars — parsers and defaults", () => {
     expect(r.vars).toMatchObject({
       port: 4000,
       redisUrl: "redis://localhost:6379",
-      natsUrl: "nats://localhost:4222",
-      natsEnabled: true,
       holdMinutesDefault: 30,
       vatRate: 0.2,
       sessionTtlHours: 12,
@@ -124,12 +120,6 @@ describe("config/vars — parsers and defaults", () => {
     expect(bootAndDump({ ...base, VAT_RATE: "0.1" }).vars.vatRate).toBe(0.1);
     expect(bootAndDump({ ...base, VAT_RATE: "garbage" }).vars.vatRate).toBe(0.2);
     expect(bootAndDump({ ...base, VAT_RATE: "" }).vars.vatRate).toBe(0.2);
-  });
-
-  it("treats NATS_ENABLED as a strict 'true' string toggle", () => {
-    expect(bootAndDump({ ...base, NATS_ENABLED: "true" }).vars.natsEnabled).toBe(true);
-    expect(bootAndDump({ ...base, NATS_ENABLED: "false" }).vars.natsEnabled).toBe(false);
-    expect(bootAndDump({ ...base, NATS_ENABLED: "1" }).vars.natsEnabled).toBe(false); // only "true" enables
   });
 
   it("sets isProd only when NODE_ENV=production", () => {

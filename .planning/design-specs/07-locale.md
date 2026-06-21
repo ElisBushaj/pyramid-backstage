@@ -126,8 +126,8 @@ Frame: `§L.1 "String map — EN → Shqip"`, sub *"the build keys · proper nou
 ### Group: System & states
 | English | Shqip | i18n key |
 |---|---|---|
-| NATS connected | NATS i lidhur | `live.connectedNats` ✓ |
-| NATS degraded | NATS i dobësuar | `live.degradedNats` (current AL = "NATS i kufizuar" — MISMATCH: canvas="i dobësuar") |
+| Up to date | I përditësuar | `live.fresh` |
+| Stale | I vjetëruar | `live.stale` |
 | Events this week | Evente këtë javë | `dashboard.eventsThisWeek` (current AL = "Eventet këtë javë" — variant) |
 | Spaces in use | Hapësira në përdorim | `dashboard.spacesInUse` ✓ |
 | Low-stock assets | Asete me stok të ulët | `dashboard.lowStock` ✓ |
@@ -149,7 +149,7 @@ Frame `§L.2 "Overflow stress tests"`, bg `#F7F8FA` (`--surface-subtle`), sub *"
 The seven stress pairs (EN | AL):
 1. **Buttons** — primary "See alternatives" | "Shih alternativat"; secondary "Adjust request" | "Rregullo kërkesën". Buttons: `whiteSpace:nowrap`, h36, padding `0 16px`, radius 8px, font 14/550. AL "Shih alternativat" is ~30% wider — must not clip → buttons size to content, never fixed-width.
 2. **Status chips** — `REQUIRES APPROVAL`|`KËRKON MIRATIM` (warning `#9A6B00`/`#FBF3E0`), `IN PROGRESS`|`NË PROCES` (neutral `#8A8F98`/`#F1F3F5`), `OUT OF STOCK`|`PA STOK` (danger `#C8372D`/`#FBECEA`). Chips: `whiteSpace:nowrap`, pill radius 999px, padding `3px 10px`, 12px/600, border `${fg}26` (15% alpha), `noDot:true` variant here.
-3. **NATS pill** — "NATS connected"|"NATS i lidhur". Pill: h30, padding `0 12px`, radius 999px, bg `#E9F6EF` (`--success-subtle`), border `rgba(26,127,75,.2)`, dot `#1A7F4B` (`--success`) 7px, text 12/600 `#15613A` (darker success, not a token — note).
+3. **Freshness pill** — "Up to date"|"I përditësuar". Pill: h30, padding `0 12px`, radius 999px, bg `#E9F6EF` (`--success-subtle`), border `rgba(26,127,75,.2)`, dot `#1A7F4B` (`--success`) 7px, text 12/600 `#15613A` (darker success, not a token — note).
 4. **KPI cards** — "Low-stock assets"|"Asete me stok të ulët" (width fixed **190px**, value `#C8372D` alert), "Pending approvals"|"Miratime në pritje". Card: 190px, border `#ECEEF1`, radius 10px, padding 14px; label 13px `#51555E` `min-height:34px` line-height 17px (**2-line clamp built in** — this is how AL overflow is absorbed); value 26px/600 mono. **KEY FLEX MECHANISM: KPI label reserves 2 lines (34px) so the longer AL string wraps instead of pushing the number.**
 5. **Nav rail** — `[Dashboard, Requests·24, Conflicts·1(danger), Approvals·5]` | `[Paneli, Kërkesat·24, Konfliktet·1(danger), Miratimet·5]`. Rail width fixed **180px**; item label `overflow:hidden; textOverflow:ellipsis; whiteSpace:nowrap` — **ellipsis fallback** if AL overflows; count badge pinned right with `marginLeft:auto`. Active item bg `#EEF3FE` (`--accent-muted`), text `#2F6FED`.
 6. **Segmented** — `Day/Week/Month` | `Ditë/Javë/Muaj`. Track bg `#F1F3F5` (`--surface-sunken`), radius 8px, pad 3px; segments padding `6px 14px`, 13/550, `whiteSpace:nowrap`; active seg bg `#fff` shadow `0 1px 2px rgba(11,13,18,.08)`.
@@ -159,7 +159,7 @@ The seven stress pairs (EN | AL):
 - Buttons & chips: `width:auto` + `white-space:nowrap` + content padding. Never fixed pixel widths.
 - KPI tile label: reserve **2 lines** (`min-height:34px`, `line-height:17px`) so AL wraps without shoving the number.
 - Nav rail: fixed-width rail ⇒ label gets `text-overflow:ellipsis` as the safety net (AL nav words are short enough to fit at 180–232px, but the guard stays).
-- Lease/NATS pills: `inline-flex`, intrinsic width — they simply get wider in AL.
+- Lease/freshness pills: `inline-flex`, intrinsic width — they simply get wider in AL.
 
 ---
 
@@ -169,9 +169,9 @@ Frame `§L.3 "Full screens in Shqip"`, sub *"whole layout flexes with the longer
 
 ### Shared AL shell chrome
 - **Sidebar (`alSidebar`)** width **232px**, bg `#F7F8FA`, right border `#ECEEF1`. Brand row h56: logo 26px gradient `linear-gradient(135deg,#2F6FED,#244FB0)` (accent→accent-pressed) + "Backstage" 14/600. Groups (AL): **Përmbledhje** [Paneli] · **Procesi** [Kërkesat ·24, Kalendari] · **Burimet** [Hapësirat, Inventari ·2 danger] · **Operacionet** [Detyrat, Konfliktet ·1 danger, Miratimet ·5] · **Regjistri** [Auditimi] · **Cilësimet** [Përdoruesit]. Group label 11px `#8A8F98` UPPERCASE tracking `0.05em` 600. Item h33, radius 8px; active bg `#EEF3FE` text `#2F6FED` weight 550; inactive text `#51555E` weight 400; icon 16px; count badge mono 11/600, danger variant bg `#FBECEA` text `#C8372D` else bg `#F1F3F5` text `#8A8F98`.
-- **Topbar (`alTopbar`)** h56, bg `#fff`, bottom border `#ECEEF1`. Search field: max-width 400px, h34, bg `#F7F8FA`, border `#ECEEF1`, radius 8px, placeholder **"Kërko ose nis një kërkesë…"** 13px `#8A8F98`, `⌘K` kbd mono 11px. NATS pill **"NATS i lidhur"** (success, dot animates `pulse 1.8s`). Copilot button **"Kopiloti"** bg `#EEF3FE` border `#DCE6FB` text `#2F6FED` 13/550. User: avatar "EH" 30px bg `#DCE6FB`, name "Elira H." 13/600, role **"MENAXHER"** 11px `#9A6B00` (warning) 600.
+- **Topbar (`alTopbar`)** h56, bg `#fff`, bottom border `#ECEEF1`. Search field: max-width 400px, h34, bg `#F7F8FA`, border `#ECEEF1`, radius 8px, placeholder **"Kërko ose nis një kërkesë…"** 13px `#8A8F98`, `⌘K` kbd mono 11px. Freshness pill **"I përditësuar"** (success, dot animates `pulse 1.8s`). Copilot button **"Kopiloti"** bg `#EEF3FE` border `#DCE6FB` text `#2F6FED` 13/550. User: avatar "EH" 30px bg `#DCE6FB`, name "Elira H." 13/600, role **"MENAXHER"** 11px `#9A6B00` (warning) 600.
 - Screen frame `alScreen`: 1280px wide, default h720 (plan h820).
-- `pulse` keyframe: `0%,100%{opacity:1} 50%{opacity:.4}` — used on NATS dot and lease countdown.
+- `pulse` keyframe: `0%,100%{opacity:1} 50%{opacity:.4}` — used on the freshness dot and lease countdown.
 
 ### Board 1 — Login · §1.1 (`alLogin`)
 - Panel 440×560, bg `#F7F8FA`; inner card 360px wide → `#fff` radius 14px shadow `--elev-raised`, padding 24px.
@@ -224,7 +224,7 @@ Frame `§L.3 "Full screens in Shqip"`, sub *"whole layout flexes with the longer
 
 ## ====================== GAP ANALYSIS ======================
 
-> **IMPORTANT — files changed mid-session.** `en.json` and `al.json` were both edited at ~11:08–11:09 today and are now at **full key parity (EN 184 / AL 184, zero missing either direction)**. The `nav.approvals`, `nav.collapse`, `shell.*`, `auth.forgot`, `auth.footerNote`, `live.connectedNats`, `live.degradedNats` keys that were previously AL-only-missing are **now present in AL**. The parity defect is RESOLVED on disk. Verify with the command in "How to re-verify" below before acting.
+> **IMPORTANT — files changed mid-session.** `en.json` and `al.json` were both edited at ~11:08–11:09 today and are now at **full key parity (EN 184 / AL 184, zero missing either direction)**. The `nav.approvals`, `nav.collapse`, `shell.*`, `auth.forgot`, `auth.footerNote`, `live.fresh`, `live.stale` keys that were previously AL-only-missing are **now present in AL**. The parity defect is RESOLVED on disk. Verify with the command in "How to re-verify" below before acting.
 
 ### (1) Key parity — PASS
 - `flat(en).length === flat(al).length === 184`. No key in EN absent from AL; none in AL absent from EN. **No action required for parity.**
@@ -273,7 +273,7 @@ Decide whether canvas or current build wins per row; flagged where canvas is cle
 | `plan.leaseEnds` | "Mbajtja mbaron" | **"Rezervimi skadon për"** | Canvas. Used on ReservationCard header + lease stress test. |
 | `plan.narrative` | "Përmbledhja e planit" | **"Plani i Kopilotit"** | Canvas narrative header = "Plani i Kopilotit"; "Përmbledhja e planit" can remain as a separate section label, but the copilot card header needs the new `plan.copilotPlan`. |
 | `tasks.setup` | "Përgatitja" | **"Montimi"** | Canvas. Narrative + quote line use "montim". Reconcile to "Montimi". |
-| `live.degradedNats` | "NATS i kufizuar" | **"NATS i dobësuar"** | Canvas glossary says "i dobësuar". Minor — pick one and lock it. |
+| `live.stale` | — | **"I vjetëruar"** | Freshness pill stale state. Lock the AL string. |
 | `nav.users` | "Stafi" | "Përdoruesit & rolet" (glossary) / "Përdoruesit" (rendered nav) | Canvas is internally inconsistent; either keep "Stafi" or switch to "Përdoruesit". Document the decision. |
 
 Render-layer (NOT translation bugs — caused by `text-transform:uppercase` + article style; leave i18n title-case, the badge uppercases):
@@ -286,7 +286,7 @@ From §L.2, the spots most at risk and the mechanism each needs:
 2. **Status chips** (`StatusBadge`) — pill, `white-space:nowrap`, padding `3px 10px`. "KËRKON MIRATIM" is the longest. Must not wrap or clip.
 3. **KPI tiles** (`KPIStat`) — label `min-height:34px; line-height:17px` (**reserve 2 lines**) so "Asete me stok të ulët" / "Miratime në pritje" wrap above the number instead of pushing it. Fixed tile width 190px in stress test; in dashboard `repeat(4,1fr)`.
 4. **Nav items** (`AppShell` sidebar) — fixed rail (180px stress / 232px shell); label `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`; count badge `margin-left:auto`. AL nav labels fit, but keep the ellipsis guard.
-5. **Lease countdown / NATS pill** — `inline-flex` intrinsic width; "Rezervimi skadon për" ≈ 2× "Lease expires in". Containers grow, never truncate.
+5. **Lease countdown / freshness pill** — `inline-flex` intrinsic width; "Rezervimi skadon për" ≈ 2× "Lease expires in". Containers grow, never truncate.
 6. **Segmented control** — segments `white-space:nowrap`, intrinsic width; "Ditë/Javë/Muaj" fits but track must size to content.
 7. **Plan narrative / conflict body** — long AL prose (the copilot paragraph, conflict detail) — these are flow text in fixed-width cards; line-height 21–23px, wraps naturally. Ensure card padding holds and no `nowrap`.
 8. **Page header title + action row** — `flex-wrap:wrap` on the title/action container (canvas `alPageHeader` uses `flexWrap:'wrap'`) so "Konferenca FinTech për Startup-e" + "Mirato planin"/"Refuzo" reflow on narrow widths.

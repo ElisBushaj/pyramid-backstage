@@ -12,7 +12,7 @@ import { Pager } from '@/components/command/Pager'
 import { EmptyState, ErrorState } from '@/components/ui/Feedback'
 
 // Known audit entity types — raw names double as option labels (no per-type i18n).
-const ENTITY_TYPES = ['EventRequest', 'Reservation', 'Asset', 'Quote', 'Task', 'Space', 'User', 'OutboxEvent'] as const
+const ENTITY_TYPES = ['EventRequest', 'Reservation', 'Asset', 'Quote', 'Task', 'Space', 'User'] as const
 const ALL_ENTITY_TYPES = '__all__'
 
 export default function Audit() {

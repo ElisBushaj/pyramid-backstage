@@ -23,7 +23,7 @@ last_updated: 2026-06-21
 - Acceptance:
   - `POST /private/requests` validates `EventRequestInput` with `ValidationHelpers`: `title`/`organizerName` non-empty, `expectedAttendees ≥ 1`, `eventType ∈ EventType`, `preferredDates` minItems 1 with each a valid `DateRange` (`start < end`, ISO date-time), `requirements.layout` (if present) ∈ `Layout`; failures → `422 validation` with fields keyed.
   - Creates the `EventRequest` at the documented initial status (`DRAFT`) with `createdById = req.actor.id`, returning `ServiceResponse<EventRequest>` (201).
-  - Writes a `request.create` `AuditEntry` (after = the created request) in the same transaction via the F09 writer; an `OutboxEvent` `request.created` is written too (relay/publish is F11, but the row is written here per the no-dual-write rule).
+  - Writes a `request.create` `AuditEntry` (after = the created request) in the same transaction via the F09 writer.
   - Controller uses `@controlledResponse`; tsc clean; vitest passing.
 
 ### F04-T03 — GET /requests/:id aggregate (request+reservation+quote+tasks+conflicts+audit)

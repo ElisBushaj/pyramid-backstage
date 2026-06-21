@@ -102,13 +102,3 @@ export class ServiceClient {
 export function auditEntriesFor(entityType: string, entityId: string) {
   return prisma.auditEntry.findMany({ where: { entityType, entityId }, orderBy: { at: "asc" } });
 }
-
-/** Outbox rows for a subject, oldest-first. */
-export function outboxFor(subject: string) {
-  return prisma.outboxEvent.findMany({ where: { subject }, orderBy: { createdAt: "asc" } });
-}
-
-/** Outbox rows not yet published (the relay backlog). */
-export function unpublishedOutbox() {
-  return prisma.outboxEvent.findMany({ where: { publishedAt: null }, orderBy: { createdAt: "asc" } });
-}

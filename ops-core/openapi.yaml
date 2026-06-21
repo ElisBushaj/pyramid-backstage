@@ -62,7 +62,7 @@ paths:
   /ready:
     get:
       tags: [health]
-      summary: Readiness probe (DB + NATS reachable)
+      summary: Readiness probe (DB reachable)
       security: []
       responses:
         "200": { description: ready }

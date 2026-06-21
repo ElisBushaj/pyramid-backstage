@@ -48,9 +48,9 @@ The booking loop is the spine, not the ceiling. The same record-plus-reasoning s
 ## What success looks like (the demo, abbreviated)
 
 1. **Type the messy request** → the AI returns *"yes, we can"* with a matched space, a VAT quote, reserved assets, remaining inventory, no conflict, and a setup task list.
-2. **Submit a colliding request** → `conflict.detected` fires; the AI explains it in plain language and proposes an alternative space/time.
+2. **Submit a colliding request** → the conflict is detected; the AI explains it in plain language and proposes an alternative space/time.
 3. **Approve the first (as MANAGER)** → the request goes `SCHEDULED`, held reservations confirm, an audit entry is written, the task list goes live.
-4. **The live dashboard updates** as it happens — and the audit trail shows exactly who decided what.
+4. **The dashboard reflects every change** — and the audit trail shows exactly who decided what.
 
 The full beat-by-beat script, mapped to pages and endpoints, is in [`docs/07-operations/DEMO_SCRIPT.md`](../07-operations/DEMO_SCRIPT.md).
 

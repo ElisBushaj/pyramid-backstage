@@ -23,7 +23,7 @@ The ledger is never mutated or deleted; a mistaken move is corrected by a compen
 2. **Over-checkout guard** — a `CHECK_OUT` may not move more than is currently *at* `fromLocation` and free in the window. Violations → `422 asset_overallocated` (same error family the [conflict engine](./CONFLICTS.md) raises), never a silent negative.
 3. Insert the `AssetMovement`.
 4. Update the live `Asset.location` to `toLocation` (the asset's "current centre of mass" — see below).
-5. Write the `AuditEntry` (actor = scanner) **and** an `asset.moved` `OutboxEvent` — same transaction, never a dual-write.
+5. Write the `AuditEntry` (actor = scanner) — same transaction as the movement insert and the location update.
 
 Idempotent on `Idempotency-Key`: a double-tap of the scanner returns the original movement, never a phantom second move.
 

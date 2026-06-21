@@ -53,8 +53,6 @@ describe("F15 — PARTNER create", () => {
 
     const audit = await auditEntriesFor("EventRequest", res.body.data.id);
     expect(audit.some((a) => a.action === "request.create" && a.actorId === p.user.id)).toBe(true);
-    // create still emits the request.created outbox event, same as staff
-    expect(await prisma.outboxEvent.count({ where: { subject: "request.created" } })).toBe(1);
   });
 
   it("staff create still lands DRAFT (the PROPOSED default is PARTNER-only)", async () => {

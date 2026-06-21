@@ -33,9 +33,9 @@ Each phase has an **exit gate** — the condition that must be true before the n
 
 ## Phase 1 — The 3-day ops-core build ← *current*
 
-**What:** `ops-core` (`F00`–`F13`) shipped in full — auth/RBAC, spaces, assets, requests, the availability/conflict engine, reservations, quotes, tasks, audit, approvals, events/outbox, seed, contract test. The day-by-day sequencing and the cut-line are in [`MASTER_PLAN.md`](./MASTER_PLAN.md) §3, §5.
+**What:** `ops-core` (`F00`–`F13`) shipped in full — auth/RBAC, spaces, assets, requests, the availability/conflict engine, reservations, quotes, tasks, audit, approvals, seed, contract test. The day-by-day sequencing and the cut-line are in [`MASTER_PLAN.md`](./MASTER_PLAN.md) §3, §5.
 
-**Gate:** the program-level Definition of Done in [`MASTER_PLAN.md`](./MASTER_PLAN.md) §6 — tsc + tests green (incl. `F05` property tests), every endpoint implemented + pattern-conformant, every mutation writes audit-with-actor + outbox in one transaction, locale parity, contract test green, the full demo path runs against the seed (conflict surfaced + MANAGER approval), and the `NATS_ENABLED=false` degrade mode verified.
+**Gate:** the program-level Definition of Done in [`MASTER_PLAN.md`](./MASTER_PLAN.md) §6 — tsc + tests green (incl. `F05` property tests), every endpoint implemented + pattern-conformant, every mutation writes audit-with-actor in one transaction, locale parity, contract test green, and the full demo path runs against the seed (conflict surfaced + MANAGER approval).
 
 ---
 
@@ -64,12 +64,12 @@ Each phase has an **exit gate** — the condition that must be true before the n
 **What:** turning the demo-shaped build into a deployable system. None of these block the demo; all are tracked here so they aren't forgotten. Several map to open questions in [`docs/09-questions/OPEN.md`](../09-questions/OPEN.md).
 
 - **Auth audit & secrets** — rotate `SESSION_SECRET` off the dev default, session-store hardening, password-policy review, brute-force/lockout review beyond the login rate-limit, a real `create-admin` provisioning flow. (See [SECURITY.md](../01-architecture/SECURITY.md).)
-- **Observability** — metrics, traces, and alerts on top of the existing pino logs + `/health`/`/ready` + audit ledger; queue-depth/outbox-lag and conflict-rate alerts. (See [OBSERVABILITY.md](../01-architecture/OBSERVABILITY.md) § backlog.)
+- **Observability** — metrics, traces, and alerts on top of the existing pino logs + `/health`/`/ready` + audit ledger; conflict-rate alerts. (See [OBSERVABILITY.md](../01-architecture/OBSERVABILITY.md) § backlog.)
 - **Multi-space events** — events spanning a hall + transitional areas, expanding the conflict engine and quote ([Q-05](../09-questions/OPEN.md)).
 - **Per-unit / QR asset tracking** — physical-unit identity + a movement ledger over today's aggregate counts ([Q-06](../09-questions/OPEN.md)); `location` is already first-class.
 - **GDPR / DSAR** — data-subject export/erasure for organizer PII if the venue requires it ([Q-04](../09-questions/OPEN.md)).
 - **Real rate card & buffers** — replace the seeded day-rates/VAT and the default 240/120 buffers with the venue's real numbers ([Q-01](../09-questions/OPEN.md), [Q-03](../09-questions/OPEN.md)).
-- **CI/CD & deploy** — pipeline (lint + tsc + tests on PR, build + deploy on merge), environment matrix, rollback, real-Postgres integration + NATS in CI.
+- **CI/CD & deploy** — pipeline (lint + tsc + tests on PR, build + deploy on merge), environment matrix, rollback, real-Postgres integration in CI.
 
 **Gate:** scoped per item against its owning question; this phase is demand-driven (what the venue actually needs for launch), not a fixed checklist.
 

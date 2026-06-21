@@ -64,10 +64,10 @@ When resolved, move the entry to [`RESOLVED.md`](./RESOLVED.md) with an `R-NN` I
 
 ### Q-07 — Realtime expectation: is the live dashboard required, or is polling acceptable?
 - Asked: 2026-06-18
-- Blocks: none — NATS ships with a polling fallback either way
-- Status: open
-- Default if not answered: **NATS live dashboard, with polling fallback** (`NATS_ENABLED=false` → REST-only) ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)).
-- Context: The live command center and the unprompted AI conflict heads-up are core "wow" moments, and they ride NATS (`conflict.detected`, `reservation.held`, …). But the entire request→plan→approve loop works over REST alone, and the dashboard degrades to polling cleanly. We'd like to know the venue's real-time expectation — if "the screen updates by itself" is a must-have, NATS stays in the demo path; if polling-on-refresh is acceptable for launch, the degrade mode is the floor. Correctness never depends on the answer; only the liveness does.
+- Blocks: none
+- Status: closed — moot (the async event subsystem was removed, [ADR-0018], 2026-06-21)
+- Note: The whole async event subsystem (NATS/JetStream, the transactional outbox, the relay, published subjects) was removed on 2026-06-21 ([ADR-0018]). The dashboard now gets freshness by **polling the REST contract** — there is no live push layer. This question is retained as historical record only; the polling answer is now the design, not a fallback.
+- Context: The live command center and the unprompted AI conflict heads-up were originally going to ride a live event bus. The entire request→plan→approve loop works over REST alone, and the dashboard polls cleanly — which is now the sole freshness mechanism. Correctness never depended on the bus; only the (former) liveness did.
 
 ### Q-08 — Multi-stage approval chain
 - Asked: 2026-06-20

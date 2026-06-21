@@ -28,8 +28,8 @@ set -a; source .env; set +a
 echo "[1/8] Pulling application images..."
 $COMPOSE pull ops-core ai-orchestrator frontend
 
-echo "[2/8] Starting backing services (db, nats, redis, chromadb)..."
-$COMPOSE up -d db nats redis chromadb
+echo "[2/8] Starting backing services (db, redis, chromadb)..."
+$COMPOSE up -d db redis chromadb
 
 echo "Waiting for Postgres..."
 for i in {1..30}; do
@@ -37,13 +37,6 @@ for i in {1..30}; do
         echo "  Postgres ready."; break
     fi
     [ "$i" = 30 ] && { echo "ERROR: Postgres not ready"; $COMPOSE logs --tail=60 db; exit 1; }
-    sleep 2
-done
-
-echo "Waiting for NATS..."
-for i in {1..30}; do
-    if $COMPOSE ps nats | grep -q "healthy"; then echo "  NATS ready."; break; fi
-    [ "$i" = 30 ] && { echo "ERROR: NATS not healthy"; $COMPOSE logs --tail=60 nats; exit 1; }
     sleep 2
 done
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loginAs, anon, resetDb, prisma, auditEntriesFor, outboxFor } from "./helpers/integration";
+import { loginAs, anon, resetDb, prisma, auditEntriesFor } from "./helpers/integration";
 import { seedSpace, seedRequest, seedReservation } from "./helpers/fixtures";
 
 const SPACES = "/api/v1/private/spaces";
@@ -115,14 +115,6 @@ describe("POST /spaces — create, audit, whitelist (F02-T02/T05)", () => {
     const row = await prisma.space.findUnique({ where: { id: res.body.data.id } });
     expect(row?.currency).toBe("ALL");
     expect(row?.status).toBe("ACTIVE");
-  });
-
-  it("create does NOT emit an outbox event (space CRUD is audited, not a domain event — F02 scope)", async () => {
-    const ops = await loginAs("OPS");
-    await ops.post(SPACES).send(validBody());
-    const all = await prisma.outboxEvent.count();
-    expect(all).toBe(0);
-    expect(await outboxFor("space.created")).toHaveLength(0);
   });
 
   describe("create validation → 422 with fields (F02-T02)", () => {

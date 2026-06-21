@@ -8,7 +8,7 @@ Read this **first** at the start of every session. This is the contract you oper
 
 Two services, one shared contract:
 
-- **`ops-core`** (Elis · Node 20 · Express 5 · Prisma 7 · Postgres 17 · TypeScript · NATS) — the **deterministic system of record**. Spaces, assets, requests, reservations, quotes, tasks, conflicts, audit, auth. No AI. **This is what the 3-day build ships in full.**
+- **`ops-core`** (Elis · Node 20 · Express 5 · Prisma 7 · Postgres 17 · TypeScript) — the **deterministic system of record**. Spaces, assets, requests, reservations, quotes, tasks, conflicts, audit, auth. No AI. **This is what the 3-day build ships in full.**
 - **`ai-orchestrator`** (Alvin · Python · FastAPI · LangGraph · Claude · ChromaDB · Redis) — the **reasoning layer**. Holds no domain state. **Scaffold + stateful mock + reference backlog only** in this repo; Alvin implements the AI logic.
 
 The two talk **only** over `ops-core/openapi.yaml`. Neither imports the other's code. The only coupling is one env var: `OPS_CORE_URL`.
@@ -22,8 +22,7 @@ The two talk **only** over `ops-core/openapi.yaml`. Neither imports the other's 
 - **ops-core**: Node 20+, Express 5, Prisma 7, Postgres 17, TypeScript, Vitest. Session auth (argon2id + httpOnly cookie) + RBAC live here.
 - **ai-orchestrator**: Python 3.12, FastAPI, LangGraph, ChromaDB, Redis. (Scaffold only here.)
 - **frontend**: Vite + React 19 SPA. **No SSR.** React Router 7, Tailwind 4, Radix, Zustand, TanStack Query, CVA, lucide.
-- **Events**: NATS (JetStream) via a transactional outbox. Degradable — core loop works over REST alone.
-- **Infra**: docker-compose (Postgres, NATS, Redis, ChromaDB, the three apps). Independent packages, no monorepo workspaces.
+- **Infra**: docker-compose (Postgres, Redis, ChromaDB, the three apps). Independent packages, no monorepo workspaces.
 
 Locked decisions live in `docs/08-decisions/` (ADRs). Don't second-guess them — supersede via a new ADR.
 
@@ -62,7 +61,7 @@ ops-core has deliberate conventions. Always conform. Canonical reference: `docs/
 - **Every validation** uses `ValidationHelpers` + `express-validator`. No Zod.
 - **Every service response** matches `ServiceResponse<T>`; paginated lists use `PaginatedServiceResponse<T>`.
 - **Routes mount under** `/api/v1/{public,private,admin}`. Pick the tier that matches access; add `requireRole` for finer gates.
-- **Every mutation writes an `AuditEntry`** with `req.actor` and an `OutboxEvent` in the **same transaction**. Never anonymous, never a dual-write.
+- **Every mutation writes an `AuditEntry`** with `req.actor` in the **same transaction** as the state change. Never anonymous, never a dual-write.
 - **Reservations** decrement inventory inside a **serializable transaction with row locks**. The availability check and the write are never separate statements.
 - **Money** is integer minor units via `utils/money.ts`. **Time/overlap/buffers** via `utils/time.ts`. No floats on money; no hand-rolled interval math.
 - **Tests** use Vitest (`*.test.ts` next to implementation). The availability/conflict engine has property tests. Integration tests use real Postgres (no DB mocks).

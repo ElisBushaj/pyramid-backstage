@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loginAs, resetDb, prisma, anon, auditEntriesFor, outboxFor } from "./helpers/integration";
+import { loginAs, resetDb, prisma, anon, auditEntriesFor } from "./helpers/integration";
 import { seedSpace, seedAsset, seedRequest, seedReservation, seedQuote } from "./helpers/fixtures";
 import { quotesService } from "../modules/quotes/service";
 import type { Actor } from "../types";
@@ -436,9 +436,9 @@ describe("quote expiry — check-on-read & accept guard (F07-T04)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audit & events
+// Audit
 // ─────────────────────────────────────────────────────────────────────────────
-describe("POST /quotes — audit & outbox (F07-T03)", () => {
+describe("POST /quotes — audit (F07-T03)", () => {
   it("writes exactly one quote.generate audit row attributed to the actor", async () => {
     const ops = await loginAs("OPS");
     const { req } = await setup(80000);
@@ -448,14 +448,6 @@ describe("POST /quotes — audit & outbox (F07-T03)", () => {
     expect(audits[0]).toMatchObject({ action: "quote.generate", entityType: "Quote", entityId: res.body.data.id, actorId: ops.user.id, requestId: req.id });
     // the audit `after` snapshot carries the server-computed money + version.
     expect(audits[0]!.after).toMatchObject({ version: 1, netMinor: 80000, vatMinor: 16000, totalMinor: 96000 });
-  });
-
-  it("emits no quote.* outbox event (no quote subject is in the documented event contract — AUDIT.md)", async () => {
-    const ops = await loginAs("OPS");
-    const { req } = await setup(80000);
-    await ops.post(QUOTES).send({ requestId: req.id });
-    expect(await outboxFor("quote.generated")).toHaveLength(0);
-    expect(await outboxFor("quote.generate")).toHaveLength(0);
   });
 
   it("persists nothing (no quote, no audit) when generation 404s on a missing reservation", async () => {

@@ -4,7 +4,6 @@ import { APIError } from "../../errors";
 import { ok, okList, type ServiceResponse, type ListResponse, type Actor } from "../../types";
 import type { EventRequest, EventRequestInput, RequestAggregate } from "../../types/api/requests";
 import { writeAudit } from "../audit/audit.writer";
-import { writeOutbox } from "../events/outbox.writer";
 import { detectConflicts } from "../../services/conflict";
 import { reservationToDto } from "../reservations/mapper";
 import { quoteToDto } from "../quotes/mapper";
@@ -46,7 +45,6 @@ class RequestsService {
         actor, action: "request.create", entityType: "EventRequest", entityId: created.id, requestId: created.id,
         after: { title: created.title, status: created.status, eventType: created.eventType },
       });
-      await writeOutbox(tx, "request.created", { requestId: created.id, title: created.title, eventType: created.eventType });
       return created;
     });
     return ok(eventRequestToDto(row), "request.created.success");

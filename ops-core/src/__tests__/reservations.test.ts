@@ -5,7 +5,6 @@ import {
   prisma,
   anon,
   auditEntriesFor,
-  outboxFor,
   type Client,
 } from "./helpers/integration";
 import { seedSpace, seedAsset, seedRequest, seedReservation } from "./helpers/fixtures";
@@ -32,7 +31,7 @@ async function holdBody(client: Client, over: Record<string, unknown> = {}) {
 // HOLD — success path
 // ───────────────────────────────────────────────────────────────────────────
 describe("POST /reservations — atomic hold success (F06-T02)", () => {
-  it("holds a space + assets, writes reservation.hold audit + reservation.held outbox in the same tx", async () => {
+  it("holds a space + assets, writes reservation.hold audit in the same tx", async () => {
     const client = await loginAs("OPS");
     const chairs = await seedAsset({ totalQuantity: 400 });
     const { body } = await holdBody(client, { assets: [{ assetId: chairs.id, quantity: 200 }] });
@@ -47,13 +46,10 @@ describe("POST /reservations — atomic hold success (F06-T02)", () => {
     // ReservationAsset rows actually persisted
     expect(await prisma.reservationAsset.count({ where: { reservationId: res.body.data.id } })).toBe(1);
 
-    // audit + outbox written, attributed to the real actor
+    // audit written, attributed to the real actor
     const audits = await auditEntriesFor("Reservation", res.body.data.id);
     expect(audits).toHaveLength(1);
     expect(audits[0]).toMatchObject({ action: "reservation.hold", actorId: client.user.id, actorName: client.user.name });
-    const held = await outboxFor("reservation.held");
-    expect(held).toHaveLength(1);
-    expect(held[0]!.payload).toMatchObject({ reservationId: res.body.data.id, requestId: body.requestId, spaceId: body.spaceId });
   });
 
   it("computes effectiveStart/effectiveEnd by padding the event window with the space buffers", async () => {
@@ -115,48 +111,6 @@ describe("POST /reservations — atomic hold success (F06-T02)", () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
-// HOLD — inventory.low signal
-// ───────────────────────────────────────────────────────────────────────────
-describe("POST /reservations — inventory.low signal (F06-T02)", () => {
-  it("emits inventory.low when remaining availability drops to ≤ 10% of stock", async () => {
-    const client = await loginAs("OPS");
-    const chairs = await seedAsset({ totalQuantity: 100 });
-    const { body } = await holdBody(client, { assets: [{ assetId: chairs.id, quantity: 95 }] }); // 5 left ≤ 10
-
-    const res = await client.post(RES).send(body);
-    expect(res.status).toBe(201);
-    const low = await outboxFor("inventory.low");
-    expect(low).toHaveLength(1);
-    expect(low[0]!.payload).toMatchObject({ assetId: chairs.id, available: 5, total: 100 });
-  });
-
-  it("emits inventory.low at exactly the 10% threshold (available === ceil(total*0.1))", async () => {
-    const client = await loginAs("OPS");
-    const chairs = await seedAsset({ totalQuantity: 100 });
-    const { body } = await holdBody(client, { assets: [{ assetId: chairs.id, quantity: 90 }] }); // exactly 10 left
-
-    expect((await client.post(RES).send(body)).status).toBe(201);
-    expect(await outboxFor("inventory.low")).toHaveLength(1);
-  });
-
-  it("does NOT emit inventory.low when plenty of stock remains", async () => {
-    const client = await loginAs("OPS");
-    const chairs = await seedAsset({ totalQuantity: 100 });
-    const { body } = await holdBody(client, { assets: [{ assetId: chairs.id, quantity: 50 }] }); // 50 left
-
-    expect((await client.post(RES).send(body)).status).toBe(201);
-    expect(await outboxFor("inventory.low")).toHaveLength(0);
-  });
-
-  it("does NOT emit inventory.low for a space-only hold (no assets)", async () => {
-    const client = await loginAs("OPS");
-    const { body } = await holdBody(client);
-    expect((await client.post(RES).send(body)).status).toBe(201);
-    expect(await outboxFor("inventory.low")).toHaveLength(0);
-  });
-});
-
-// ───────────────────────────────────────────────────────────────────────────
 // HOLD — conflict path (nothing half-written)
 // ───────────────────────────────────────────────────────────────────────────
 describe("POST /reservations — conflict path (F06-T02)", () => {
@@ -177,9 +131,6 @@ describe("POST /reservations — conflict path (F06-T02)", () => {
     // nothing half-written for the loser
     expect(await prisma.reservation.count({ where: { requestId: req.id } })).toBe(0);
     expect(await prisma.auditEntry.count({ where: { requestId: req.id } })).toBe(0);
-    // only the conflict.detected outbox — no reservation.held leaked
-    expect(await outboxFor("reservation.held")).toHaveLength(0);
-    expect(await outboxFor("conflict.detected")).toHaveLength(1);
   });
 
   it("returns 409 {ASSET_OVERALLOCATED} carrying requested + available; no partial row", async () => {
@@ -254,9 +205,8 @@ describe("POST /reservations — idempotency (F06-T03)", () => {
     expect(replay.status).toBe(201);
     expect(replay.body.data.id).toBe(first.body.data.id);
     expect(await prisma.reservation.count()).toBe(1);
-    // the mutation ran once: one audit, one outbox
+    // the mutation ran once: one audit
     expect(await prisma.auditEntry.count({ where: { action: "reservation.hold" } })).toBe(1);
-    expect(await outboxFor("reservation.held")).toHaveLength(1);
   });
 
   it("the same key with a different body → 409 idempotency_key_mismatch", async () => {
@@ -396,7 +346,7 @@ describe("POST /reservations/:id/confirm (F06-T04)", () => {
     return (await client.post(RES).send(body)).body.data;
   }
 
-  it("HELD → CONFIRMED, clears expiresAt, idempotent, audit + single outbox", async () => {
+  it("HELD → CONFIRMED, clears expiresAt, idempotent, single audit", async () => {
     const client = await loginAs("OPS");
     const held = await heldReservation(client);
 
@@ -411,8 +361,7 @@ describe("POST /reservations/:id/confirm (F06-T04)", () => {
     const c2 = await client.post(`${RES}/${held.id}/confirm`); // idempotent
     expect(c2.status).toBe(200);
     expect(c2.body.data.status).toBe("CONFIRMED");
-    // the idempotent replay must NOT write a second confirm audit/outbox
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(1);
+    // the idempotent replay must NOT write a second confirm audit
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: held.id } })).toBe(1);
   });
 
@@ -469,7 +418,7 @@ describe("POST /reservations/:id/confirm (F06-T04)", () => {
 // RELEASE
 // ───────────────────────────────────────────────────────────────────────────
 describe("POST /reservations/:id/release (F06-T04)", () => {
-  it("HELD → RELEASED, idempotent (re-release is a no-op), audit + single outbox", async () => {
+  it("HELD → RELEASED, idempotent (re-release is a no-op), single audit", async () => {
     const client = await loginAs("OPS");
     const { body } = await holdBody(client);
     const held = (await client.post(RES).send(body)).body.data;
@@ -482,9 +431,8 @@ describe("POST /reservations/:id/release (F06-T04)", () => {
     const r2 = await client.post(`${RES}/${held.id}/release`); // idempotent no-op
     expect(r2.status).toBe(200);
     expect(r2.body.data.status).toBe("RELEASED");
-    // re-release wrote no second audit/outbox
+    // re-release wrote no second audit
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: held.id } })).toBe(1);
-    expect(await outboxFor("reservation.released")).toHaveLength(1);
   });
 
   it("releasing a CONFIRMED reservation also moves it to RELEASED", async () => {
@@ -628,7 +576,7 @@ describe("confirmReservationTx / releaseReservationTx (F06 → reused by F10)", 
     return (await client.post(RES).send(body)).body.data as { id: string; requestId: string; spaceId: string };
   }
 
-  it("confirmReservationTx flips a HELD row → CONFIRMED with audit + outbox in the caller's tx", async () => {
+  it("confirmReservationTx flips a HELD row → CONFIRMED with audit in the caller's tx", async () => {
     const client = await loginAs("MANAGER");
     actor.id = client.user.id;
     const held = await heldRow(client);
@@ -636,7 +584,6 @@ describe("confirmReservationTx / releaseReservationTx (F06 → reused by F10)", 
     const u = await prisma.$transaction((tx) => confirmReservationTx(tx, { ...held, status: "HELD" }, actor));
     expect(u!.status).toBe("CONFIRMED");
     expect(u!.expiresAt).toBeNull();
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(1);
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: held.id, actorId: client.user.id } })).toBe(1);
   });
 
@@ -653,14 +600,13 @@ describe("confirmReservationTx / releaseReservationTx (F06 → reused by F10)", 
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: held.id } })).status).toBe("RELEASED");
   });
 
-  it("releaseReservationTx flips a HELD row → RELEASED with audit + outbox", async () => {
+  it("releaseReservationTx flips a HELD row → RELEASED with audit", async () => {
     const client = await loginAs("MANAGER");
     actor.id = client.user.id;
     const held = await heldRow(client);
 
     await prisma.$transaction((tx) => releaseReservationTx(tx, { ...held, status: "HELD" }, actor));
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: held.id } })).status).toBe("RELEASED");
-    expect(await outboxFor("reservation.released")).toHaveLength(1);
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: held.id, actorId: client.user.id } })).toBe(1);
   });
 
@@ -672,7 +618,7 @@ describe("confirmReservationTx / releaseReservationTx (F06 → reused by F10)", 
     const auditsBefore = await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: held.id } });
 
     await prisma.$transaction((tx) => releaseReservationTx(tx, { ...held, status: "RELEASED" }, actor));
-    // no second audit/outbox row written by the no-op
+    // no second audit row written by the no-op
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: held.id } })).toBe(auditsBefore);
   });
 });

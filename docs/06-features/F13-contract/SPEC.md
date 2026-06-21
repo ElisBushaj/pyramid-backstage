@@ -32,7 +32,7 @@ This feature ships no new domain behaviour; it closes the loop on type-sharing a
 
 - `ops-core/src/types/api/*.ts` is emitted/maintained from `openapi.yaml` (one file per area), and `frontend/src/api/types/*.ts` hand-mirrors only the consumed surface, per `docs/04-api/TYPE_SHARING.md`; both compile.
 - The contract test passes: every `example` in `openapi.yaml` validates against the corresponding TS type, and enum casing (`UPPER_SNAKE`) matches on both the backend and frontend mirrors — drift fails CI.
-- The e2e integration test (real Postgres, NATS available) runs the full flow against the seeded dataset: create request → match space (`GET /spaces`) → hold (`POST /reservations`) → quote (`POST /quotes`) → tasks (`POST /requests/:id/tasks`) → approve (`POST /requests/:id/approve`), asserting each step's contract shape and the final `RequestAggregate`.
+- The e2e integration test (real Postgres) runs the full flow against the seeded dataset: create request → match space (`GET /spaces`) → hold (`POST /reservations`) → quote (`POST /quotes`) → tasks (`POST /requests/:id/tasks`) → approve (`POST /requests/:id/approve`), asserting each step's contract shape and the final `RequestAggregate`.
 - The same test exercises the conflict path: a hold that hits the planted seed conflict returns `409 conflict` with `Conflict[]`, and an alternative window/space succeeds — proving the conflict→alternatives story end to end (per `docs/02-domain/CONFLICTS.md`).
 - A demo-script verification runs the four demo beats and asserts they complete green (the demo is reproducible from `npm`/seed + the e2e harness).
 

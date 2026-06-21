@@ -11,18 +11,18 @@ last_updated: 2026-06-20
 
 ## Summary
 
-Today `Asset.location` is a static string nobody updates — the moment 400 chairs leave the store they are "somewhere", and on event day "where is it?" is answered by walking the building. This feature makes location **live and historical**: a QR/NFC tag encodes the `assetId`, a scan posts a `CHECK_OUT | CHECK_IN | RELOCATE` movement, and ops-core records it as an `AssetMovement` ledger row, updates the live `Asset.location`, and writes audit + outbox — all in one transaction. The result is a "where is everything right now" rollup, a per-asset movement timeline, and a mobile scanner an ops runner uses on the floor. Tracking stays **aggregate-with-movement** — a movement carries a `quantity`, not a per-unit serial; we never mint a row per physical chair ([docs/08-decisions/0011-qr-nfc-asset-tracking.md](../../08-decisions/0011-qr-nfc-asset-tracking.md)). Visually striking and fully parallel — it touches no existing reservation or availability path.
+Today `Asset.location` is a static string nobody updates — the moment 400 chairs leave the store they are "somewhere", and on event day "where is it?" is answered by walking the building. This feature makes location **live and historical**: a QR/NFC tag encodes the `assetId`, a scan posts a `CHECK_OUT | CHECK_IN | RELOCATE` movement, and ops-core records it as an `AssetMovement` ledger row, updates the live `Asset.location`, and writes audit — all in one transaction. The result is a "where is everything right now" rollup, a per-asset movement timeline, and a mobile scanner an ops runner uses on the floor. Tracking stays **aggregate-with-movement** — a movement carries a `quantity`, not a per-unit serial; we never mint a row per physical chair ([docs/08-decisions/0011-qr-nfc-asset-tracking.md](../../08-decisions/0011-qr-nfc-asset-tracking.md)). Visually striking and fully parallel — it touches no existing reservation or availability path.
 
 ## Scope
 
 ### In scope
 - The `AssetMovement` model + a Prisma migration: `id`, `assetId`, `action` (`AssetMovementAction`), `quantity`, `fromLocation?`, `toLocation`, `reservationId?`, `actorId?`, `note?`, `at`; index `[assetId, at]`; a `movements` relation on `Asset`.
-- `POST /private/assets/:id/scan` (OPS+): one transaction → record the movement, update `Asset.location`, write an `asset.scan` `AuditEntry` + an `asset.moved` `OutboxEvent`; guard over-checkout; require `Idempotency-Key`.
+- `POST /private/assets/:id/scan` (OPS+): one transaction → record the movement, update `Asset.location`, write an `asset.scan` `AuditEntry`; guard over-checkout; require `Idempotency-Key`.
 - `GET /private/assets/:id/movements` — the paginated history.
 - A live-location rollup on `GET /private/assets` (`currentLocation` + `checkedOutQuantity`).
 - The `openapi.yaml` additive schemas + ops-core/frontend type mirrors + the mock-ops-core parity handlers.
 - FE: a QR-encode util + a per-asset QR on `AssetDetail`; a mobile-first Scanner page; a "Where is it?" dashboard widget + a per-asset movement timeline; EN/AL i18n.
-- Tests: scan happy path, over-checkout guard, audit + outbox assertions, movements history, idempotent replay.
+- Tests: scan happy path, over-checkout guard, audit assertions, movements history, idempotent replay.
 
 ### Out of scope
 - Per-unit / serialized identity (one row per physical chair, unique tag per unit) — explicitly rejected for aggregate-with-movement ([docs/08-decisions/0011-qr-nfc-asset-tracking.md](../../08-decisions/0011-qr-nfc-asset-tracking.md)).
@@ -33,7 +33,7 @@ Today `Asset.location` is a static string nobody updates — the moment 400 chai
 ## Acceptance criteria
 
 - The `AssetMovement` Prisma model exists with `action: AssetMovementAction` (`CHECK_OUT | CHECK_IN | RELOCATE`, `UPPER_SNAKE`), `quantity: Int`, `fromLocation: String?`, `toLocation: String`, `reservationId: String?`, `actorId: String?`, `note: String?`, `at: DateTime`, an index `[assetId, at]`, and a `movements AssetMovement[]` relation on `Asset` — all additive; no existing `Asset` column moves. `prisma generate` and `tsc` are clean.
-- `POST /private/assets/:id/scan` requires OPS+ (`requireRole('OPS')`); VIEWER and PARTNER get `403`. In **one** `prisma.$transaction` it inserts the `AssetMovement`, sets `Asset.location = toLocation`, and writes an `asset.scan` `AuditEntry` (with `before`/`after` location) + an `asset.moved` `OutboxEvent` — never a dual-write, never anonymous (`actorId` from `req.actor`).
+- `POST /private/assets/:id/scan` requires OPS+ (`requireRole('OPS')`); VIEWER and PARTNER get `403`. In **one** `prisma.$transaction` it inserts the `AssetMovement`, sets `Asset.location = toLocation`, and writes an `asset.scan` `AuditEntry` (with `before`/`after` location) — never anonymous (`actorId` from `req.actor`).
 - The over-checkout guard: a `CHECK_OUT` whose `quantity` exceeds the currently-available-to-check-out count (`totalQuantity − Σ open checked-out quantity`) is rejected `422 validation` (per [docs/02-domain/ASSET_TRACKING.md](../../02-domain/ASSET_TRACKING.md)); a `CHECK_IN` whose `quantity` exceeds the open checked-out count is likewise rejected. `RELOCATE` moves a checked-out quantity between locations and does not change the net checked-out count.
 - The scan body is validated with `ValidationHelpers` + `express-validator` (no Zod): `action` ∈ the enum, `quantity` a positive integer ≤ `totalQuantity`, `toLocation` a non-empty string, `reservationId`/`note` optional and bounded — malformed → `422 validation`. An unknown asset id → `404 not_found`.
 - `POST /private/assets/:id/scan` requires `Idempotency-Key` (UUID v4); a replay returns the **original** movement (no duplicate ledger row, no double location flip); a body mismatch under the same key → `409 idempotency_key_mismatch` (per [docs/04-api/CORE_PATTERNS.md](../../04-api/CORE_PATTERNS.md), [ADR-0005](../../08-decisions/0005-idempotency-keys.md)).
@@ -89,6 +89,6 @@ No change to `Reservation`/`ReservationAsset` or the availability engine.
 
 - Aggregate-with-movement (a `quantity` per movement, not per-unit serials), QR encodes the `assetId`, NFC is the same payload over a different reader, the over-checkout guard, and why movements are not holds: [docs/08-decisions/0011-qr-nfc-asset-tracking.md](../../08-decisions/0011-qr-nfc-asset-tracking.md) and [docs/02-domain/ASSET_TRACKING.md](../../02-domain/ASSET_TRACKING.md).
 - The aggregate-tracking base this extends, and the "per-unit / QR-NFC tagging and a movement ledger are a clean future extension" note this fulfils: [docs/02-domain/ASSETS.md](../../02-domain/ASSETS.md), [docs/06-features/F03-assets/SPEC.md](../F03-assets/SPEC.md).
-- A scan is a mutation → audit + outbox in one transaction, never a dual-write: [docs/02-domain/AUDIT.md](../../02-domain/AUDIT.md), [docs/06-features/F09-audit/SPEC.md](../F09-audit/SPEC.md).
+- A scan is a mutation → audit in the same transaction as the state change, never anonymous: [docs/02-domain/AUDIT.md](../../02-domain/AUDIT.md), [docs/06-features/F09-audit/SPEC.md](../F09-audit/SPEC.md).
 - Idempotency on the scan mutation: [ADR-0005](../../08-decisions/0005-idempotency-keys.md), [docs/04-api/CORE_PATTERNS.md](../../04-api/CORE_PATTERNS.md).
 - Contract/DTO/mirror alignment is enforced by the F13 contract test: [docs/04-api/TYPE_SHARING.md](../../04-api/TYPE_SHARING.md), [docs/06-features/F13-contract/SPEC.md](../F13-contract/SPEC.md).

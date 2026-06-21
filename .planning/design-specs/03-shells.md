@@ -6,18 +6,18 @@
 
 **Canvas helmet** loads Geist (400;450;500;550;600;700) + Geist Mono (400;450;500) from Google Fonts. The wrapper font stack is `'SF Pro Text','Geist',-apple-system,system-ui,sans-serif`. (See `00-tokens.md §FONTS` — the build never loads Geist; that font bug is global, not re-litigated here, but every weight below assumes Geist is present.)
 
-**One keyframe is defined in the canvas helmet** and used by the NATS pill dot:
+**One keyframe is defined in the canvas helmet** and used by the freshness pill dot:
 ```css
 @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.8); } }
 ```
 Animation shorthand on the connected dot: `pulseDot 1.8s ease-in-out infinite`.
 
 The page renders **5 artboards across 3 frame rows**:
-- §2.1 row A — AppShell default (1280px, NATS connected, Dashboard active, sidebar expanded).
-- §2.1 row B — AppShell sidebar-collapsed + NATS degraded (1120px, Requests active).
+- §2.1 row A — AppShell default (1280px, data up to date, Dashboard active, sidebar expanded).
+- §2.1 row B — AppShell sidebar-collapsed + data stale (1120px, Requests active).
 - §2.1 / §1.1 row C — Mobile drawer (390px) + AuthShell (390px).
 
-So the **5 shell states** required by `PAGES.md §2.1` (default, sidebar-collapsed, mobile-drawer, NATS-connected, NATS-degraded) all appear: NATS-connected is shown in row A, NATS-degraded in row B, expanded in A, collapsed in B, mobile-drawer in C; AuthShell is §1.1.
+So the **5 shell states** required by `PAGES.md §2.1` (default, sidebar-collapsed, mobile-drawer, fresh, stale) all appear: up-to-date is shown in row A, stale in row B, expanded in A, collapsed in B, mobile-drawer in C; AuthShell is §1.1.
 
 ---
 
@@ -50,10 +50,10 @@ So the **5 shell states** required by `PAGES.md §2.1` (default, sidebar-collaps
 
 ---
 
-## §2.1 — AppShell (default · NATS connected · sidebar expanded)
+## §2.1 — AppShell (default · data up to date · sidebar expanded)
 
-**Frame label:** `§2.1 — AppShell — default` · sub `sidebar groups · top bar · live NATS pill · copilot toggle · role badge`.
-**Artboard:** `Desktop · 1280 · NATS connected`, width **1280px**. Active nav = **Dashboard**, `nats:'ok'`, not collapsed.
+**Frame label:** `§2.1 — AppShell — default` · sub `sidebar groups · top bar · freshness pill · copilot toggle · role badge`.
+**Artboard:** `Desktop · 1280 · up to date`, width **1280px**. Active nav = **Dashboard**, `fresh:'ok'`, not collapsed.
 
 ### Outer layout (`appShell`)
 - Root: `height:620px; display:flex` → sidebar (fixed) + content column.
@@ -109,7 +109,7 @@ Icon `d` strings are 16×16 viewBox paths from `navData()`:
 - `padding:12px 10px; border-top:1px solid #ECEEF1` (→ `--border-subtle`).
 - Renders a `navItem` labelled **"Collapse"** with chevron icon `M10 3.5 5.5 8 10 12.5` (left-pointing « when expanded) / `M6 3.5 10.5 8 6 12.5` (right-pointing » when collapsed). Same 34px item styling.
 
-### Top bar (`topBar`, NATS connected variant here)
+### Top bar (`topBar`, fresh/up-to-date variant here)
 - `height:56px; border-bottom:1px solid #ECEEF1` (→ `--border-subtle`); `background:#fff` (→ `--surface`); `display:flex; align-items:center; padding:0 20px; gap:14px`.
 
 **Search / request-intake launcher (left):**
@@ -118,14 +118,14 @@ Icon `d` strings are 16×16 viewBox paths from `navData()`:
 - Placeholder text `font-size:13px`, literal copy **"Search or start a request…"**.
 - Trailing **⌘K kbd**: `margin-left:auto; font-family:'Geist Mono',monospace; font-size:11px; background:#fff` (→ `--surface`); `border:1px solid #D7DBE0` (→ `--border-strong`); `border-radius:5px; padding:1px 6px`; literal **"⌘K"**.
 
-**Right cluster:** `margin-left:auto; display:flex; align-items:center; gap:12px`, containing in order: NATS pill → Copilot button → user/role block.
+**Right cluster:** `margin-left:auto; display:flex; align-items:center; gap:12px`, containing in order: freshness pill → Copilot button → user/role block.
 
-**NATS pill (`natsPill`) — CONNECTED variant:**
+**Freshness pill (`freshnessPill`) — UP-TO-DATE variant:** (reflects how recently the polled REST data refreshed)
 - `display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px` (→ `--radius-pill`).
 - `background:#E9F6EF` (→ `--success-subtle`); `border:1px solid rgba(26,127,75,.2)` (success #1A7F4B at 20% — no exact token, derive from `--success`).
 - Dot: `7px × 7px; border-radius:999px; background:#1A7F4B` (→ `--success`); `animation:pulseDot 1.8s ease-in-out infinite`.
-- Label: `font-size:12px; font-weight:600; color:#15613A` (a darker success ink, NOT `--success` #1A7F4B — see GAP), literal copy **"NATS connected"**.
-- Trailing event meta: `font-size:11px; color:#8A8F98` (→ `--text-tertiary`); `font-family:'Geist Mono',monospace`; literal copy **"inventory.low · 2s"**. (Only present in connected state.)
+- Label: `font-size:12px; font-weight:600; color:#15613A` (a darker success ink, NOT `--success` #1A7F4B — see GAP), literal copy **"Up to date"**.
+- Trailing last-refresh meta: `font-size:11px; color:#8A8F98` (→ `--text-tertiary`); `font-family:'Geist Mono',monospace`; literal copy **"updated 2s ago"**. (Only present in the up-to-date state.)
 
 **Copilot toggle button:**
 - `<button>`: `height:34px; display:inline-flex; align-items:center; gap:7px; padding:0 12px; border-radius:8px; background:#EEF3FE` (→ `--accent-muted`); `border:1px solid #DCE6FB` (a light accent border — no exact token, between `--accent-muted` and `--accent`); `color:#2F6FED` (→ `--accent`); `font-size:13px; font-weight:550; cursor:pointer`.
@@ -152,10 +152,10 @@ Icon `d` strings are 16×16 viewBox paths from `navData()`:
 
 ---
 
-## §2.1 — AppShell (sidebar COLLAPSED · NATS DEGRADED)
+## §2.1 — AppShell (sidebar COLLAPSED · DATA STALE)
 
-**Frame label:** `§2.1 — AppShell — sidebar collapsed · NATS degraded`.
-**Artboard:** `Desktop · collapsed rail · NATS degraded`, width **1120px**. Active = **Requests**, `collapsed:true`, `nats:'degraded'`.
+**Frame label:** `§2.1 — AppShell — sidebar collapsed · data stale`.
+**Artboard:** `Desktop · collapsed rail · data stale`, width **1120px**. Active = **Requests**, `collapsed:true`, `fresh:'degraded'`.
 
 ### Collapsed sidebar (rail)
 - `width:64px` (vs 220 expanded).
@@ -164,12 +164,12 @@ Icon `d` strings are 16×16 viewBox paths from `navData()`:
 - Footer Collapse item: icon-only, chevron flips to `M6 3.5 10.5 8 6 12.5` (right-pointing, "expand").
 - Active item (Requests) still `background:#EEF3FE` + `color:#2F6FED`, now a centered icon-only pill.
 
-### Top bar — NATS DEGRADED variant (`natsPill('degraded')`)
+### Top bar — STALE variant (`freshnessPill('degraded')`)
 Same top-bar geometry; only the pill changes:
 - `background:#FBF3E0` (→ `--warning-subtle`); `border:1px solid rgba(154,107,0,.25)` (warning #9A6B00 at 25% — derive from `--warning`).
-- Dot: `7px; background:#9A6B00` (→ `--warning`); **`animation:'none'`** (degraded dot does NOT pulse — static).
-- Label: `font-size:12px; font-weight:600; color:#7A5500` (a darker warning ink, NOT `--warning` #9A6B00 — see GAP), literal copy **"NATS degraded"**.
-- **No trailing event meta** (the `inventory.low · 2s` span is `ok ? … : null` — absent in degraded).
+- Dot: `7px; background:#9A6B00` (→ `--warning`); **`animation:'none'`** (stale dot does NOT pulse — static).
+- Label: `font-size:12px; font-weight:600; color:#7A5500` (a darker warning ink, NOT `--warning` #9A6B00 — see GAP), literal copy **"Stale"**.
+- **No trailing last-refresh meta** (the `updated 2s ago` span is `ok ? … : null` — absent when stale).
 
 ---
 
@@ -249,14 +249,14 @@ Same top-bar geometry; only the pill changes:
 | `#244FB0` | `--accent-pressed` | logo gradient end |
 | `#EEF3FE` | `--accent-muted` | active nav bg, copilot button bg |
 | `#DCE6FB` | (no exact token — light accent tint) | avatar bg, copilot button border |
-| `#1A7F4B` | `--success` | connected dot |
-| `#E9F6EF` | `--success-subtle` | connected pill bg |
-| `#15613A` | (darker success ink, NOT `--success`) | "NATS connected" label text |
-| `rgba(26,127,75,.2)` | derive from `--success` | connected pill border |
-| `#9A6B00` | `--warning` | degraded dot, MANAGER role text |
-| `#FBF3E0` | `--warning-subtle` | degraded pill bg |
-| `#7A5500` | (darker warning ink, NOT `--warning`) | "NATS degraded" label text |
-| `rgba(154,107,0,.25)` | derive from `--warning` | degraded pill border |
+| `#1A7F4B` | `--success` | up-to-date dot |
+| `#E9F6EF` | `--success-subtle` | up-to-date pill bg |
+| `#15613A` | (darker success ink, NOT `--success`) | "Up to date" label text |
+| `rgba(26,127,75,.2)` | derive from `--success` | up-to-date pill border |
+| `#9A6B00` | `--warning` | stale dot, MANAGER role text |
+| `#FBF3E0` | `--warning-subtle` | stale pill bg |
+| `#7A5500` | (darker warning ink, NOT `--warning`) | "Stale" label text |
+| `rgba(154,107,0,.25)` | derive from `--warning` | stale pill border |
 | `#C8372D` | `--danger` | danger nav badges (Inventory/Conflicts), Low-stock KPI |
 | `#FBECEA` | `--danger-subtle` | danger nav badge bg |
 | `rgba(11,13,18,.4)` | scrim (ink @40%) | mobile drawer scrim |
@@ -286,12 +286,12 @@ Current build files read: `AppShell.tsx`, `AuthShell.tsx`, `LocaleToggle.tsx`, `
 - **Collapse footer toggle** — the `border-top` footer with the Collapse item + chevron is missing.
 - **Copilot toggle button** — completely absent. Canvas: `bg-accent-muted border #DCE6FB text-accent`, 34px, sparkle icon + "Copilot". (i18n `copilot.title` = "Copilot" exists.)
 - **⌘K kbd hint** in the search launcher — missing. Canvas: mono 11px, `border-strong`, `radius 5px`, "⌘K".
-- **Live NATS pill connected variant + event meta** — build always shows the degraded-ish `info` Badge. Missing the connected success-tinted pill with pulsing dot + `inventory.low · 2s` mono meta.
+- **Freshness pill up-to-date variant + last-refresh meta** — build always shows the degraded-ish `info` Badge. Missing the up-to-date success-tinted pill with pulsing dot + `updated 2s ago` mono meta.
 - **The pyramid logo mark** — build uses `<div className="size-6 rounded-sm bg-accent" />` (a plain blue square). Canvas uses a real triangle/pyramid SVG with the `135deg #2F6FED→#244FB0` gradient and 8px radius.
 - **Sidebar header brand text** — build shows full `brand.name` ("Pyramid Backstage"); canvas sidebar shows short **"Backstage"**.
 
 ### WRONG vs canvas
-- **Live pill is the wrong state by default.** Build hardcodes `<Badge tone="info">…{t('live.degraded')}</Badge>` = "Polling" in info-blue. Canvas default is **NATS connected** (success-tinted, "NATS connected", green pulsing dot + event meta). Both variants must exist and be driven by NATS connection state. Copy mismatch: canvas literal is "NATS connected" / "NATS degraded"; build i18n `live.connected`="Live", `live.degraded`="Polling". Either add `live.connectedNats`/`live.degradedNats` keys or rename; design copy is **"NATS connected"/"NATS degraded"**.
+- **Freshness pill is the wrong state by default.** Build hardcodes `<Badge tone="info">…{t('live.degraded')}</Badge>` in info-blue. Canvas default is **up to date** (success-tinted, "Up to date", green pulsing dot + last-refresh meta). Both variants must exist and be driven by the polling freshness state (whether the last REST poll succeeded recently vs went stale). Copy: design literals are **"Up to date" / "Stale"**; add `live.fresh`/`live.stale` keys (or repurpose the existing `live.connected`/`live.degraded`).
 - **Sidebar width** — build `w-60` = **240px**; canvas expanded is **220px**. Change to `w-[220px]`.
 - **Sidebar background** — build sidebar is `bg-surface` (white); canvas sidebar is `bg-surface-subtle` (#F7F8FA), and the **content area** is white. Build has it inverted (root subtle, sidebar white). Swap: sidebar → `bg-surface-subtle`, main content → `bg-surface`.
 - **Nav item metrics** — build: `gap-2.5` (10px) / `px-2 py-1.5` / `text-[13px]` / `rounded-sm` (6px). Canvas: `gap:11px` / `height:34px` fixed / `padding:0 12px` / `font-size:14px` / `border-radius:8px`. Active weight build `500`, canvas `550`; default weight build `500`, canvas `400`.
@@ -311,7 +311,7 @@ Current build files read: `AppShell.tsx`, `AuthShell.tsx`, `LocaleToggle.tsx`, `
 2. Add collapse state (Zustand or local `useState` persisted): sidebar width `220 ↔ 64`, hide labels/titles/badges + center items when collapsed, add the footer Collapse item with flipping chevron. Sidebar `bg-surface-subtle`; main `bg-surface`.
 3. Add the **Approvals** Operations item + i18n `nav.approvals`. Add a `badge?: string` + `badgeTone?: 'neutral'|'danger'` field to `NavItem`; render the mono pill at `ml-auto` (hidden when collapsed). Wire the four counts (Requests 24, Inventory 2 danger, Conflicts 1 danger, Approvals 5) — placeholder/static until query-backed.
 4. Rework nav-item metrics: `h-[34px] gap-[11px] px-3 rounded-[8px]`, active `font-[550] bg-accent-muted text-accent`, default `font-[400] text-text-secondary`, icon `text-text-tertiary`/active `text-accent`, `size-4`. Group `mb-[18px]`, title `px-3 tracking-[0.05em]`.
-5. Build a `LiveStatusPill` with `connected | degraded` variants exactly per `natsPill` (success/warning subtle bg + matching borders, 7px dot, connected pulses via a `@keyframes pulseDot` added to globals, `inventory.low · 2s` mono meta only when connected). Wire to the NATS/SSE connection signal; default optimistic = connected. Use copy "NATS connected"/"NATS degraded".
+5. Build a `FreshnessPill` with `fresh | stale` variants exactly per `freshnessPill` (success/warning subtle bg + matching borders, 7px dot, fresh pulses via a `@keyframes pulseDot` added to globals, `updated 2s ago` mono meta only when fresh). Wire to the polling freshness signal (time since the last successful REST poll); default optimistic = fresh. Use copy "Up to date"/"Stale".
 6. Add the **Copilot** toggle button (sparkle icon, `bg-accent-muted border-[#DCE6FB] text-accent h-[34px] rounded-[8px]`) that opens the CopilotPanel (§8.1).
 7. Add **⌘K kbd** to the search launcher; widen to `max-w-[420px] h-[34px] flex-1`, icon 15, add `Search or start a request…` copy (currently `requests.searchPlaceholder` — keep but align copy).
 8. Avatar: 30px, accent-tint bg, secondary initials, `shadow-[inset_0_0_0_1px_rgba(11,13,18,.06)]`. Role badge ink driven by role (MANAGER → `text-warning`).
@@ -350,8 +350,8 @@ Current build files read: `AppShell.tsx`, `AuthShell.tsx`, `LocaleToggle.tsx`, `
 
 ## i18n keys to add (both `en.json` + `al.json`, counts must match)
 - `nav.approvals` (EN "Approvals" / AL "Miratimet").
-- `live.connectedNats` = "NATS connected" / "NATS i lidhur"; `live.degradedNats` = "NATS degraded" / "NATS i degraduar" (or repurpose `live.connected`/`live.degraded`; current values "Live"/"Polling" don't match the canvas copy).
-- `live.lastEventSample` is dynamic ("inventory.low · 2s") — driven by the NATS stream, not a static string.
+- `live.fresh` = "Up to date" / "I përditësuar"; `live.stale` = "Stale" / "I vjetëruar" (or repurpose `live.connected`/`live.degraded`; current values "Live"/"Polling" don't match the canvas copy).
+- `live.lastRefresh` is dynamic ("updated 2s ago") — derived from the time since the last successful REST poll, not a static string.
 - `auth.footerNote` = "Staff only · access is audited" / "Vetëm për stafin · qasja regjistrohet".
 - Fix `auth.subtitle` → "Operations sign-in" / "Hyrje për operacionet" (or add `auth.shellSubtitle`).
 - `shell.copilot` / reuse `copilot.title` ("Copilot") for the toggle.

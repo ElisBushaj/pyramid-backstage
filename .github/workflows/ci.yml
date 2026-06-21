@@ -3,7 +3,7 @@
 # Three independent jobs:
 #   ops-core       — Node 20, install, generate Prisma client, `tsc --noEmit`.
 #   frontend       — Node 20, install, `tsc -b`, production build.
-#   ops-core-tests — Postgres 17 + NATS + Redis service containers; runs Prisma
+#   ops-core-tests — Postgres 17 + Redis service containers; runs Prisma
 #                    migrations then the FULL ops-core Vitest suite against a
 #                    real database (no DB mocks — see CLAUDE.md). The suite is
 #                    DB-backed throughout, so it needs the services to run at all.
@@ -82,11 +82,10 @@ jobs:
         run: pnpm build
 
   ops-core-tests:
-    name: ops-core — tests (real Postgres + NATS + Redis)
+    name: ops-core — tests (real Postgres + Redis)
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: "postgresql://pyramid:pyramid@localhost:5432/pyramid_test"
-      NATS_URL: "nats://localhost:4222"
       REDIS_URL: "redis://localhost:6379"
       SESSION_SECRET: "ci-session-secret"
       FRONTEND_URL: "http://localhost:5173"
@@ -104,20 +103,6 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U pyramid -d pyramid_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-      nats:
-        # alpine, not bare `nats:2`: the default image is FROM scratch (no shell /
-        # no wget) so the wget healthcheck can never run and the service container
-        # never reports healthy — failing "Initialize containers". Same fix the
-        # docker-compose files already carry.
-        image: nats:2-alpine
-        ports:
-          - 4222:4222
-          - 8222:8222
-        options: >-
-          --health-cmd "wget --quiet --tries=1 --spider http://localhost:8222/healthz || exit 1"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20

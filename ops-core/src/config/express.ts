@@ -8,7 +8,6 @@ import { vars } from "./vars";
 import { localeMiddleware } from "../middlewares/locale.middleware";
 import { formatError } from "../controllers/_core";
 import { prisma } from "./prisma";
-import { natsReady } from "./nats";
 import apiRoutes from "../routes";
 
 export function createApp(): Express {
@@ -31,11 +30,10 @@ export function createApp(): Express {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Readiness — DB reachable + NATS healthy (or disabled).
+  // Readiness — DB reachable.
   app.get("/ready", async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      if (!natsReady()) throw new Error("nats_unready");
       res.json({ status: "ok", timestamp: new Date().toISOString() });
     } catch (err) {
       res.status(503).json({ status: "not_ready", reason: String(err), timestamp: new Date().toISOString() });

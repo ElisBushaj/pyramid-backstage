@@ -12,7 +12,7 @@
 - **`ServiceResponse<T>` everywhere.** Services own all business logic + all DB access (via `config/prisma`) and return `ServiceResponse<T>`; lists return `PaginatedServiceResponse<T>`.
 - **Money + time through the utils.** Money is integer minor units via `utils/money.ts` — **no floats touch money**. Overlap/buffers via `utils/time.ts` — **no hand-rolled interval math**.
 - **Auth + actor.** `requireAuth` populates `req.actor`; `requireRole`/`requirePermission` gate beyond the tier. **`req.actor` is the audit actor.**
-- **Audit + outbox in one transaction.** Every mutation writes an `AuditEntry` (with `req.actor`) **and** an `OutboxEvent` in the **same transaction**. **Never anonymous, never a dual write.**
+- **Audit in one transaction.** Every mutation writes an `AuditEntry` (with `req.actor`) in the **same transaction** as the state change. **Never anonymous.**
 - **Reservations are serializable.** The availability check and the inventory decrement run in **one serializable transaction with row locks** — never two separate statements.
 - **Idempotency on mutations.** Every mutating route wears `withIdempotency` (Redis, 24h TTL). Replays return the original; a body mismatch → `409`. ([ADR-0005](../08-decisions/0005-idempotency-keys.md))
 - **Route tiers.** Mount under `/api/v1/{public,private,admin}`; pick the tier by access level; register routers in `routes/v1/<tier>/index.ts`.

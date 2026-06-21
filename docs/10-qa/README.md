@@ -25,7 +25,7 @@ Functional checks have a stable ID `QA-<AREA>-<NN>`, a rollup `Status`, and conc
 - [ ] The 409 body carries the offending Conflict[]
 ```
 
-**Functional area codes:** `AUTH SPACE ASSET REQ AVAIL RESV QUOTE TASK CONFLICT APPROVE AUDIT EVENTS I18N A11Y INFRA`.
+**Functional area codes:** `AUTH SPACE ASSET REQ AVAIL RESV QUOTE TASK CONFLICT APPROVE AUDIT I18N A11Y INFRA`.
 Design-parity uses `QA-DSGN-<§>` IDs keyed to the page sections in [`docs/05-frontend/PAGES.md`](../05-frontend/PAGES.md).
 
 ## Status values
@@ -39,7 +39,7 @@ The line a human/AI updates and a grep tallies:
 | `pass` | every checkbox verified, no defects |
 | `fail` | one or more checkboxes failed — **must** have a `FINDINGS.md` entry |
 | `blocked` | cannot execute (missing dependency, data, or feature not built yet) |
-| `na` | not applicable in this environment (e.g. NATS disabled → realtime checks `na`) |
+| `na` | not applicable in this environment (e.g. a feature not present in this deployment) |
 
 **Rules**
 - A task is `pass` only when **all** its checkboxes are ticked and none regressed.
@@ -54,7 +54,7 @@ Re-tally after each session by grepping the `Status:` lines in each list, and up
 
 | List | total | not_started | in_progress | pass | fail | blocked | na |
 |---|---|---|---|---|---|---|---|
-| CHECKLIST.md (functional) | 36 | 36 | 0 | 0 | 0 | 0 | 0 |
+| CHECKLIST.md (functional) | 31 | 31 | 0 | 0 | 0 | 0 | 0 |
 | DESIGN-PARITY.md (visual) | — | — | — | — | — | — | — |
 
 > DESIGN-PARITY totals are filled in once the Claude Design export lands and the per-page table is populated (the page sections are keyed to [`PAGES.md`](../05-frontend/PAGES.md) but the parity sweep can't run until there's an export to compare against).

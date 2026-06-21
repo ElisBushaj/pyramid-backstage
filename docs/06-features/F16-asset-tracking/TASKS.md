@@ -16,13 +16,13 @@ last_updated: 2026-06-21
   - The change is **additive only**: no existing `Asset` column (`location` included) is renamed, dropped, or retyped; existing rows and the F12 seed are untouched.
   - `prisma generate` regenerates the client; tsc clean.
 
-### F16-T02 — POST /private/assets/:id/scan (OPS+): one tx → movement + live location + audit + outbox; over-checkout guard
+### F16-T02 — POST /private/assets/:id/scan (OPS+): one tx → movement + live location + audit; over-checkout guard
 - Status: done
 - Depends on: F16-T01, F09-T02
 - Estimate: 0.75d
 - Acceptance:
   - `POST /private/assets/:id/scan` is gated by `requireRole('OPS')` (OPS+); VIEWER and PARTNER get `403`, anonymous gets `401`. The controller uses `@controlledResponse` and the service returns `ServiceResponse<AssetMovement>` (per `docs/04-api/CORE_PATTERNS.md`).
-  - In **one** `prisma.$transaction` it inserts the `AssetMovement` row, sets `Asset.location = toLocation`, and writes an `asset.scan` `AuditEntry` (with `before`/`after` location + `actorId` from `req.actor`) and an `asset.moved` `OutboxEvent` — never a dual-write, never anonymous (per `docs/02-domain/AUDIT.md`).
+  - In **one** `prisma.$transaction` it inserts the `AssetMovement` row, sets `Asset.location = toLocation`, and writes an `asset.scan` `AuditEntry` (with `before`/`after` location + `actorId` from `req.actor`) — never anonymous (per `docs/02-domain/AUDIT.md`).
   - Over-checkout guard: a `CHECK_OUT` whose `quantity` exceeds `totalQuantity − Σ open checked-out quantity` → `APIError` `422 validation`; a `CHECK_IN` whose `quantity` exceeds the open checked-out count → `422 validation`; `RELOCATE` moves checked-out units between locations without changing the net checked-out count (per `docs/02-domain/ASSET_TRACKING.md`).
   - `action` outside the enum, `quantity` non-positive or `> totalQuantity`, an empty `toLocation`, or an over-long `note` → `422 validation`; an unknown asset id → `404 not_found`. All errors `throw APIError` with a `messageKey` (never `throw new Error`), and every new key exists in both `locales/al.json` and `en.json` with key-count parity.
   - Requires `Idempotency-Key` (UUID v4); a replay returns the original `AssetMovement` (no duplicate ledger row, no second location flip); a body mismatch under the same key → `409 idempotency_key_mismatch` (per `ADR-0005`).
@@ -68,12 +68,12 @@ last_updated: 2026-06-21
   - All copy is in EN + AL (frontend i18n parity); no hard-coded English strings.
   - Build green.
 
-### F16-T07 — tests: scan happy path, over-checkout guard, audit+outbox, movements history, idempotent replay
+### F16-T07 — tests: scan happy path, over-checkout guard, audit, movements history, idempotent replay
 - Status: done
 - Depends on: F16-T02, F16-T03
 - Estimate: 0.5d
 - Acceptance:
-  - Integration test (real Postgres, no DB mocks): a `CHECK_OUT` scan inserts one `AssetMovement`, flips `Asset.location` to `toLocation`, and creates exactly one `asset.scan` `AuditEntry` (with before/after location) + one `asset.moved` `OutboxEvent` in the same transaction.
+  - Integration test (real Postgres, no DB mocks): a `CHECK_OUT` scan inserts one `AssetMovement`, flips `Asset.location` to `toLocation`, and creates exactly one `asset.scan` `AuditEntry` (with before/after location) in the same transaction.
   - Over-checkout test: a `CHECK_OUT` exceeding `totalQuantity − Σ open checked-out` → `422`, and the asset/ledger are left unchanged; a `CHECK_IN` exceeding the open checked-out count → `422`; a `RELOCATE` leaves the net checked-out count unchanged.
   - Movements-history test: `GET /private/assets/:id/movements` returns rows newest-first and paginates; an asset with no movements → an empty page; the `GET /private/assets` rollup reports the right `currentLocation` + `checkedOutQuantity`.
   - Idempotent-replay test: replaying the same `Idempotency-Key` returns the original `AssetMovement` with no second ledger row and no second location flip; the role matrix (OPS+/MANAGER/ADMIN allowed; VIEWER/PARTNER → 403; anonymous → 401) is asserted.

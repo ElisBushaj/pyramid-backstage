@@ -53,7 +53,6 @@ PARALLEL ROUND (Claude as orchestrator)
 | Reservations (`F06`) | [`docs/02-domain/RESERVATIONS.md`](../02-domain/RESERVATIONS.md) — the serializable-transaction + lease rules |
 | Quotes (`F07`) | [`docs/02-domain/QUOTES.md`](../02-domain/QUOTES.md) + [ADR-0004](../08-decisions/0004-money-integer-minor-units-vat.md); `utils/money.ts` |
 | Auth (`F01`) | [ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md) + [`docs/01-architecture/SECURITY.md`](../01-architecture/SECURITY.md) |
-| Events (`F11`) | [`docs/02-domain/AUDIT.md`](../02-domain/AUDIT.md) + [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md) — the outbox, not a dual write |
 | Anything touching the wire | [`ops-core/openapi.yaml`](../../ops-core/openapi.yaml) is law; the code is wrong if they disagree |
 
 Research is **bounded**: ~15–30 min for a typical task. Beyond that you're either redesigning the architecture (raise it as a question) or procrastinating.
@@ -70,7 +69,7 @@ Research is **bounded**: ~15–30 min for a typical task. Beyond that you're eit
    - Every service returns **`ServiceResponse<T>`** (lists: `PaginatedServiceResponse<T>`).
    - Routes mount under `/api/v1/{public,private,admin}` — pick the tier; add `requireRole` for finer gates.
    - Money → `utils/money.ts` (integer minor units, no floats). Time/overlap/buffers → `utils/time.ts` (no hand-rolled interval math).
-   - **Every mutation writes an `AuditEntry` (with `req.actor`) + an `OutboxEvent` in the same transaction.** Never anonymous, never a dual write.
+   - **Every mutation writes an `AuditEntry` (with `req.actor`) in the same transaction as the state change.** Never anonymous.
    - Reservations decrement inventory inside a **serializable transaction with row locks** — the availability check and the write are never separate statements.
 3. **Pre-register `MESSAGE_KEYS`** and add the leaf to **both** `locales/al.json` and `en.json` (counts must match).
 4. **Log every ambiguous default** immediately to [`.planning/ASSUMPTIONS.md`](../../.planning/ASSUMPTIONS.md) with the date + a one-line rationale, and the corresponding question to [`docs/09-questions/OPEN.md`](../09-questions/OPEN.md). Flag it in the commit body: `[assumption: <what>]`. **Never silently choose a default.**
@@ -83,12 +82,11 @@ A task is `done` when:
 - [ ] **`pnpm tsc --noEmit` clean.**
 - [ ] **`pnpm test --run` clean.** New tests (`*.test.ts`) live next to the implementation. Unit tests stub Prisma (`vi.hoisted`); integration tests (`src/__tests__`) run against real Postgres (no DB mocks). **The engine (`F05`) has property tests.**
 - [ ] **Conforms to [`CORE_PATTERNS.md`](../04-api/CORE_PATTERNS.md)** — controlled responses, `APIError`, `ServiceResponse`, route tier + role gate, validation via `ValidationHelpers`.
-- [ ] **If the task is a mutation: it writes an `AuditEntry` with `req.actor` + an `OutboxEvent` in the same transaction.** This is verifiable in the test.
+- [ ] **If the task is a mutation: it writes an `AuditEntry` with `req.actor` in the same transaction as the state change.** This is verifiable in the test.
 - [ ] **Idempotency**: a mutating route carries `withIdempotency`; a replay returns the original, a body-mismatch → `409` ([ADR-0005](../08-decisions/0005-idempotency-keys.md)).
 - [ ] **Locale parity**: the new `messageKey`s are in both `al.json` and `en.json`; key counts match.
 - [ ] **Contract honored**: the payload matches [`ops-core/openapi.yaml`](../../ops-core/openapi.yaml); the DTO is declared in `src/types/api/<area>.ts`.
 - [ ] **If schema-touching**: a migration is generated, named, and applies cleanly to a fresh DB.
-- [ ] **If it emits an event**: the subject matches [`docs/02-domain/AUDIT.md`](../02-domain/AUDIT.md); the consumer is idempotent (at-least-once delivery).
 
 Anything beyond this (a full e2e flow, a property-test expansion) is its own task.
 
@@ -123,7 +121,7 @@ src/modules/<feature>/
 └── *.test.ts       # Vitest, next to the implementation
 ```
 
-Cross-module **engines** live under `src/services/` (`availability/`, `conflict/`, `pricing/`, `reservation/`); events/outbox plumbing under its own module. See [`docs/01-architecture/MODULES.md`](../01-architecture/MODULES.md).
+Cross-module **engines** live under `src/services/` (`availability/`, `conflict/`, `pricing/`, `reservation/`). See [`docs/01-architecture/MODULES.md`](../01-architecture/MODULES.md).
 
 ## 5. Pre-staging shared registries (the orchestrator pattern)
 
@@ -141,7 +139,6 @@ Plus the hard serial one: **`prisma/schema.prisma`** — only one task at a time
 - **Don't `throw new Error`** on a request path — throw `APIError` with a `messageKey`.
 - **Don't hand-roll** status codes, JSON error shapes, interval overlap, or money arithmetic — use `@controlledResponse`, `APIError`, `utils/time.ts`, `utils/money.ts`.
 - **Don't drop locale parity** — a key in one locale file but not the other fails CI.
-- **Don't dual-write events** — the `OutboxEvent` goes in the state transaction; the relay publishes.
 - **Don't separate the availability check from the reservation write** — they share one serializable transaction with row locks, or you've reintroduced the TOCTOU race.
 - **Don't renumber task IDs** or **edit a closed ADR** — append the next ID / supersede with a new ADR.
 - **Don't silently assume** — log to `OPEN.md` + `ASSUMPTIONS.md`, flag in the commit.

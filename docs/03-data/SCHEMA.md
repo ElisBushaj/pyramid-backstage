@@ -17,7 +17,6 @@ Postgres 17 via Prisma 7. Source of truth for the **shape** is `ops-core/openapi
 | `Quote` | Priced proposal | `lineItems` (JSON), `netMinor`, `vatMinor`, `totalMinor`, `version`, `expiresAt` |
 | `Task` | Setup/teardown item | `phase`, `owner`, `assigneeId`, `dueOffsetHours`, `dueAt`, `status` |
 | `AuditEntry` | Append-only ledger | `actorId`, `action`, `entityType`, `entityId`, `before`/`after` (JSON), `reason`, `at` |
-| `OutboxEvent` | Transactional event outbox | `subject`, `payload` (JSON), `publishedAt` |
 | `IdempotencyKey` | Replay cache | `key`, `requestHash`, `response` (JSON), `expiresAt` |
 
 ## Space catalog extension fields
@@ -76,8 +75,6 @@ Asset tracking is **aggregate-with-movement**, not per-unit serialized identity:
 // AuditEntry
 @@index([requestId, at])
 @@index([entityType, entityId])
-// OutboxEvent
-@@index([publishedAt])                                      // relay polls unpublished
 // EventRequest
 @@index([status, createdAt])
 ```
@@ -86,4 +83,4 @@ Asset tracking is **aggregate-with-movement**, not per-unit serialized identity:
 `availableQuantity(asset, [start,end]) = asset.totalQuantity − Σ quantity` over every `ReservationAsset` whose parent `Reservation` is `HELD|CONFIRMED` and whose **effective** window overlaps `[start,end]`. Computed in a single grouped query; never "is total ≥ qty".
 
 ## Migrations
-Prisma migrations, named `<timestamp>_<change>` (e.g. `20260618_init`, `20260618_add_outbox`). `prisma migrate dev` locally, `prisma migrate deploy` in CI/prod. One in-flight schema change at a time (migrations are serial).
+Prisma migrations, named `<timestamp>_<change>` (e.g. `20260618_init`, `20260618_add_asset_movement`). `prisma migrate dev` locally, `prisma migrate deploy` in CI/prod. One in-flight schema change at a time (migrations are serial).

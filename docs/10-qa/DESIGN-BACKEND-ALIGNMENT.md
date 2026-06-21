@@ -15,7 +15,7 @@ Run **2026-06-18**, before frontend implementation, to confirm the Claude Design
 | **RBAC** | Approvals show MANAGER default + **VIEWER 403**; Space/Asset edits gated **OPS+** — matches the role model. |
 | **Intake form** | Organizer · Work email · Attendees · Event type · Preferred dates · Layout · Catering · Requirements → map 1:1 to `EventRequestInput`. |
 | **Dashboard KPIs** | Events this week · Spaces in use (4/6) · Low-stock · Pending approvals → all computable from the contract. |
-| **Copilot** | `Message Copilot…` + ProposedActionCard + unprompted heads-up → `POST /chat` + `conflict.detected`. |
+| **Copilot** | `Message Copilot…` + ProposedActionCard + unprompted heads-up → `POST /chat` + polled `GET /conflicts`. |
 
 ## Gaps found → resolution
 

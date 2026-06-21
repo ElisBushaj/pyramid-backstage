@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
 import { app, loginAs, makeUser, anon, resetDb, prisma, auditEntriesFor } from "./helpers/integration";
 import { writeAudit, writeSystemAudit } from "../modules/audit/audit.writer";
-import { writeOutbox } from "../modules/events/outbox.writer";
 
 /**
  * A raw authenticated supertest agent (cookies + CSRF) so we can fire verbs the
@@ -193,28 +192,26 @@ describe("audit atomicity + no dual-write (F09-T04)", () => {
     expect(await prisma.auditEntry.count()).toBe(0);
   });
 
-  it("state + audit + outbox commit all-or-nothing: a forced failure leaves NONE of the three", async () => {
+  it("state + audit commit all-or-nothing: a forced failure leaves NEITHER", async () => {
     const ops = await loginAs("OPS");
     const actor = ops.user;
-    // A self-contained mutation: write a Space (state) + its audit + its outbox event,
-    // then abort. The outbox row and the audit row are bound to the same commit.
+    // A self-contained mutation: write a Space (state) + its audit, then abort.
+    // The audit row is bound to the same commit as the state change.
     await expect(
       prisma.$transaction(async (tx) => {
         const space = await tx.space.create({
           data: { name: "Rollback Hall", floor: 0, kind: "MAIN", capacities: { THEATER: 10 }, dayRateMinor: 1000, setupBufferMinutes: 0, teardownBufferMinutes: 0, status: "ACTIVE" },
         });
         await writeAudit(tx, { actor, action: "space.create", entityType: "Space", entityId: space.id, after: { name: space.name } });
-        await writeOutbox(tx, "space.created", { spaceId: space.id });
-        throw new Error("abort after all three writes");
+        throw new Error("abort after both writes");
       }),
-    ).rejects.toThrow("abort after all three writes");
+    ).rejects.toThrow("abort after both writes");
 
     expect(await prisma.space.count({ where: { name: "Rollback Hall" } })).toBe(0);
     expect(await prisma.auditEntry.count({ where: { action: "space.create" } })).toBe(0);
-    expect(await prisma.outboxEvent.count({ where: { subject: "space.created" } })).toBe(0);
   });
 
-  it("state + audit + outbox commit together on success (the positive of the same path)", async () => {
+  it("state + audit commit together on success (the positive of the same path)", async () => {
     const ops = await loginAs("OPS");
     const actor = ops.user;
     const space = await prisma.$transaction(async (tx) => {
@@ -222,12 +219,10 @@ describe("audit atomicity + no dual-write (F09-T04)", () => {
         data: { name: "Commit Hall", floor: 0, kind: "MAIN", capacities: { THEATER: 10 }, dayRateMinor: 1000, setupBufferMinutes: 0, teardownBufferMinutes: 0, status: "ACTIVE" },
       });
       await writeAudit(tx, { actor, action: "space.create", entityType: "Space", entityId: s.id, after: { name: s.name } });
-      await writeOutbox(tx, "space.created", { spaceId: s.id });
       return s;
     });
     expect(await prisma.space.count({ where: { id: space.id } })).toBe(1);
     expect((await auditEntriesFor("Space", space.id)).length).toBe(1);
-    expect(await prisma.outboxEvent.count({ where: { subject: "space.created" } })).toBe(1);
   });
 
   it("a real mutation that fails mid-transaction (DB constraint) leaves no audit behind", async () => {

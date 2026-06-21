@@ -25,7 +25,7 @@ frontend/src/
 
 ## Data
 - Reads use **TanStack Query** (`staleTime 30s`, retry 1). Mutations send `Idempotency-Key` and invalidate the relevant queries.
-- **Live updates**: subscribe to NATS-bridged events (a thin WebSocket/SSE relay or polling fallback) to flip the dashboard, surface the copilot's proactive conflict heads-up, and move the live-location widget on `asset.moved`. Degrades to polling if the realtime channel is down — never blocks the core flow.
+- **Freshness**: TanStack Query polls the REST contract (background refetch) to flip the dashboard, surface the copilot's proactive conflict heads-up, and refresh the live-location widget. Polling is the only freshness mechanism — never blocks the core flow.
 
 ## What's new (F14–F19)
 - **CopilotPanel is now live** — wired to the AI service `POST /chat` (stateful via `sessionId`) and `POST /plan` (the deterministic planner → OperationalPlan), per [`../04-api/AI_CONTRACT.md`](../04-api/AI_CONTRACT.md). It **degrades to a canned copilot** when `VITE_AI_URL` is unset or the service is down, so the demo never depends on the AI being live. The panel renders `/plan` output (incl. the FloorMap) and `ProposedActionCard` (`requiresApproval`).

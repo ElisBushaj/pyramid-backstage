@@ -4,7 +4,7 @@ Area-keyed functional verification, grounded in [`ops-core/openapi.yaml`](../../
 
 **▶ Resume here:** QA-AUTH-01
 
-**Areas:** AUTH · SPACE · ASSET · REQ · AVAIL · RESV · QUOTE · TASK · CONFLICT · APPROVE · AUDIT · EVENTS · I18N · A11Y · INFRA
+**Areas:** AUTH · SPACE · ASSET · REQ · AVAIL · RESV · QUOTE · TASK · CONFLICT · APPROVE · AUDIT · I18N · A11Y · INFRA
 
 ---
 
@@ -181,7 +181,7 @@ Area-keyed functional verification, grounded in [`ops-core/openapi.yaml`](../../
 **Status:** not_started · **Spec:** F10
 
 - [ ] `POST /private/requests/:id/approve` as `VIEWER1` or `OPS1` → `403 forbidden`
-- [ ] As `MANAGER1` → `200`; request → `SCHEDULED`; held reservations → `CONFIRMED`; `request.approved` emitted
+- [ ] As `MANAGER1` → `200`; request → `SCHEDULED`; held reservations → `CONFIRMED`
 - [ ] The approval writes an `AuditEntry` with the manager as actor
 
 ### QA-APPROVE-02 — Reject requires a reason; releases holds
@@ -200,21 +200,6 @@ Area-keyed functional verification, grounded in [`ops-core/openapi.yaml`](../../
 - [ ] Each entry carries `actorId` + `actorName` (the real staff member — never anonymous), `action` (dotted verb), `entityType`, `entityId`, `at`
 - [ ] State-changing entries carry `before`/`after`; a reject carries `reason`
 - [ ] The ledger is append-only (no update/delete path)
-
-## EVENTS
-
-### QA-EVENTS-01 — Outbox, no dual-write
-**Status:** not_started · **Spec:** F11
-
-- [ ] A mutation writes its `OutboxEvent` in the **same transaction** as the state change (a rolled-back mutation leaves **no** event)
-- [ ] The relay publishes unpublished rows to NATS and stamps `publishedAt`; subjects match (`reservation.held`, `request.approved`, `conflict.detected`, …)
-- [ ] Re-delivery is tolerated (consumers idempotent — at-least-once)
-
-### QA-EVENTS-02 — Degrade to REST-only
-**Status:** not_started · **Spec:** F11
-
-- [ ] With `NATS_ENABLED=false`, the full request→plan→approve loop still works over REST
-- [ ] `GET /ready` reflects NATS being down (`503`) while the core loop is unaffected — realtime checks here become `na`
 
 ## I18N
 
@@ -245,8 +230,8 @@ Area-keyed functional verification, grounded in [`ops-core/openapi.yaml`](../../
 ### QA-INFRA-01 — Stack comes up & probes are honest
 **Status:** not_started · **Spec:** F00, infra
 
-- [ ] `docker compose up` converges; `docker compose ps` shows db/nats/redis/ops-core healthy
-- [ ] `GET /health` → `200`; `GET /ready` → `200` only when DB **and** NATS are reachable
+- [ ] `docker compose up` converges; `docker compose ps` shows db/redis/ops-core healthy
+- [ ] `GET /health` → `200`; `GET /ready` → `200` only when the DB is reachable
 - [ ] `pnpm db:seed` loads 4 halls, inventory, the four staff roles, and the planted conflict
 
 ### QA-INFRA-02 — Idempotency on mutations
