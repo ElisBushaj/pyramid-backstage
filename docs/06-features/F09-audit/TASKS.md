@@ -1,7 +1,7 @@
 ---
 id: F09
 name: Audit & Ledger
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F09 — Tasks
@@ -50,7 +50,7 @@ last_updated: 2026-06-19
   - tsc clean; runs in CI.
 
 ### F09-T05 — paginate GET /private/audit (okList page/pageSize) (ADR-0017)
-- Status: not_started
+- Status: done
 - Depends on: F09-T02
 - Estimate: 0.5d
 - Acceptance:

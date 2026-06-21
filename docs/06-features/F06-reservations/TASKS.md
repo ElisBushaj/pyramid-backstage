@@ -1,7 +1,7 @@
 ---
 id: F06
 name: Reservations
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F06 — Tasks
@@ -71,7 +71,7 @@ last_updated: 2026-06-19
   - Runs in CI; tsc clean.
 
 ### F06-T07 — confirm: symmetric 410 hold_expired (ADR-0015)
-- Status: not_started
+- Status: done
 - Depends on: F06-T04
 - Estimate: 0.25d
 - Acceptance:
@@ -80,7 +80,7 @@ last_updated: 2026-06-19
   - `reservations.test.ts` confirm-expired split into a 410 (uncontested) and a 409 (retaken) case. tsc + vitest green.
 
 ### F06-T08 — GET /private/reservations?start&end[&spaceId][&status] → ScheduleEntry[] (ADR-0016)
-- Status: not_started
+- Status: done
 - Depends on: F06-T02 , F05-T02
 - Estimate: 1d
 - Acceptance:

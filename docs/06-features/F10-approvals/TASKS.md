@@ -1,7 +1,7 @@
 ---
 id: F10
 name: Approvals & Workflow
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F10 — Tasks
@@ -50,7 +50,7 @@ last_updated: 2026-06-19
   - tsc clean; runs in CI.
 
 ### F10-T05 — approve: expired-uncontested hold → 410 reservation.hold_expired (ADR-0015)
-- Status: not_started
+- Status: done
 - Depends on: F10-T01
 - Estimate: 0.5d
 - Acceptance:

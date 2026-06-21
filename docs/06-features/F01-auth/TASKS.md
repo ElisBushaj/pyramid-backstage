@@ -1,7 +1,7 @@
 ---
 id: F01
 name: Auth & RBAC
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F01 — Tasks
@@ -92,7 +92,7 @@ last_updated: 2026-06-19
   - All tests run in CI; tsc clean.
 
 ### F01-T09 — paginate GET /admin/users (okList page/pageSize) (ADR-0017)
-- Status: not_started
+- Status: done
 - Depends on: F01-T03
 - Estimate: 0.5d
 - Acceptance:
