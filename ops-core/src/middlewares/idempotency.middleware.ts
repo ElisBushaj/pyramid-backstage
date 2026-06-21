@@ -44,15 +44,23 @@ export function withIdempotency() {
       return;
     }
 
-    // Capture the response to cache it once sent (only for success-ish writes).
+    // Cache the response for success-ish writes. The record MUST be committed
+    // before the response reaches the client: a caller that retries the instant
+    // it sees the reply (exactly what idempotency exists for) would otherwise
+    // race the cache write and have its replay miss the lookup — re-running the
+    // mutation. So persist first, then flush, rather than fire-and-forget.
     const originalJson = res.json.bind(res);
-    res.json = (body: unknown) => {
+    res.json = (body: unknown): Response => {
       if (res.statusCode < 400) {
         void prisma.idempotencyKey
           .create({
             data: { key: storeKey, requestHash, response: body as object, statusCode: res.statusCode, expiresAt: new Date(Date.now() + TTL_HOURS * 3_600_000) },
           })
-          .catch(() => undefined);
+          .catch(() => undefined)
+          .finally(() => {
+            originalJson(body);
+          });
+        return res;
       }
       return originalJson(body);
     };

@@ -4,9 +4,13 @@ import { runSeed, SEED } from "../scripts/seed";
 import { detectConflicts } from "../services/conflict";
 
 describe("demo seed (F12)", () => {
-  it("produces the deterministic dataset: 19 spaces, 6 assets, 5 users, 3 events", async () => {
+  it("produces the deterministic dataset: 51 spaces, 6 assets, 5 users, 3 events", async () => {
     await runSeed({ reset: true });
-    expect(await prisma.space.count()).toBe(19); // F14: expanded from the 19-space catalog
+    // PR#7 rebuilt the venue from the real Pyramid floor spec (Floors 0/-1/3),
+    // expanding the catalog to 51 spaces. Pinned to the catalog the seed actually
+    // loads, so an unintended catalog edit fails loudly right here.
+    expect(SEED.SPACES.length).toBe(51);
+    expect(await prisma.space.count()).toBe(SEED.SPACES.length);
     expect(await prisma.asset.count()).toBe(6);
     expect(await prisma.user.count()).toBe(5); // F15: + the demo PARTNER
     expect(await prisma.eventRequest.count()).toBe(3);
