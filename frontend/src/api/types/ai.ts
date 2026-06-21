@@ -33,6 +33,10 @@ export interface OperationalPlan {
   tasks: Task[]
   conflicts: Conflict[]
   alternatives: Array<Record<string, unknown>>
+  // Phase C — the AI's own spatial enrichment (mirrors ai-orchestrator/app/schemas.py).
+  bundle: Array<Record<string, unknown>>
+  warnings: string[]
+  mapState: Array<{ slug: string; status: string }>
   narrative: string
 }
 

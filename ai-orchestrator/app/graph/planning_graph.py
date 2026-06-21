@@ -26,11 +26,13 @@ The DAG (linear spine + one conditional branch):
 
 from __future__ import annotations
 
+import re
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from ..intake import parse_event_request
+from ..config import settings
+from ..intake import _anthropic, parse_event_request
 from ..ops_core_client import OpsCoreClient, OpsCoreConflict
 from ..schemas import (
     Conflict,
@@ -39,8 +41,8 @@ from ..schemas import (
     EventRequestInput,
     Quote,
     Reservation,
-    ReservedAsset,
     ReservationInput,
+    ReservedAsset,
     Space,
     Task,
     TaskInput,
@@ -75,6 +77,7 @@ class PlanState(TypedDict, total=False):
     event_type: str | None
     layout: str | None
     av_needed: bool
+    overflow_needed: int  # headcount the primary hall can't seat -> drives multi-space bundle
     reserved_assets: list[ReservedAsset]
 
     # ── working / outputs ────────────────────────────────────────────────────
@@ -129,27 +132,41 @@ async def parse_intake(state: PlanState) -> dict[str, Any]:
 
 
 async def match_space(state: PlanState) -> dict[str, Any]:
-    """Choose the best-fit space for the request window.
+    """Choose the best-fit BOOKABLE space for the window, ranked by capacity-for-setup.
 
-    Phase A: ask ops-core for spaces matching capacity + layout in the window,
-    prefer one flagged available. (RAG ranking + space bundles land in Phase C.)
+    Prefer the SMALLEST bookable space that seats the headcount at the requested
+    layout. When none can (the real Pyramid halls are modest — the main hall seats
+    ~106 theatre), fall back to the LARGEST available hall as the plenary and record
+    the ``overflow`` so the bundle adds breakouts / additional halls (spec §4,
+    multi-space). Non-bookable spaces carry no capacities, so they are never chosen;
+    the atomic hold still re-checks availability (TOCTOU-safe).
     """
     win = state.get("chosen_window")
     if win is None:
         return {"feasible": False}
 
-    spaces = await state["ops"].match_spaces(
-        min_capacity=state.get("attendees"),
-        layout=state.get("layout"),
-        start=win.start,
-        end=win.end,
-    )
-    chosen = next((s for s in spaces if s.available is not False), None)
-    if chosen is None and spaces:
-        # No flagged-free match: take the first fit anyway; the atomic hold will
-        # surface the real conflict (TOCTOU-safe — the write re-checks).
-        chosen = spaces[0]
-    return {"space": chosen}
+    attendees = state.get("attendees") or 0
+    layout = state.get("layout")
+    spaces = await state["ops"].match_spaces(layout=layout, start=win.start, end=win.end)
+
+    def cap(s: Space) -> int:
+        caps = s.capacities or {}
+        return caps.get(layout, 0) if layout else (max(caps.values()) if caps else 0)
+
+    candidates = [s for s in spaces if cap(s) > 0]  # has capacity for this layout = bookable here
+    available = [s for s in candidates if s.available is not False]
+    fits = [s for s in available if cap(s) >= attendees]
+    if fits:
+        chosen = min(fits, key=cap)        # smallest sufficient AVAILABLE space
+    elif candidates:
+        # No single available space seats them -> take the designated plenary (the largest
+        # hall by capacity). If it's occupied, the atomic hold surfaces the conflict and we
+        # branch to alternatives; otherwise we proceed with an overflow/breakout bundle.
+        chosen = max(candidates, key=cap)
+    else:
+        chosen = None
+    overflow = max(0, attendees - cap(chosen)) if chosen else 0
+    return {"space": chosen, "overflow_needed": overflow}
 
 
 async def check_availability(state: PlanState) -> dict[str, Any]:
@@ -240,7 +257,9 @@ async def generate_tasks(state: PlanState) -> dict[str, Any]:
             TaskInput(title="AV + sound check", phase="SETUP", owner="av_team", dueOffsetHours=-2)
         )
     plan.append(
-        TaskInput(title="Strike seating + clean", phase="TEARDOWN", owner="ops_team", dueOffsetHours=2)
+        TaskInput(
+            title="Strike seating + clean", phase="TEARDOWN", owner="ops_team", dueOffsetHours=2
+        )
     )
     tasks = await state["ops"].persist_tasks(state["request_id"], plan)
     return {"tasks": tasks}
@@ -285,25 +304,112 @@ async def alternatives(state: PlanState) -> dict[str, Any]:
 
     win = state.get("chosen_window")
     booked_id = state["space"].id if state.get("space") else None
+    layout = state.get("layout")
     if win is not None:
-        spaces = await ops.match_spaces(
-            min_capacity=state.get("attendees"),
-            layout=state.get("layout"),
-            start=win.start,
-            end=win.end,
+        # Offer the largest OTHER bookable halls free in this window (no hard capacity
+        # gate — the modest halls combine, so a free hall is a valid starting point).
+        spaces = await ops.match_spaces(layout=layout, start=win.start, end=win.end)
+
+        def cap(s: Space) -> int:
+            caps = s.capacities or {}
+            return caps.get(layout, 0) if layout else (max(caps.values()) if caps else 0)
+
+        free = sorted(
+            (s for s in spaces if s.id != booked_id and s.available is True and cap(s) > 0),
+            key=cap,
+            reverse=True,
         )
-        for s in spaces:
-            if s.id != booked_id and s.available is True:
-                alts.append(
-                    {
-                        "type": "ALTERNATE_SPACE",
-                        "spaceId": s.id,
-                        "spaceName": s.name,
-                        "detail": f"{s.name} is free for your window and fits {state.get('attendees')}.",
-                    }
-                )
+        for s in free[:3]:
+            alts.append(
+                {
+                    "type": "ALTERNATE_SPACE",
+                    "spaceId": s.id,
+                    "spaceName": s.name,
+                    "detail": f"{s.name} is free in your window (seats ~{cap(s)}).",
+                }
+            )
 
     return {"alternatives": alts, "feasible": False}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Narrative — deterministic figures + an optional, GUARDED LLM polish.
+# Non-negotiable #2: numbers are injected, never free-generated. The polish may
+# only rephrase; a numeric guard rejects any rewrite that invents or drops a
+# figure, falling back to the deterministic f-string.
+# ═════════════════════════════════════════════════════════════════════════════
+_NUMTOKEN = re.compile(r"\d[\d,]*")
+
+
+def _numbers_in(text: str) -> set[int]:
+    """Every integer token in the text (comma groups collapsed; '2026-09-15' -> {2026,9,15})."""
+    out: set[int] = set()
+    for tok in _NUMTOKEN.findall(text):
+        tok = tok.strip(",")
+        if tok:
+            try:
+                out.add(int(tok.replace(",", "")))
+            except ValueError:
+                pass
+    return out
+
+
+def _narrative_guard(prose: str, deterministic: str, figures: dict[str, Any]) -> bool:
+    """True iff the prose invents NO number and keeps every required figure (#2).
+
+    Allowed numbers are exactly those already in the deterministic narrative (plan
+    figures + any digits inside injected names like "Box 7"). Any other number, or a
+    missing required figure (space, attendees, total, date, task count), fails.
+    """
+    if any(n not in _numbers_in(deterministic) for n in _numbers_in(prose)):
+        return False
+    low = prose.lower()
+    space = figures.get("space")
+    if space and space.lower() not in low:
+        return False
+    a = figures.get("attendees")
+    if isinstance(a, int) and str(a) not in prose:
+        return False
+    total = figures.get("total_minor")
+    if isinstance(total, int) and f"{total:,}" not in prose and str(total) not in prose:
+        return False
+    tc = figures.get("task_count")
+    if isinstance(tc, int) and tc > 0 and str(tc) not in prose:
+        return False
+    date = figures.get("date")
+    if isinstance(date, str) and len(date) >= 10:
+        if date not in prose and not (date[:4] in prose and str(int(date[8:10])) in prose):
+            return False
+    return True
+
+
+async def _polish_narrative(deterministic: str, figures: dict[str, Any]) -> str:
+    """LLM-rephrase the plan summary into warmer prose, KEEPING every figure.
+
+    Off unless ``NARRATIVE_POLISH`` and an API key are set. Guarded + never raises:
+    any failure or guard rejection returns the deterministic f-string verbatim.
+    """
+    if not (settings.NARRATIVE_POLISH and settings.ANTHROPIC_API_KEY):
+        return deterministic
+    try:
+        resp = await _anthropic().messages.create(
+            model=settings.FAST_MODEL,
+            max_tokens=220,
+            system=(
+                "You are the Pyramid of Tirana's operations copilot. "
+                "Rewrite the plan summary as one or "
+                "two warm, natural sentences (max ~45 words). "
+                "Keep EVERY number, name, and date EXACTLY "
+                "as given — never add, drop, round, or invent a figure. "
+                "Use only the facts provided; no "
+                "code fence, no preamble."
+            ),
+            messages=[{"role": "user", "content": f"Plan summary to rewrite:\n{deterministic}"}],
+        )
+        txt = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+        return txt if (txt and _narrative_guard(txt, deterministic, figures)) else deterministic
+    except Exception:
+        return deterministic
 
 
 async def assemble_plan(state: PlanState) -> dict[str, Any]:
@@ -321,8 +427,10 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
     alts = state.get("alternatives", [])
     win = state.get("chosen_window")
     attendees = state.get("attendees")
-    layout = state.get("layout") or "flexible layout"
+    raw_layout = state.get("layout")
+    layout = raw_layout or "flexible layout"
     event_type = state.get("event_type") or "OTHER"
+    overflow = state.get("overflow_needed", 0) or 0
 
     bundle: list[dict[str, Any]] = []
     warnings: list[str] = []
@@ -335,7 +443,10 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
         primary = venue.by_name(space.name) if space else None
         primary_slug = primary["slug"] if primary else None
         if feasible and primary_slug:
-            bundle = venue.propose_bundle(event_type=event_type, primary_slug=primary_slug)
+            bundle = venue.propose_bundle(
+                event_type=event_type, primary_slug=primary_slug,
+                layout=raw_layout, overflow=overflow,
+            )
             warnings = venue.circulation_warnings([primary_slug] + [b["slug"] for b in bundle])
     except Exception:
         bundle, warnings, primary_slug = [], [], None
@@ -355,12 +466,32 @@ async def assemble_plan(state: PlanState) -> dict[str, Any]:
                 f"{b['name']} ({b['reason']})" if b.get("reason") else b["name"] for b in bundle
             )
             bundle_txt = f" Plus {parts}."
-        conflict_note = "No conflicts." if not conflicts else f"{len(conflicts)} conflict(s) flagged."
+        conflict_note = (
+            "No conflicts." if not conflicts else f"{len(conflicts)} conflict(s) flagged."
+        )
         warn_txt = (" Heads-up: " + " ".join(warnings)) if warnings else ""
-        narrative = (
-            f"{space.name} on {date}, {layout} for {attendees}.{bundle_txt} "
+        # Multi-space plenary: the modest Pyramid halls combine to seat a big headcount.
+        n_overflow = sum(1 for b in bundle if b.get("role") == "overflow")
+        multi_txt = (
+            f" Combined across {n_overflow + 1} halls to seat {attendees}." if n_overflow else ""
+        )
+        deterministic = (
+            f"{space.name} on {date}, {layout} for {attendees}.{multi_txt}{bundle_txt} "
             f"{len(tasks)} setup/teardown task(s) queued. Total {money}. {conflict_note}{warn_txt}"
         )
+        figures = {
+            "space": space.name,
+            "date": win.start[:10] if win else None,
+            "attendees": attendees if isinstance(attendees, int) else None,
+            "total_minor": quote.totalMinor if quote is not None else None,
+            "task_count": len(tasks),
+            "conflict_count": len(conflicts),
+        }
+        narrative = await _polish_narrative(deterministic, figures)
+        # The spec's areas/capacities are ~1:200 estimates — flag once for the UI to surface.
+        warnings = warnings + [
+            "Areas + capacities are ~1:200 estimates (±20%); editable to surveyed figures."
+        ]
     else:
         if primary_slug:
             map_state.append({"slug": primary_slug, "status": "conflict"})
