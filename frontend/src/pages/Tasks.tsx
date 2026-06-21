@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CircleCheckBig, Plus, TriangleAlert } from 'lucide-react'
-import { useRequests, useTasks } from '@/api/hooks'
+import { useRequests, useTasks, useAllTasks } from '@/api/hooks'
 import type { EventRequest } from '@/api/types/requests'
 import type { Task } from '@/api/types/tasks'
 import { useT } from '@/i18n/useT'
@@ -24,11 +24,14 @@ export default function Tasks() {
     [requests],
   )
 
-  // /tasks is cross-event but useTasks is per-request. We surface the first
-  // request's board by default and let the segmented control switch context.
+  // /tasks is cross-event. When ALL is selected, fetch tasks for every active
+  // request and merge; otherwise fetch for the chosen request only.
   const [scope, setScope] = useState<string>(ALL)
-  const activeId = scope === ALL ? withPlans[0]?.id : scope
-  const { data: tasks, isLoading, isError, refetch } = useTasks(activeId)
+  const allIds = withPlans.map((r) => r.id)
+  const allTasksQuery = useAllTasks(scope === ALL ? allIds : [])
+  const singleTaskQuery = useTasks(scope !== ALL ? scope : undefined)
+  const { data: tasks, isLoading, isError } = scope === ALL ? allTasksQuery : singleTaskQuery
+  const refetch = scope !== ALL ? singleTaskQuery.refetch : () => Promise.resolve()
 
   const options: SegmentedOption[] = [
     { label: t('tasks.allEvents'), value: ALL },

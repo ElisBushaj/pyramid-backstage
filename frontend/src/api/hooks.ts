@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { aiPlan, aiConfigured } from './ai'
 import type { OperationalPlan } from './types/ai'
@@ -88,6 +88,19 @@ export function useCreateQuote(requestId: string) {
 // ── tasks ────────────────────────────────────────────────────────────────────
 export const useTasks = (requestId?: string) =>
   useQuery({ queryKey: q('tasks', requestId), queryFn: () => api.get<Task[]>(`/private/requests/${requestId}/tasks`), enabled: !!requestId })
+
+export const useAllTasks = (requestIds: string[]) =>
+  useQueries({
+    queries: requestIds.map((id) => ({
+      queryKey: q('tasks', id),
+      queryFn: () => api.get<Task[]>(`/private/requests/${id}/tasks`),
+    })),
+    combine: (results) => ({
+      data: results.flatMap((r) => r.data ?? []),
+      isLoading: results.some((r) => r.isLoading),
+      isError: results.some((r) => r.isError),
+    }),
+  })
 
 export function usePersistTasks(requestId: string) {
   const qc = useQueryClient()
