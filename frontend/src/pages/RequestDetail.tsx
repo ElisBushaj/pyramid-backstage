@@ -9,9 +9,11 @@ import {
   useReject,
   useSpaces,
   useAssets,
+  useUpdateTask,
 } from '@/api/hooks'
 import { FloorMapPanel, deriveFloorStatuses } from '@/components/command/FloorMap'
 import { APIError } from '@/api/api-error'
+import { useMutationToast } from '@/lib/apiError'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { formatDate, formatDateRange } from '@/lib/format'
@@ -22,7 +24,7 @@ import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Badge } from '@/components/ui/Badge'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { Dialog, DialogTrigger, ConfirmDialog } from '@/components/ui/Dialog'
+import { Dialog, DialogTrigger, DialogContent, DialogClose } from '@/components/ui/Dialog'
 import { Textarea } from '@/components/ui/Input'
 import { FormField } from '@/components/ui/FormField'
 import { Skeleton, ErrorState } from '@/components/ui/Feedback'
@@ -48,7 +50,19 @@ export default function RequestDetail() {
   const { data: assets } = useAssets({})
   const approve = useApprove(id)
   const reject = useReject(id)
+  const updateTask = useUpdateTask()
+  const onMutationError = useMutationToast()
   const [reason, setReason] = useState('')
+  const [rejectOpen, setRejectOpen] = useState(false)
+
+  // Parity with Approvals: a reason must be at least 3 chars to reject.
+  const rejectValid = reason.trim().length >= 3
+
+  // Reset the reason whenever the reject dialog opens, so a stale draft never
+  // leaks between attempts.
+  useEffect(() => {
+    if (rejectOpen) setReason('')
+  }, [rejectOpen])
 
   // Success → scheduled / approved: surface the celebratory toast once.
   useEffect(() => {
@@ -62,6 +76,19 @@ export default function RequestDetail() {
       toast({ tone: 'info', title: t('plan.rejectedToast') })
     }
   }, [reject.isSuccess, toast, t])
+
+  // A hold can lapse while the manager reads the plan — schedule a re-render at
+  // expiry so "Feasible — ready to approve" flips to not-feasible instead of
+  // staying stale (review). The 410 toast on approve is the backstop.
+  const [, setExpiryTick] = useState(0)
+  const reservationExpiresAt = data?.reservation?.expiresAt
+  useEffect(() => {
+    if (!reservationExpiresAt) return
+    const ms = new Date(reservationExpiresAt).getTime() - Date.now()
+    if (ms <= 0) return
+    const timer = setTimeout(() => setExpiryTick((n) => n + 1), ms + 500)
+    return () => clearTimeout(timer)
+  }, [reservationExpiresAt])
 
   if (isLoading) return <PlanSkeleton t={t} />
   if (isError || !data)
@@ -84,7 +111,10 @@ export default function RequestDetail() {
   // Conflicts can ride on the aggregate OR surface from a 409 approve attempt.
   const allConflicts = [...conflicts, ...(approveErr?.status === 409 ? approveErr.conflicts ?? [] : [])]
   const hasConflict = allConflicts.length > 0
-  const feasible = !hasConflict && !!reservation
+  // A held reservation is only feasible while its hold is still live — an expired
+  // hold can't be approved, so it must not read as "ready to approve".
+  const holdLive = !!reservation && (!reservation.expiresAt || new Date(reservation.expiresAt).getTime() > Date.now())
+  const feasible = !hasConflict && holdLive
   const submitting = approve.isPending
 
   const subtitle = [
@@ -112,7 +142,22 @@ export default function RequestDetail() {
             {approvable ? (
               <>
                 {canApprove ? (
-                  <Button loading={submitting} onClick={() => approve.mutate()}>
+                  <Button
+                    loading={submitting}
+                    onClick={() =>
+                      approve.mutate(undefined, {
+                        // A REAL conflict (409 carrying conflicts) renders via the
+                        // ConflictBanner; every other failure — a 409 invalid_transition
+                        // (e.g. a peer already approved it), 410 hold-expired, 429, 403,
+                        // 5xx — toasts AND refetches so the stale status updates.
+                        onError: (err) => {
+                          if (err instanceof APIError && err.status === 409 && (err.conflicts?.length ?? 0) > 0) return
+                          onMutationError(err)
+                          void refetch()
+                        },
+                      })
+                    }
+                  >
                     {submitting ? t('plan.approving') : t('plan.approve')}
                   </Button>
                 ) : (
@@ -123,29 +168,46 @@ export default function RequestDetail() {
                   </Tooltip>
                 )}
                 {canApprove ? (
-                  <Dialog>
+                  <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
                     <DialogTrigger asChild>
                       <Button variant="secondary" disabled={submitting}>
                         {t('plan.reject')}
                       </Button>
                     </DialogTrigger>
-                    <ConfirmDialog
-                      title={t('plan.rejectTitle')}
-                      description={
-                        <FormField label={t('field.reason')}>
-                          <Textarea
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder={t('plan.rejectReasonPlaceholder')}
-                            rows={3}
-                          />
-                        </FormField>
-                      }
-                      cancelLabel={t('ui.common.cancel')}
-                      confirmLabel={reject.isPending ? t('plan.rejecting') : t('plan.reject')}
-                      loading={reject.isPending}
-                      onConfirm={() => reject.mutate(reason)}
-                    />
+                    <DialogContent title={t('plan.rejectTitle')} size="sm">
+                      <FormField
+                        label={t('field.reason')}
+                        hint={t('plan.rejectReasonHint')}
+                      >
+                        <Textarea
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder={t('plan.rejectReasonPlaceholder')}
+                          rows={3}
+                        />
+                      </FormField>
+                      <div className="mt-5 flex justify-end gap-2.5">
+                        <DialogClose asChild>
+                          <Button variant="secondary" size="md">
+                            {t('ui.common.cancel')}
+                          </Button>
+                        </DialogClose>
+                        <Button
+                          variant="danger"
+                          size="md"
+                          loading={reject.isPending}
+                          disabled={!rejectValid}
+                          onClick={() =>
+                            reject.mutate(reason.trim(), {
+                              onSuccess: () => setRejectOpen(false),
+                              onError: onMutationError,
+                            })
+                          }
+                        >
+                          {reject.isPending ? t('plan.rejecting') : t('plan.reject')}
+                        </Button>
+                      </div>
+                    </DialogContent>
                   </Dialog>
                 ) : (
                   <Tooltip label={t('plan.forbidden')}>
@@ -163,7 +225,14 @@ export default function RequestDetail() {
       />
 
       {/* Copilot narrative — the headline of the plan view (F18: live AI narrative when present). */}
-      <PlanNarrative feasible={feasible} hasConflict={hasConflict} t={t} aiNarrative={aiPlan.data?.narrative} />
+      <PlanNarrative
+        feasible={feasible}
+        hasConflict={hasConflict}
+        t={t}
+        aiNarrative={aiPlan.data?.narrative}
+        space={space}
+        request={request}
+      />
 
       {/* Feasibility band: conflict → ConflictBanner + alternatives; else ready strip. */}
       {hasConflict ? (
@@ -176,7 +245,11 @@ export default function RequestDetail() {
                   {t('conflict.seeAlternatives')}
                   <ChevronRight className="size-[13px]" strokeWidth={1.8} />
                 </Button>
-                <Button variant="secondary" size="md" onClick={() => navigate('/requests/new')}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => navigate('/requests/new', { state: { prefillFrom: request } })}
+                >
                   {t('conflict.adjust')}
                 </Button>
               </>
@@ -277,7 +350,13 @@ export default function RequestDetail() {
           <section className="rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised">
             <h2 className="mb-3.5 text-[15px] font-[600] text-text-primary">{t('plan.tasksTitle')}</h2>
             {tasks.length ? (
-              <TaskBoard tasks={tasks} />
+              <TaskBoard
+                tasks={tasks}
+                onStatusChange={(taskId, requestId, next) =>
+                  updateTask.mutate({ id: taskId, requestId, body: { status: next } })
+                }
+                savingTaskId={updateTask.isPending ? updateTask.variables?.id : null}
+              />
             ) : (
               <p className="text-[13px] text-text-tertiary">{t('plan.noTasks')}</p>
             )}
@@ -302,20 +381,40 @@ function PlanNarrative({
   hasConflict,
   t,
   aiNarrative,
+  space,
+  request,
 }: {
   feasible: boolean
   hasConflict: boolean
   t: ReturnType<typeof useT>
   aiNarrative?: string
+  space?: Space
+  request: RequestAggregate['request']
 }) {
-  // F18 — prefer the AI's deterministic narrative; fall back to the templated one.
+  // F18 — prefer the AI's deterministic narrative when present. Otherwise derive a
+  // request-agnostic narrative from the real aggregate (XC-1): the templated
+  // "Blue Hall seats 180" line lied for every request, so the feasible fallback
+  // is now parameterized from the reserved space + requested-layout capacity.
+  const layout = request.requirements?.layout ?? 'THEATER'
+  const capacity = space ? space.capacities[layout] ?? Math.max(0, ...Object.values(space.capacities)) : 0
+  const feasibleBody = space
+    ? t('plan.narrativeFeasibleGeneric', {
+        space: space.name,
+        capacity,
+        attendees: request.expectedAttendees,
+      })
+    : t('plan.narrativePending')
+
   const body = aiNarrative
     ? aiNarrative
     : hasConflict
       ? t('plan.narrativeNotFeasible')
       : feasible
-        ? t('plan.narrativeFeasible')
+        ? feasibleBody
         : t('plan.narrativePending')
+
+  // The note clarifies a derived narrative is a deterministic fallback, not the AI.
+  const derived = !aiNarrative
   return (
     <section className="rounded-lg border border-[#DCE6FB] bg-[#F7F9FE] p-[18px_20px]">
       <div className="mb-2.5 flex items-center gap-2">
@@ -325,6 +424,9 @@ function PlanNarrative({
         <span className="text-[13px] font-[600] text-accent">{t('plan.copilotPlan')}</span>
       </div>
       <p className="text-[15px] leading-[23px] text-text-primary">{body}</p>
+      {derived ? (
+        <p className="mt-2 text-[12px] text-text-tertiary">{t('plan.narrativeDerivedNote')}</p>
+      ) : null}
     </section>
   )
 }
@@ -401,9 +503,7 @@ function Alternatives({
                 <span className="font-mono text-[24px] font-[600] tabular-nums text-text-primary">{cap}</span>
                 <span className="text-[12px] text-text-tertiary">{titleCase(layout)}</span>
               </div>
-              <Button variant={recommended ? 'primary' : 'secondary'} size="sm">
-                {t('plan.useThis')}
-              </Button>
+              <p className="text-[12px] text-text-tertiary">{t('plan.alternativeFitsHint')}</p>
             </div>
           )
         })}

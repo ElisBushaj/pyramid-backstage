@@ -96,3 +96,18 @@ Assumed defaults (no explicit guidance; logged so they can be overridden):
 - Assumed: the **6 authoritative seed UUIDs are remapped onto the real Floor -1 halls** — `...001`->Space 1 (Main hall, planted-conflict target), `...002`->Space 10, `...003`->Space 13 (seed event E2), `...004`->Space 9, `...005`->Box 5, `...006`->outer concourse. Keeps the planted conflict (E1 @ 2026-07-22) + E2 working with no seed-event edits. Colour halls stay staff-assignable (NOT hardcoded).
 - Assumed: **no single Pyramid hall seats a large event** (main hall ~106 theatre), so big requests get a **multi-space plan** — the largest hall as plenary (chosen even if occupied, so the conflict still surfaces) + overflow halls + Floor-0 box breakouts. Non-bookable spaces (wc/technical/circulation/vestibule) carry empty capacities and are never matched/bundled (hard filter).
 - Assumed: **`idsToConfirm` spaces** (Floor-0 perimeter terraces 24-28, Floor-3 rim rooms 50-54) are expanded to individual estimated entries at inferred bearings; flagged for confirmation.
+
+## 2026-06-21 — Frontend-audit remediation (branch `fix/frontend-audit-remediation`)
+
+User-confirmed scope decisions (asked explicitly, recorded for traceability):
+- Decided: **Calendar Week view is REMOVED**, not built — ship day-view + prev/next/date-picker navigation only. Rationale: the Week toggle was an unimplemented placeholder; a date-navigable day view delivers the value without a dead control.
+- Decided: **Global ⌘K Search becomes a real command palette** over requests/spaces/assets with a working keybind (not a relabel). Rationale: honor the affordance the UI already advertises.
+- Decided: **Global Copilot is wired to the live `/chat`** with the same graceful 503 degrade as Intake — NO AI logic is built (stays in Alvin's A00 lane). Rationale: a dead send button is a production-readiness defect; degrade-to-canned is already proven on Intake.
+
+Remediation-execution assumptions:
+- Assumed: **all work lands on a dedicated branch**, not `main`, because push-to-main auto-deploys to production (Hetzner CI→GHCR→VPS). Rationale: no half-finished production deploys; clean PR per the remediation plan.
+- Assumed: **fixes slot into existing features (F01–F19) with new task IDs**, not new F20+ features — matching the prior remediation session's established practice (multi-feature commits). The REMEDIATION_PLAN.md's proposed F20–F30 is superseded by this slotting.
+- Decided (ADR-0015): **expired-uncontested hold → 410 `reservation.hold_expired`** (re-hold), retaken → 409, contention → 429. Refines F10-T01's "expired → 409" promise and flips the deliberately-asserted 429 test. [assumption: expired-uncontested=410]
+- Decided (ADR-0016): **a new `GET /private/reservations?start&end[&spaceId][&status]` read endpoint** powers the live timelines, rather than embedding windows on `/spaces` or fanning out `/spaces/:id/availability`.
+- Decided (ADR-0017): **`/audit` and `/admin/users` gain server-side okList pagination**; `/requests` + `/movements` already paginate (client-only fix); one shared `ListEnvelope` + `Pager`.
+- Assumed: **dead controls with no backend (Forgot-password, RequestDetail "Use this"/"Adjust") are removed or context-carried**, not stubbed — ops-core has no password-reset/re-hold-swap endpoint, so a real flow is out of scope. Flagged where removed. [assumption: remove-dead-controls-without-backend]

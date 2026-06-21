@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FEAT_DIR = path.join(ROOT, "docs", "06-features");
-const TODAY = "2026-06-20";
+const TODAY = "2026-06-21";
 
 const FEATURES = fs.readdirSync(FEAT_DIR).filter((d) => /^(F\d\d|A00)/.test(d)).sort();
 

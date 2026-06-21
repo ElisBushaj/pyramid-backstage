@@ -126,18 +126,18 @@ describe("POST /requests/:id/approve — happy path (F10-T01)", () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
-// APPROVE — expired-hold edge (re-detect: conflict → 409, contention → 429)
+// APPROVE — expired-hold edge (re-detect: retaken → 409, lapsed-uncontested → 410) (ADR-0015)
 // ───────────────────────────────────────────────────────────────────────────
-describe("POST /requests/:id/approve — expired hold re-detection (F10-T01)", () => {
-  it("expired hold whose slot is still FREE (pure contention) → 429 rate_limited, never a stale confirm, state unchanged", async () => {
+describe("POST /requests/:id/approve — expired hold re-detection (F10-T01, F10-T05)", () => {
+  it("expired hold whose slot is still FREE (merely lapsed) → 410 reservation.hold_expired, never a stale confirm, state unchanged", async () => {
     const mgr = await loginAs("MANAGER");
     const { reqId, reservationId } = await proposeWithHold(mgr);
     await prisma.reservation.update({ where: { id: reservationId }, data: { expiresAt: new Date(Date.now() - 1000) } });
 
     const res = await mgr.post(approveUrl(reqId));
-    expect(res.status).toBe(429);
-    expect(res.body.error).toBe("rate_limited");
-    expect(res.body.messageKey).toBe("common.rate_limited");
+    expect(res.status).toBe(410);
+    expect(res.body.error).toBe("gone");
+    expect(res.body.messageKey).toBe("reservation.hold_expired");
 
     // nothing committed: request still PROPOSED, hold still HELD, no approve audit/outbox
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: reqId } })).status).toBe("PROPOSED");

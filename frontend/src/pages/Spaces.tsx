@@ -7,7 +7,6 @@ import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { formatMinor } from '@/lib/money'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { SpaceCard } from '@/components/command/SpaceCard'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 
@@ -58,12 +57,6 @@ export default function Spaces() {
         breadcrumb={[t('nav.resources'), t('nav.spaces')]}
         title={t('spaces.title')}
         subtitle={data ? subtitle : undefined}
-        actions={
-          <Button variant="secondary" size="sm">
-            <CalendarDays className="size-4" aria-hidden />
-            {t('inventory.changeWindow')}
-          </Button>
-        }
         filters={
           <FilterRow
             layout={layout}
@@ -101,7 +94,9 @@ export default function Spaces() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(data ?? []).map((s) => {
             const cap = capacityFor(s, layout)
-            const activeLayout = (layout || Object.keys(s.capacities ?? {})[0] || '').toLowerCase()
+            // The layout label is only shown when a layout filter is active (see
+            // SpaceCard `layoutActive`); otherwise the card shows neutral "max capacity".
+            const activeLayout = layout.toLowerCase()
             return (
               <SpaceCard
                 key={s.id}
@@ -109,6 +104,7 @@ export default function Spaces() {
                 floor={`${t('spaces.floor')} ${s.floor ?? '—'}`}
                 capacity={cap}
                 layout={activeLayout}
+                layoutActive={!!layout}
                 features={s.features ?? []}
                 rate={formatMinor(s.dayRateMinor ?? 0, locale)}
                 availability={s.available === false ? 'held' : 'free'}

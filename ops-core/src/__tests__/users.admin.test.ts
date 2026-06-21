@@ -41,6 +41,28 @@ describe("admin users — list", () => {
   });
 });
 
+describe("admin users — pagination (F01-T09, ADR-0017)", () => {
+  it("bounds the staff list with page/pageSize + meta; pageSize>100 → 422", async () => {
+    const admin = await loginAs("ADMIN");
+    await Promise.all(
+      Array.from({ length: 24 }, (_, i) =>
+        prisma.user.create({
+          data: { email: `staff${String(i).padStart(2, "0")}@pyramid.test`, name: `Staff ${i}`, passwordHash: "x", role: "VIEWER" },
+        }),
+      ),
+    );
+    const p1 = await admin.get(`${USERS}?page=1&pageSize=10`);
+    expect(p1.status).toBe(200);
+    expect(p1.body.data).toHaveLength(10);
+    expect(p1.body).toMatchObject({ total: 25, page: 1, pageSize: 10, totalPages: 3 }); // 24 + the admin
+
+    const p3 = await admin.get(`${USERS}?page=3&pageSize=10`);
+    expect(p3.body.data).toHaveLength(5);
+
+    expect((await admin.get(`${USERS}?pageSize=500`)).status).toBe(422);
+  });
+});
+
 describe("admin users — RBAC (ADMIN-only; the whole router)", () => {
   // Every non-ADMIN authenticated role is forbidden; anonymous is unauthorized.
   for (const role of ["VIEWER", "OPS", "MANAGER", "PARTNER"] as const) {

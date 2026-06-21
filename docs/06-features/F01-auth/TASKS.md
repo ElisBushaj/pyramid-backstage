@@ -1,7 +1,7 @@
 ---
 id: F01
 name: Auth & RBAC
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F01 — Tasks
@@ -90,3 +90,20 @@ last_updated: 2026-06-19
   - Session-expiry test: a session past `expiresAt` is rejected as `401` and cannot be reused after logout.
   - Rate-limit + CSRF behaviours from F01-T06 are asserted here or alongside.
   - All tests run in CI; tsc clean.
+
+### F01-T09 — paginate GET /admin/users (okList page/pageSize) (ADR-0017)
+- Status: done
+- Depends on: F01-T03
+- Estimate: 0.5d
+- Acceptance:
+  - `users.service.list` returns `okList` with `take`/`skip` + total; `validators` accept bounded `page`/`pageSize` (default 20, max 100); `controller` parses+passes.
+  - `openapi.yaml` documents `page`/`pageSize` on `GET /admin/users` pointing at `ListEnvelope`.
+  - Integration test (real Postgres): staff list paginates with correct meta; admin-only gate unchanged. tsc + vitest green.
+
+### F01-T10 — Login + Users admin hardening
+- Status: done
+- Depends on: F13-T07
+- Estimate: 0.75d
+- Acceptance:
+  - Login: error copy distinguishes 401 (invalid) vs 429 (rate-limited) vs 5xx/network (generic); banner clears on input edit; dead “Forgot password” removed; an authenticated visitor is redirected (PARTNER→/portal, else /).
+  - Users: PARTNER added to the role Select (no silent demote); staff count excludes PARTNER; role badge localized via `t('roles.*')`; Active toggle disabled in-flight + `onError`; `useUpdateUser` idempotency:true; `useUsers` gated `enabled: can(me.role,'manageUsers')`; pager via getList.

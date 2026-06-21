@@ -1,7 +1,7 @@
 ---
 id: F10
 name: Approvals & Workflow
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F10 — Tasks
@@ -48,3 +48,22 @@ last_updated: 2026-06-19
   - Reject test: reject with a reason → reservations `RELEASED`, request `REJECTED`, `rejectionReason` persisted, a `request.reject` audit row carrying the reason exists; reject without a reason → `422`.
   - Role-gate assertions from F10-T03 are exercised; idempotent-replay assertions confirm no double effect.
   - tsc clean; runs in CI.
+
+### F10-T05 — approve: expired-uncontested hold → 410 reservation.hold_expired (ADR-0015)
+- Status: done
+- Depends on: F10-T01
+- Estimate: 0.5d
+- Acceptance:
+  - On approve, a HELD lease past `expiresAt` with an EMPTY re-detected conflict set throws `APIError.gone("reservation.hold_expired")` → 410; a non-empty set keeps `409 reservation.expired` + `Conflict[]`. The prior `429 rateLimited()` on this branch is removed.
+  - `APIError.gone(messageKey="common.gone")` factory added; `defaultErrorCode` maps `410 → "gone"`; `reservation.hold_expired` registered in `MESSAGE_KEYS` + both locale files (matched counts; i18n.test green).
+  - `openapi.yaml` documents a `410` response on `POST /private/requests/{id}/approve` via a reusable `Gone` component; the approvals NB comment is corrected (410 uncontested vs 409 retaken).
+  - `approvals.test.ts` expired-uncontested case flips 429→410 `reservation.hold_expired`; retaken case stays 409; state unchanged on 410. tsc + vitest green; conforms to CORE_PATTERNS.
+
+### F10-T06 — RequestDetail/Approvals: hold-validity gate, approve/reject error + 410 re-hold, RBAC, reject parity
+- Status: done
+- Depends on: F10-T05 , F13-T07
+- Estimate: 0.75d
+- Acceptance:
+  - RequestDetail `feasible` gates on `reservation && reservation.expiresAt > now`; “Feasible — ready to approve” no longer shows for an expired hold.
+  - Approve/reject route non-409 errors through `useMutationToast`: 410/429 → a re-hold/retry message (keep 409 → ConflictBanner); reject reason gets client ≥3 validation + reset-between-opens (parity with Approvals).
+  - Approvals page gates Approve/Reject on `can(me.role,'approve')` (MANAGER+); read-only roles no longer see clickable write controls. tsc + build green.

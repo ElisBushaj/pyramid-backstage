@@ -12,7 +12,26 @@ import { Spinner } from '@/components/ui/Feedback'
  * relative due time on the left and a noDot status badge on the right. OVERDUE is
  * a derived display state (past due & not DONE): danger time + danger-tinted
  * border + an OVERDUE badge — distinct from the contract's BLOCKED status.
+ *
+ * When `onStatusChange` is supplied the status badge becomes a click-to-advance
+ * control (TODO → IN_PROGRESS → DONE → TODO); without it the badge stays a static
+ * read-only label so other (read-only) board usages are unaffected.
  */
+
+/** Click-to-advance cycle. BLOCKED/OVERDUE advance to IN_PROGRESS (the unblock step). */
+const NEXT_STATUS: Record<TaskStatus, TaskStatus> = {
+  TODO: 'IN_PROGRESS',
+  IN_PROGRESS: 'DONE',
+  DONE: 'TODO',
+  BLOCKED: 'IN_PROGRESS',
+}
+
+const CYCLE_KEY: Record<TaskStatus, string> = {
+  TODO: 'tasks.markInProgress',
+  IN_PROGRESS: 'tasks.markDone',
+  DONE: 'tasks.markTodo',
+  BLOCKED: 'tasks.markInProgress',
+}
 
 // Status → badge tone (canvas §3.8: BLOCKED = warning, not danger).
 const STATUS_TONE: Record<TaskStatus | 'OVERDUE', BadgeTone> = {
@@ -50,14 +69,22 @@ function tintFor(seed: string): string {
   return AVATAR_TINTS[hash % AVATAR_TINTS.length]
 }
 
-export function TaskBoard({ tasks, savingTaskId }: { tasks: Task[]; savingTaskId?: string | null }) {
+export function TaskBoard({
+  tasks,
+  savingTaskId,
+  onStatusChange,
+}: {
+  tasks: Task[]
+  savingTaskId?: string | null
+  onStatusChange?: (taskId: string, requestId: string, next: TaskStatus) => void
+}) {
   const t = useT()
   const setup = tasks.filter((x) => x.phase === 'SETUP')
   const teardown = tasks.filter((x) => x.phase === 'TEARDOWN')
   return (
     <div className="flex flex-wrap gap-7">
-      <Lane phase="SETUP" title={t('tasks.setup')} tasks={setup} savingTaskId={savingTaskId} />
-      <Lane phase="TEARDOWN" title={t('tasks.teardown')} tasks={teardown} savingTaskId={savingTaskId} />
+      <Lane phase="SETUP" title={t('tasks.setup')} tasks={setup} savingTaskId={savingTaskId} onStatusChange={onStatusChange} />
+      <Lane phase="TEARDOWN" title={t('tasks.teardown')} tasks={teardown} savingTaskId={savingTaskId} onStatusChange={onStatusChange} />
     </div>
   )
 }
@@ -67,11 +94,13 @@ function Lane({
   title,
   tasks,
   savingTaskId,
+  onStatusChange,
 }: {
   phase: TaskPhase
   title: string
   tasks: Task[]
   savingTaskId?: string | null
+  onStatusChange?: (taskId: string, requestId: string, next: TaskStatus) => void
 }) {
   const t = useT()
   const Icon = phase === 'SETUP' ? Plus : Minus
@@ -91,7 +120,7 @@ function Lane({
       ) : (
         <div className="flex flex-col gap-2.5">
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} saving={task.id === savingTaskId} />
+            <TaskCard key={task.id} task={task} saving={task.id === savingTaskId} onStatusChange={onStatusChange} />
           ))}
         </div>
       )}
@@ -99,12 +128,21 @@ function Lane({
   )
 }
 
-function TaskCard({ task, saving = false }: { task: Task; saving?: boolean }) {
+function TaskCard({
+  task,
+  saving = false,
+  onStatusChange,
+}: {
+  task: Task
+  saving?: boolean
+  onStatusChange?: (taskId: string, requestId: string, next: TaskStatus) => void
+}) {
   const t = useT()
   const locale = useLocaleStore((s) => s.locale)
   const overdue = isOverdue(task)
   const displayStatus: TaskStatus | 'OVERDUE' = overdue ? 'OVERDUE' : task.status
   const owner = task.owner ?? null
+  const interactive = !!onStatusChange
   return (
     <div
       className={
@@ -138,6 +176,16 @@ function TaskCard({ task, saving = false }: { task: Task; saving?: boolean }) {
             <Spinner size={12} tone="accent" />
             {t('ui.common.loading')}
           </span>
+        ) : interactive ? (
+          <button
+            type="button"
+            aria-label={t(CYCLE_KEY[task.status])}
+            title={t(CYCLE_KEY[task.status])}
+            onClick={() => onStatusChange!(task.id, task.requestId, NEXT_STATUS[task.status])}
+            className="rounded-pill outline-none transition-[box-shadow,opacity] duration-micro ease-std hover:opacity-80 focus-visible:shadow-ring-soft"
+          >
+            <Badge tone={STATUS_TONE[displayStatus]}>{t(`status.${displayStatus}`)}</Badge>
+          </button>
         ) : (
           <Badge tone={STATUS_TONE[displayStatus]}>{t(`status.${displayStatus}`)}</Badge>
         )}

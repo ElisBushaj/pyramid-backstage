@@ -6,6 +6,7 @@ import { AppShell } from '@/components/shell/AppShell'
 import { PortalShell } from '@/components/shell/PortalShell'
 import PortalRequests from '@/pages/portal/PortalRequests'
 import PortalNewRequest from '@/pages/portal/PortalNewRequest'
+import PortalRequestDetail from '@/pages/portal/PortalRequestDetail'
 import Approvals from '@/pages/Approvals'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <PortalRequests /> },
       { path: 'new', element: <PortalNewRequest /> },
+      { path: ':id', element: <PortalRequestDetail /> },
     ],
   },
   {

@@ -416,16 +416,15 @@ describe("POST /reservations/:id/confirm (F06-T04)", () => {
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: held.id } })).toBe(1);
   });
 
-  it("confirming an expired hold → 409 conflict (reservation.expired) with re-detected conflicts", async () => {
+  it("confirming an expired hold whose slot is FREE (merely lapsed) → 410 reservation.hold_expired, not confirmed (ADR-0015)", async () => {
     const client = await loginAs("OPS");
     const held = await heldReservation(client);
     await prisma.reservation.update({ where: { id: held.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
 
     const res = await client.post(`${RES}/${held.id}/confirm`);
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe("conflict");
-    expect(res.body.messageKey).toBe("reservation.expired");
-    expect(Array.isArray(res.body.conflicts)).toBe(true);
+    expect(res.status).toBe(410);
+    expect(res.body.error).toBe("gone");
+    expect(res.body.messageKey).toBe("reservation.hold_expired");
     // it was NOT confirmed
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: held.id } })).status).toBe("HELD");
   });
@@ -718,5 +717,65 @@ describe("RBAC — inventory writes require OPS+ (F06)", () => {
     const space = await seedSpace({ setupBufferMinutes: 0, teardownBufferMinutes: 0 });
     const req = await seedRequest();
     expect((await mgr.post(RES).send({ requestId: req.id, spaceId: space.id, dateRange: W })).status).toBe(201);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// GET /reservations — schedule by window (F06-T08, ADR-0016)
+// ───────────────────────────────────────────────────────────────────────────
+describe("GET /reservations — schedule by window (F06-T08)", () => {
+  const DAY = { start: "2026-07-22T00:00:00Z", end: "2026-07-23T00:00:00Z" };
+  const qs = (p: Record<string, string>) => `${RES}?${new URLSearchParams(p).toString()}`;
+
+  it("returns live windows overlapping [start,end] with denormalised title + attendees + buffers", async () => {
+    const viewer = await loginAs("VIEWER");
+    const space = await seedSpace({ setupBufferMinutes: 240, teardownBufferMinutes: 120 });
+    const req = await seedRequest({ title: "FinTech Conf", status: "SCHEDULED" });
+    const resv = await seedReservation({ space, requestId: req.id, start: W.start, end: W.end, status: "CONFIRMED" });
+
+    const res = await viewer.get(qs(DAY));
+    expect(res.status).toBe(200);
+    expect(res.body.messageKey).toBe("reservation.schedule.success");
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      id: resv.id, spaceId: space.id, requestId: req.id,
+      requestTitle: "FinTech Conf", attendees: 100, status: "CONFIRMED",
+      setupBufferMinutes: 240, teardownBufferMinutes: 120,
+    });
+    expect(res.body.data[0].start).toBe("2026-07-22T09:00:00.000Z");
+  });
+
+  it("excludes out-of-window reservations and expired (non-live) HELD holds", async () => {
+    const viewer = await loginAs("VIEWER");
+    const space = await seedSpace({ setupBufferMinutes: 0, teardownBufferMinutes: 0 });
+    const req = await seedRequest();
+    await seedReservation({ space, requestId: req.id, start: "2026-08-01T09:00:00Z", end: "2026-08-01T18:00:00Z", status: "CONFIRMED" });
+    await seedReservation({ space, requestId: req.id, start: W.start, end: W.end, status: "HELD", expiresAt: new Date(Date.now() - 1000) });
+
+    const res = await viewer.get(qs(DAY));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(0);
+  });
+
+  it("filters by spaceId and status", async () => {
+    const viewer = await loginAs("VIEWER");
+    const a = await seedSpace({ setupBufferMinutes: 0, teardownBufferMinutes: 0 });
+    const b = await seedSpace({ setupBufferMinutes: 0, teardownBufferMinutes: 0 });
+    const req = await seedRequest();
+    await seedReservation({ space: a, requestId: req.id, start: W.start, end: W.end, status: "CONFIRMED" });
+    await seedReservation({ space: b, requestId: req.id, start: W.start, end: W.end, status: "HELD" });
+
+    expect((await viewer.get(qs({ ...DAY, spaceId: a.id }))).body.data).toHaveLength(1);
+    const held = await viewer.get(qs({ ...DAY, status: "HELD" }));
+    expect(held.body.data).toHaveLength(1);
+    expect(held.body.data[0].spaceId).toBe(b.id);
+  });
+
+  it("422 on missing/inverted window; PARTNER → 403 (staff-only read)", async () => {
+    const viewer = await loginAs("VIEWER");
+    expect((await viewer.get(RES)).status).toBe(422);
+    expect((await viewer.get(qs({ start: DAY.end, end: DAY.start }))).status).toBe(422);
+    const partner = await loginAs("PARTNER");
+    expect((await partner.get(qs(DAY))).status).toBe(403);
   });
 });

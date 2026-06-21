@@ -1,7 +1,7 @@
 ---
 id: F15
 name: Partner Portal & Approval Chain
-last_updated: 2026-06-20
+last_updated: 2026-06-21
 ---
 
 # F15 — Tasks
@@ -70,3 +70,11 @@ last_updated: 2026-06-20
   - The backend row-scoping matrix from F15-T02 is covered (partner-own 200, partner-other 404-not-403, partner-list own-only, staff-all) and the approval-queue actions from F15-T05 are covered (approve happy-path, reject-with-reason, `409` expired-hold surfaced, `422` missing-reason blocked).
   - No string is left untranslated (the AL file has a real Albanian value for every EN key, not an English fallback).
   - `tsc` clean; vitest + FE tests passing; conforms to `docs/04-api/CORE_PATTERNS.md`.
+
+### F15-T07 — Portal: detail route, pager, validation, error mapping
+- Status: done
+- Depends on: F13-T07
+- Estimate: 0.5d
+- Acceptance:
+  - Portal request cards link to a read-only `/portal/:id` detail; list gets a pager + “N of M”; preferredDates show end as well as start.
+  - PortalNewRequest validates end>start and maps 422 `fields` per-field (not one generic banner) via the shared apiError helper.

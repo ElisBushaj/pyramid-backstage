@@ -4,8 +4,11 @@ import { usersService } from "./service";
 
 export class UsersController {
   @controlledResponse("get")
-  static async list(_req: Request, _res: Response) {
-    return usersService.list();
+  static async list(req: Request, _res: Response) {
+    return usersService.list({
+      page: req.query.page ? Number(req.query.page) : undefined,
+      pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
+    });
   }
 
   @controlledResponse("post")

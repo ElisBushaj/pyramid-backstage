@@ -11,6 +11,8 @@ export interface SpaceCardProps {
   floor: string
   capacity: number | string
   layout: string
+  /** Whether a layout filter is driving `layout`. When false, the card shows neutral "max capacity" copy. */
+  layoutActive?: boolean
   features: string[]
   rate: string
   availability: 'free' | 'held'
@@ -22,6 +24,7 @@ export function SpaceCard({
   floor,
   capacity,
   layout,
+  layoutActive = false,
   features,
   rate,
   availability,
@@ -30,7 +33,25 @@ export function SpaceCard({
   const t = useT()
   const held = availability === 'held'
   return (
-    <div className="w-[280px] rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised">
+    <div
+      className={cn(
+        'w-[280px] rounded-lg border border-border-subtle bg-surface p-[18px] shadow-raised transition-shadow hover:shadow-md',
+        onSelect && 'cursor-pointer',
+      )}
+      onClick={onSelect}
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect()
+              }
+            }
+          : undefined
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[16px] font-[600] text-text-primary">{name}</h3>
@@ -52,9 +73,11 @@ export function SpaceCard({
           <span className="font-mono text-[30px] font-[600] leading-none tabular-nums tracking-[-0.02em] text-text-primary">
             {capacity}
           </span>
-          <span className="text-[13px] text-text-tertiary">{layout}</span>
+          {layoutActive && <span className="text-[13px] text-text-tertiary">{layout}</span>}
         </div>
-        <p className="mt-0.5 text-[12px] text-text-tertiary">{t('spaces.capacityForLayout')}</p>
+        <p className="mt-0.5 text-[12px] text-text-tertiary">
+          {layoutActive ? t('spaces.capacityForLayout') : t('spaces.maxCapacity')}
+        </p>
       </div>
 
       {features.length ? (
@@ -75,7 +98,14 @@ export function SpaceCard({
           {rate}
           <span className="font-sans text-[12px] font-normal text-text-tertiary"> {t('spaces.perDay')}</span>
         </p>
-        <Button variant="secondary" size="sm" onClick={onSelect}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelect?.()
+          }}
+        >
           {t('spaces.select')}
         </Button>
       </div>

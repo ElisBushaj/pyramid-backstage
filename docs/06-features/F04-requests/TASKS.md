@@ -1,7 +1,7 @@
 ---
 id: F04
 name: Event Requests
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F04 — Tasks
@@ -74,3 +74,11 @@ last_updated: 2026-06-19
 - Acceptance:
   - `GET /private/requests?q=` does a case-insensitive `contains` match over `title` + `organizerName` (combinable with `status`), per `openapi.yaml`.
   - Backs the design's "Search requests…" box (design §4.1). Indexed/efficient enough for the demo dataset; tests cover match + no-match + combined-with-status.
+
+### F04-T08 — Requests list + Intake hardening (pager, dead column, debounce, field errors)
+- Status: done
+- Depends on: F13-T07
+- Estimate: 0.75d
+- Acceptance:
+  - Requests list: dead VALUE column removed; debounced (~300ms) search; friendly REQ id; pager + “N of M” via `api.getList`.
+  - Intake: contactEmail/contactPhone get `error={fieldError(...)}` + `intake.invalid.contact*` keys; attendees client-validates positive-integer; `create.mutate` gets `onError` via `useMutationToast`.

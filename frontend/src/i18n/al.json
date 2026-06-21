@@ -1,5 +1,11 @@
 {
   "ui": {
+    "pagination": {
+      "showing": "Po shfaqen {{from}}–{{to}} nga {{total}}",
+      "prev": "Para",
+      "next": "Pas",
+      "page": "Faqja {{page}} nga {{totalPages}}"
+    },
     "common": {
       "loading": "Duke u ngarkuar…",
       "save": "Ruaj",
@@ -53,7 +59,8 @@
     "footerNote": "Vetëm për stafin · qasja regjistrohet",
     "invalid": "Email ose fjalëkalim i gabuar.",
     "rateLimited": "Shumë përpjekje. Ju lutemi prisni dhe provoni përsëri.",
-    "required": "Email dhe fjalëkalimi janë të detyrueshëm."
+    "required": "Email dhe fjalëkalimi janë të detyrueshëm.",
+    "failed": "Hyrja nuk u realizua. Ju lutemi provoni përsëri."
   },
   "status": {
     "DRAFT": "Skicë",
@@ -80,11 +87,22 @@
     "ACCEPTED": "E pranuar",
     "EXPIRED": "E skaduar"
   },
+  "assetType": {
+    "SEATING": "Ulëse",
+    "TABLE": "Tavolinë",
+    "MICROPHONE": "Mikrofon",
+    "SCREEN": "Ekran",
+    "PROJECTOR": "Projektor",
+    "STAGE_UNIT": "Njësi skene",
+    "LIGHTING": "Ndriçim",
+    "OTHER": "Tjetër"
+  },
   "roles": {
     "ADMIN": "Admin",
     "MANAGER": "Menaxher",
     "OPS": "Operacione",
-    "VIEWER": "Shikues"
+    "VIEWER": "Shikues",
+    "PARTNER": "Partner"
   },
   "conflict": {
     "SPACE_DOUBLE_BOOKED": "Hapësira e rezervuar dyfish",
@@ -132,7 +150,9 @@
     "whereIsIt": "Ku ndodhet?",
     "whereIsItSub": "Asetet aktualisht jashtë",
     "nothingOut": "Çdo gjë është në vendndodhjen e vet.",
-    "unitsOut": "jashtë"
+    "unitsOut": "jashtë",
+    "spacesInUseSub_one": "{{count}} hapësirë në përdorim",
+    "lowStockSub": "nivelet e stokut"
   },
   "requests": {
     "title": "Kërkesat",
@@ -149,7 +169,7 @@
     "creating": "Duke krijuar…",
     "adjust": "Rregullo kërkesën",
     "createAndPlan": "Krijo kërkesën & planifiko",
-    "intakeFixField": "Ju lutemi korrigjoni fushën e theksuar",
+    "intakeFixField": "Ju lutemi korrigjoni fushat e theksuara",
     "subtitle": "{{active}} aktive · {{awaiting}} në pritje të miratimit",
     "noActive": "Asnjë kërkesë aktive",
     "idHeader": "Kërkesa",
@@ -211,7 +231,11 @@
     "loadError": "Lidhja me ops-core skadoi.",
     "approvedToast": "Plani u miratua",
     "approvedToastBody": "Programuar — rezervimet janë konfirmuar.",
-    "rejectedToast": "Kërkesa u refuzua"
+    "rejectedToast": "Kërkesa u refuzua",
+    "narrativeFeasibleGeneric": "Po — mund ta presim. {{space}} ka {{capacity}} vende në planimetrinë e kërkuar dhe është i lirë në dritaren e kërkuar, duke i nxënë rehat {{attendees}} pjesëmarrës. Një rezervim është mbajtur dhe një ofertë është draftuar.",
+    "narrativeDerivedNote": "Përmbledhja e AI-së e padisponueshme — nxjerrë nga plani.",
+    "rejectReasonHint": "Të paktën 3 karaktere — ndahet me organizatorin.",
+    "alternativeFitsHint": "Përshtatet me planimetrinë dhe numrin e kërkuar."
   },
   "quote": {
     "net": "Neto",
@@ -239,7 +263,19 @@
     "loadError": "Detyrat nuk u ngarkuan",
     "loadErrorBody": "Lidhja me ops-core skadoi.",
     "emptyTitle": "Gjithçka në rregull",
-    "emptyBody": "Asnjë detyrë e hapur montimi ose çmontimi. Detyrat e reja shfaqen këtu kur miratohet një plan."
+    "emptyBody": "Asnjë detyrë e hapur montimi ose çmontimi. Detyrat e reja shfaqen këtu kur miratohet një plan.",
+    "markTodo": "Shëno si për t'u bërë",
+    "markInProgress": "Shëno si në proces",
+    "markDone": "Shëno si i kryer",
+    "newTitle": "Detyrë e re",
+    "newEvent": "Eventi",
+    "newTaskTitle": "Titulli i detyrës",
+    "newPhase": "Faza",
+    "newOwner": "Përgjegjësi",
+    "newDueOffset": "Afati relativ",
+    "newDueOffsetHint": "Orë në raport me eventin — negative para fillimit (përgatitje), pozitive pas mbarimit (çmontim). Lëre bosh për pa afat.",
+    "newDueOffsetSuffix": "orë",
+    "newSubmit": "Krijo detyrën"
   },
   "spaces": {
     "title": "Hapësirat",
@@ -274,7 +310,10 @@
     "loadErrorList": "Hapësirat nuk u ngarkuan",
     "held": "E mbajtur",
     "capacityForLayout": "kapaciteti për planin e kërkuar",
-    "select": "Zgjidh"
+    "select": "Zgjidh",
+    "maxCapacity": "kapaciteti maksimal",
+    "featuresPlaceholder": "p.sh. Skenë, Pajisje AV, Wi-Fi",
+    "featuresHint": "Ndaji karakteristikat me presje"
   },
   "inventory": {
     "title": "Inventari",
@@ -305,10 +344,18 @@
     "availableLower": "në dispozicion",
     "heldLower": "të mbajtura",
     "movements": "Historiku i lëvizjeve",
+    "checkoutHistory": "Historiku i daljes",
+    "movementLog": "Regjistri i lëvizjeve",
     "noMovements": "Ende asnjë lëvizje e regjistruar.",
     "liveLocation": "Vendndodhja aktuale",
     "checkedOut": "Jashtë",
-    "scan": "Skano"
+    "scan": "Skano",
+    "notFoundTitle": "Aktivi nuk u gjet",
+    "notFoundBody": "Ky aktiv mund të jetë hequr, ose lidhja është e vjetëruar.",
+    "backToList": "Kthehu te inventari",
+    "status": "Statusi",
+    "windowStart": "Fillimi i dritares",
+    "windowEnd": "Mbarimi i dritares"
   },
   "audit": {
     "title": "Auditimi",
@@ -329,7 +376,8 @@
     "emptyTitle": "Ende asnjë aktivitet",
     "emptyBody": "Veprimet e ndërmarra në sistem do të shfaqen këtu si regjistër vetëm-shtesë.",
     "emptyFilter": "Asnjë aktivitet për këtë filtër",
-    "emptyFilterBody": "Provoni një kërkesë ose lloj entiteti tjetër."
+    "emptyFilterBody": "Provoni një kërkesë ose lloj entiteti tjetër.",
+    "entityTypeAll": "Të gjitha llojet"
   },
   "users": {
     "title": "Stafi",
@@ -366,7 +414,11 @@
     "notFound": "Faqja nuk u gjet",
     "generic": "Hasëm një gabim të papritur.",
     "forbidden": "Nuk keni leje për ta parë këtë.",
-    "timedOut": "Lidhja me ops-core skadoi."
+    "timedOut": "Lidhja me ops-core skadoi.",
+    "checkFields": "Ju lutemi rishikoni fushat e theksuara.",
+    "rateLimited": "Shumë përpjekje — ju lutemi prisni dhe provoni përsëri.",
+    "holdExpired": "Kjo mbajtje skadoi — rimbani hapësirën për të vazhduar.",
+    "alreadyResolved": "Kjo u përditësua tashmë — ju lutemi rifreskoni."
   },
   "intake": {
     "tabForm": "Formulari",
@@ -394,7 +446,9 @@
       "organizerName": "Ju lutemi vendosni një emër të vlefshëm organizatori.",
       "expectedAttendees": "Ju lutemi vendosni një numër të vlefshëm pjesëmarrësish.",
       "start": "Ju lutemi vendosni një kohë fillimi të vlefshme.",
-      "end": "Ju lutemi vendosni një kohë mbarimi të vlefshme."
+      "end": "Ju lutemi vendosni një kohë mbarimi të vlefshme.",
+      "contactEmail": "Ju lutemi shkruani një adresë emaili të vlefshme.",
+      "contactPhone": "Ju lutemi shkruani një numër telefoni të vlefshëm."
     }
   },
   "eventType": {
@@ -415,11 +469,23 @@
     "BOARDROOM": "Sallë bordi",
     "CUSTOM": "I personalizuar"
   },
+  "timeline": {
+    "legend": {
+      "confirmed": "konfirmuar",
+      "held": "mbajtur",
+      "scheduled": "planifikuar",
+      "conflict": "konflikt",
+      "buffer": "buffer përgatitje / çmontimi"
+    }
+  },
   "calendar": {
     "day": "Ditë",
     "week": "Javë",
     "viewMode": "Mënyra e shikimit",
     "today": "Sot",
+    "prevDay": "Dita e mëparshme",
+    "nextDay": "Dita tjetër",
+    "pickDate": "Zgjidh një datë",
     "loadError": "Kalendari nuk u ngarkua dot",
     "loadErrorBody": "Lidhja me ops-core skadoi.",
     "emptyTitle": "Asgjë e planifikuar",
@@ -468,7 +534,8 @@
     "stopCamera": "Ndalo kamerën",
     "cameraHint": "Drejto kamerën nga QR-ja e asetit",
     "history": "Historiku i lëvizjeve",
-    "emptyHistory": "Ende asnjë lëvizje"
+    "emptyHistory": "Ende asnjë lëvizje",
+    "readOnlyNotice": "Nuk keni leje për të regjistruar lëvizje. Kërkoni një anëtar të ekipit të operacioneve që ta regjistrojë hyrjen ose daljen e kësaj pajisjeje."
   },
   "portal": {
     "title": "Portali i Partnerëve",
@@ -492,14 +559,23 @@
     "fStart": "Fillimi",
     "fEnd": "Mbarimi",
     "fAv": "Nevojitet AV / zëri",
-    "fAvSub": "Mikrofona, ekrane, projektorë"
+    "fAvSub": "Mikrofona, ekrane, projektorë",
+    "backToRequests": "Kthehu te kërkesat e mia",
+    "notFoundTitle": "Kërkesa nuk u gjet",
+    "notFoundBody": "Kjo kërkesë mund të jetë hequr, ose lidhja është e vjetëruar.",
+    "detailsHeading": "Detajet e kërkesës",
+    "preferredDates": "Datat e preferuara",
+    "quoteTotal": "Totali i propozimit",
+    "quoteTotalSub": "Kostoja e vlerësuar nga propozimi juaj",
+    "endAfterStart": "Mbarimi duhet të jetë pas kohës së fillimit"
   },
   "approvals": {
     "title": "Miratime në pritje",
     "subtitle": "Shqyrto kërkesat e propozuara dhe mirato ose refuzo.",
     "emptyTitle": "Asgjë në pritje",
     "emptyBody": "Nuk ka kërkesa në pritje për miratim.",
-    "aiSlot": "Rekomandimi i AI do të shfaqet këtu sapo kopiloti të lidhet."
+    "aiSlot": "Rekomandimi i AI do të shfaqet këtu sapo kopiloti të lidhet.",
+    "managerOnly": "Kërkohet miratimi i menaxherit"
   },
   "floorMap": {
     "title": "Harta e katit",
@@ -540,5 +616,30 @@
         "terrace": "Tarracë"
       }
     }
+  },
+  "search": {
+    "placeholder": "Kërko kërkesa, hapësira, pajisje…",
+    "empty": "Nuk u gjet asnjë përputhje.",
+    "groupRequests": "Kërkesa",
+    "groupSpaces": "Hapësira",
+    "groupAssets": "Pajisje",
+    "spaceFloor": "Kati {{n}}"
+  },
+  "validation": {
+    "failed": "Disa fusha kanë nevojë për vëmendje.",
+    "required": "Kjo fushë është e detyrueshme.",
+    "invalid": "Kjo vlerë nuk është e vlefshme.",
+    "int": "Duhet të jetë numër i plotë.",
+    "min": "Vlera është nën minimumin e lejuar.",
+    "max": "Vlera është mbi maksimumin e lejuar.",
+    "object": "Duhet të jetë objekt.",
+    "array": "Duhet të jetë listë jo bosh.",
+    "boolean": "Duhet të jetë e vërtetë ose e rreme.",
+    "length": "Gjatësia është jashtë intervalit të lejuar.",
+    "email": "Vendosni një email të vlefshëm.",
+    "enum": "Zgjidhni një nga vlerat e lejuara.",
+    "datetime": "Vendosni një datë dhe orë të vlefshme.",
+    "range": "Fillimi duhet të jetë para mbarimit.",
+    "uuid": "Duhet të jetë identifikues i vlefshëm."
   }
 }

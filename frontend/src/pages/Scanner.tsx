@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Search, MapPin, PackageCheck } from 'lucide-react'
+import { Search, MapPin, PackageCheck, Lock } from 'lucide-react'
 import { useAssets, useScanAsset } from '@/api/hooks'
+import { useCan } from '@/lib/abilities'
 import { useT } from '@/i18n/useT'
 import { cn } from '@/lib/cn'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -16,6 +17,8 @@ import type { AssetMovementAction } from '@/api/types/assets'
 export default function Scanner() {
   const t = useT()
   const { toast } = useToast()
+  const can = useCan()
+  const canScan = can('scanAsset')
   const assetsQuery = useAssets({})
   const assets = assetsQuery.data ?? []
 
@@ -34,6 +37,17 @@ export default function Scanner() {
     return s ? assets.filter((a) => a.name.toLowerCase().includes(s) || a.id.toLowerCase().includes(s)) : assets
   }, [assets, search])
 
+  // A CHECK_IN returns units to where the asset lives, so "To location" isn't
+  // collected for it — we default to the asset's current/home location.
+  const isCheckIn = action === 'CHECK_IN'
+  const effectiveToLocation = isCheckIn ? (selected?.location ?? '') : toLocation
+  // Cap the quantity at what the move can actually touch: outbound moves can't
+  // exceed what's available, a check-in can't return more than is currently out.
+  const qtyMax = selected ? (isCheckIn ? (selected.checkedOutQuantity ?? 0) : (selected.availableQuantity ?? selected.totalQuantity)) : undefined
+  const qtyNum = Number(quantity)
+  const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && (qtyMax == null || qtyNum <= qtyMax)
+  const canSubmit = !!selected && canScan && qtyValid && !!effectiveToLocation.trim()
+
   function selectById(id: string) {
     const hit = assets.find((a) => a.id === id || a.id.toLowerCase() === id.toLowerCase())
     if (hit) {
@@ -45,10 +59,9 @@ export default function Scanner() {
   }
 
   function submit() {
-    const qty = Number(quantity)
-    if (!selected || !Number.isInteger(qty) || qty < 1 || !toLocation.trim()) return
+    if (!canSubmit || !selected) return
     scan.mutate(
-      { action, quantity: qty, toLocation: toLocation.trim(), note: note.trim() || undefined },
+      { action, quantity: qtyNum, toLocation: effectiveToLocation.trim(), note: note.trim() || undefined },
       {
         onSuccess: (res) => {
           toast({ tone: 'success', title: t('scanner.recorded'), message: `${selected.name} · ${res.movement.toLocation}` })
@@ -133,30 +146,41 @@ export default function Scanner() {
                 <AssetQr value={selected.id} label={selected.id} size={108} />
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.action')}</label>
-                <SegmentedControl options={actionOptions} value={action} onChange={setAction} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.quantity')}</label>
-                  <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+              {!canScan ? (
+                <div className="flex items-start gap-2.5 rounded-md border border-border-subtle bg-surface-muted px-3.5 py-3 text-[13px] text-text-secondary">
+                  <Lock className="mt-0.5 size-4 shrink-0 text-text-tertiary" />
+                  <span>{t('scanner.readOnlyNotice')}</span>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.toLocation')}</label>
-                  <Input value={toLocation} onChange={(e) => setToLocation(e.target.value)} placeholder={t('scanner.toLocationPlaceholder')} suffix={<PackageCheck className="size-4 text-text-tertiary" />} />
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.action')}</label>
+                    <SegmentedControl options={actionOptions} value={action} onChange={setAction} />
+                  </div>
 
-              <div>
-                <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.note')}</label>
-                <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('scanner.notePlaceholder')} />
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.quantity')}</label>
+                      <Input type="number" min={1} max={qtyMax} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                    </div>
+                    {!isCheckIn && (
+                      <div>
+                        <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.toLocation')}</label>
+                        <Input value={toLocation} onChange={(e) => setToLocation(e.target.value)} placeholder={t('scanner.toLocationPlaceholder')} suffix={<PackageCheck className="size-4 text-text-tertiary" />} />
+                      </div>
+                    )}
+                  </div>
 
-              <Button fullWidth loading={scan.isPending} disabled={!toLocation.trim() || Number(quantity) < 1} onClick={submit}>
-                {t('scanner.record')}
-              </Button>
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-[550] text-text-secondary">{t('scanner.note')}</label>
+                    <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('scanner.notePlaceholder')} />
+                  </div>
+
+                  <Button fullWidth loading={scan.isPending} disabled={!canSubmit} onClick={submit}>
+                    {t('scanner.record')}
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </section>

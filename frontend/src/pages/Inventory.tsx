@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Boxes, CalendarDays } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { AlertTriangle, Boxes } from 'lucide-react'
 import { useAssets } from '@/api/hooks'
 import type { AssetWithAvailability } from '@/api/types/assets'
 import { useT } from '@/i18n/useT'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Input'
 import { InventoryMeter, type InventoryState } from '@/components/command/InventoryMeter'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
@@ -32,9 +32,10 @@ function toRow(a: AssetWithAvailability): Row {
 
 export default function Inventory() {
   const t = useT()
+  const navigate = useNavigate()
   const [type, setType] = useState('')
-  const [start] = useState('')
-  const [end] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
 
   const { data, isLoading, isError, refetch } = useAssets({
     type: type || undefined,
@@ -58,23 +59,33 @@ export default function Inventory() {
         breadcrumb={[t('nav.resources'), t('nav.inventory')]}
         title={t('inventory.title')}
         subtitle={subtitle}
-        actions={
-          <Button variant="secondary" size="sm">
-            <CalendarDays className="size-4" aria-hidden />
-            {t('inventory.changeWindow')}
-          </Button>
-        }
         filters={
-          <>
+          <div className="flex flex-wrap items-center gap-2.5">
             <Select className="w-44" value={type} onChange={(e) => setType(e.target.value)}>
               <option value="">{t('ui.common.all')}</option>
               {TYPES.map((x) => (
                 <option key={x} value={x}>
-                  {x}
+                  {t(`assetType.${x}`)}
                 </option>
               ))}
             </Select>
-          </>
+            <input
+              type="datetime-local"
+              aria-label={t('inventory.windowStart')}
+              lang="en-GB"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="h-9 rounded-md border border-border-subtle bg-surface px-2.5 text-[13px] text-text-primary [color-scheme:light]"
+            />
+            <input
+              type="datetime-local"
+              aria-label={t('inventory.windowEnd')}
+              lang="en-GB"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="h-9 rounded-md border border-border-subtle bg-surface px-2.5 text-[13px] text-text-primary [color-scheme:light]"
+            />
+          </div>
         }
       />
 
@@ -114,6 +125,7 @@ export default function Inventory() {
               held={r.held}
               total={r.total}
               state={r.state}
+              onClick={() => navigate(`/inventory/${r.id}`)}
               className="px-5 last:border-b-0"
             />
           ))}

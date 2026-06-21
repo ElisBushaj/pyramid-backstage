@@ -1,25 +1,66 @@
-import { useState } from 'react'
-import { useParams } from 'react-router'
-import { Pencil, ArrowRight, MapPin } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
+import { Pencil, ArrowRight, MapPin, PackageSearch } from 'lucide-react'
 import { useAssets, useAssetMovements, useMe, useUpdateAsset } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { cn } from '@/lib/cn'
+import { formatDateTime } from '@/lib/format'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/Feedback'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AssetQr } from '@/components/command/AssetQr'
-import type { AssetInput } from '@/api/types/assets'
+import { Pager } from '@/components/command/Pager'
+import type {
+  AssetInput,
+  AssetMovement,
+  AssetMovementAction,
+  AssetStatus,
+  AssetType,
+} from '@/api/types/assets'
+
+const ASSET_TYPES: AssetType[] = [
+  'SEATING',
+  'TABLE',
+  'MICROPHONE',
+  'SCREEN',
+  'PROJECTOR',
+  'STAGE_UNIT',
+  'LIGHTING',
+  'OTHER',
+]
+const ASSET_STATUSES: AssetStatus[] = ['ACTIVE', 'MAINTENANCE', 'RETIRED']
+
+const MOVEMENT_LABEL_KEY: Record<AssetMovementAction, string> = {
+  CHECK_OUT: 'scanner.checkOut',
+  CHECK_IN: 'scanner.checkIn',
+  RELOCATE: 'scanner.relocate',
+}
 
 export default function AssetDetail() {
   const { id } = useParams()
   const t = useT()
+  const navigate = useNavigate()
   const locale = useLocaleStore((s) => s.locale)
   const assetsQuery = useAssets({})
   const me = useMe().data
   const asset = assetsQuery.data?.find((a) => a.id === id)
-  const movements = useAssetMovements(id).data ?? []
+  const [movePage, setMovePage] = useState(1)
+  const MOVE_PAGE_SIZE = 20
+  const movementsQuery = useAssetMovements(id, { page: movePage, pageSize: MOVE_PAGE_SIZE })
+  const movements = movementsQuery.data?.data ?? []
+  const moveMeta = movementsQuery.data
+  // This component is reused across /inventory/:id param changes (no remount), so
+  // reset the ledger page when the asset changes, and clamp if it shrinks.
+  useEffect(() => {
+    setMovePage(1)
+  }, [id])
+  useEffect(() => {
+    if (moveMeta && movePage > moveMeta.totalPages) setMovePage(moveMeta.totalPages)
+  }, [moveMeta, movePage])
   const update = useUpdateAsset(id ?? '')
 
   const canEdit = me ? ['OPS', 'MANAGER', 'ADMIN'].includes(me.role) : false
@@ -36,19 +77,35 @@ export default function AssetDetail() {
       </div>
     )
   }
-  if (assetsQuery.isError || !asset) {
+  if (assetsQuery.isError) {
     return <ErrorState title={t('inventory.loadError')} message={t('error.generic')} onRetry={() => assetsQuery.refetch()} retryLabel={t('ui.common.retry')} />
+  }
+  // List loaded but the :id isn't in it — a stale/invalid URL. Refetching won't
+  // help; offer a way back to the inventory list instead of a retry loop.
+  if (!asset) {
+    return (
+      <EmptyState
+        icon={PackageSearch}
+        title={t('inventory.notFoundTitle')}
+        message={t('inventory.notFoundBody')}
+        action={{ label: t('inventory.backToList'), onClick: () => navigate('/inventory') }}
+      />
+    )
   }
 
   const total = asset.totalQuantity
   const available = asset.availableQuantity ?? total
   const held = Math.max(0, total - available)
   const checkedOut = asset.checkedOutQuantity ?? 0
-  const fmtAt = (iso: string) => new Intl.DateTimeFormat(locale === 'al' ? 'sq-AL' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
+  const fmtAt = (iso: string) => formatDateTime(iso, locale)
 
   function saveEdit() {
     update.mutate(draft, { onSuccess: () => setEditing(false) })
   }
+  function set<K extends keyof AssetInput>(key: K, value: AssetInput[K]) {
+    setDraft((d) => ({ ...d, [key]: value }))
+  }
+  const cur = { ...asset, ...draft }
 
   return (
     <div>
@@ -83,13 +140,66 @@ export default function AssetDetail() {
         {/* Details */}
         <section className="min-w-[280px] flex-1 rounded-lg border border-border-subtle p-5">
           <h2 className="mb-2 text-[15px] font-[600] text-text-primary">{t('inventory.details')}</h2>
-          <Field label={t('inventory.type')} value={<span className="capitalize">{asset.type.toLowerCase().replace('_', ' ')}</span>} />
-          <Field label={t('inventory.location')} value={asset.location} />
-          <Field label={t('inventory.totalUnits')} value={String(total)} />
-          <div className="flex items-center justify-between py-[11px]">
-            <span className="text-[14px] text-text-secondary">{t('audit.action')}</span>
-            <StatusBadge status={asset.status} />
-          </div>
+          {editing ? (
+            <>
+              <Field
+                label={t('inventory.type')}
+                value={
+                  <Select
+                    aria-label={t('inventory.type')}
+                    value={cur.type}
+                    onValueChange={(v) => set('type', v as AssetType)}
+                    options={ASSET_TYPES.map((ty) => ({ value: ty, label: t(`assetType.${ty}`) }))}
+                    triggerClassName="w-[180px]"
+                  />
+                }
+              />
+              <Field
+                label={t('inventory.location')}
+                value={
+                  <Input
+                    aria-label={t('inventory.location')}
+                    value={cur.location}
+                    onChange={(e) => set('location', e.target.value)}
+                    className="w-[180px]"
+                  />
+                }
+              />
+              <Field
+                label={t('inventory.totalUnits')}
+                value={
+                  <Input
+                    aria-label={t('inventory.totalUnits')}
+                    type="number"
+                    min={0}
+                    value={String(cur.totalQuantity)}
+                    onChange={(e) => set('totalQuantity', Math.max(0, Number(e.target.value) || 0))}
+                    className="w-[120px]"
+                  />
+                }
+              />
+              <div className="flex items-center justify-between py-[11px]">
+                <span className="text-[14px] text-text-secondary">{t('inventory.status')}</span>
+                <Select
+                  aria-label={t('inventory.status')}
+                  value={cur.status}
+                  onValueChange={(v) => set('status', v as AssetStatus)}
+                  options={ASSET_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) }))}
+                  triggerClassName="w-[180px]"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <Field label={t('inventory.type')} value={t(`assetType.${asset.type}`)} />
+              <Field label={t('inventory.location')} value={asset.location} />
+              <Field label={t('inventory.totalUnits')} value={String(total)} />
+              <div className="flex items-center justify-between py-[11px]">
+                <span className="text-[14px] text-text-secondary">{t('inventory.status')}</span>
+                <StatusBadge status={asset.status} />
+              </div>
+            </>
+          )}
         </section>
 
         {/* F16 — QR tag + live movement ledger. */}
@@ -106,22 +216,18 @@ export default function AssetDetail() {
             {movements.length === 0 ? (
               <EmptyState title={t('inventory.noMovements')} message={`${available}/${total} ${t('inventory.available').toLowerCase()}`} />
             ) : (
-              <ol className="relative space-y-3 border-l border-border-subtle pl-4">
-                {movements.map((m) => (
-                  <li key={m.id} className="relative">
-                    <span className="absolute -left-[21px] top-1 size-2 rounded-full bg-accent" />
-                    <div className="flex items-center gap-2 text-[13px]">
-                      <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-[600] uppercase text-text-secondary">{t(`scanner.${m.action === 'CHECK_OUT' ? 'checkOut' : m.action === 'CHECK_IN' ? 'checkIn' : 'relocate'}`)}</span>
-                      <span className="font-mono font-[600] tabular-nums text-text-primary">{m.quantity}</span>
-                      <span className="flex items-center gap-1 text-text-secondary">
-                        {m.fromLocation && <>{m.fromLocation} <ArrowRight className="size-3" /></>}
-                        <span className="font-[550] text-text-primary">{m.toLocation}</span>
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-text-tertiary">{fmtAt(m.at)}{m.note ? ` · ${m.note}` : ''}</p>
-                  </li>
-                ))}
-              </ol>
+              <>
+                <MovementSections movements={movements} fmtAt={fmtAt} t={t} />
+                {moveMeta && (
+                  <Pager
+                    page={moveMeta.page}
+                    pageSize={moveMeta.pageSize}
+                    total={moveMeta.total}
+                    totalPages={moveMeta.totalPages}
+                    onPageChange={setMovePage}
+                  />
+                )}
+              </>
             )}
           </div>
         </section>
@@ -153,5 +259,72 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-[14px] text-text-secondary">{label}</span>
       <span className="text-[14px] font-[550] text-text-primary">{value}</span>
     </div>
+  )
+}
+
+function MovementSections({
+  movements,
+  fmtAt,
+  t,
+}: {
+  movements: AssetMovement[]
+  fmtAt: (iso: string) => string
+  t: ReturnType<typeof import('@/i18n/useT').useT>
+}) {
+  const checkouts = movements.filter((m) => m.action === 'CHECK_OUT' || m.action === 'CHECK_IN')
+  const relocations = movements.filter((m) => m.action !== 'CHECK_OUT' && m.action !== 'CHECK_IN')
+
+  return (
+    <div className="flex flex-col gap-5">
+      {checkouts.length > 0 && (
+        <div>
+          <p className="mb-2.5 text-[12px] font-[600] uppercase tracking-[0.04em] text-text-tertiary">
+            {t('inventory.checkoutHistory')}
+          </p>
+          <MovementList movements={checkouts} fmtAt={fmtAt} t={t} />
+        </div>
+      )}
+      {relocations.length > 0 && (
+        <div>
+          <p className="mb-2.5 text-[12px] font-[600] uppercase tracking-[0.04em] text-text-tertiary">
+            {t('inventory.movementLog')}
+          </p>
+          <MovementList movements={relocations} fmtAt={fmtAt} t={t} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MovementList({
+  movements,
+  fmtAt,
+  t,
+}: {
+  movements: AssetMovement[]
+  fmtAt: (iso: string) => string
+  t: ReturnType<typeof import('@/i18n/useT').useT>
+}) {
+  return (
+    <ol className="relative space-y-3 border-l border-border-subtle pl-4">
+      {movements.map((m) => (
+        <li key={m.id} className="relative">
+          <span className="absolute -left-[21px] top-1 size-2 rounded-full bg-accent" />
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-[600] uppercase text-text-secondary">
+              {t(MOVEMENT_LABEL_KEY[m.action])}
+            </span>
+            <span className="font-mono font-[600] tabular-nums text-text-primary">{m.quantity}</span>
+            <span className="flex items-center gap-1 text-text-secondary">
+              {m.fromLocation && <>{m.fromLocation} <ArrowRight className="size-3" /></>}
+              <span className="font-[550] text-text-primary">{m.toLocation}</span>
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-text-tertiary">
+            {fmtAt(m.at)}{m.note ? ` · ${m.note}` : ''}
+          </p>
+        </li>
+      ))}
+    </ol>
   )
 }

@@ -12,8 +12,9 @@ import { runSerializable } from "../../utils/tx";
 class ApprovalsService {
   /**
    * Approve (MANAGER+): confirm the request's HELD reservations and move it to
-   * SCHEDULED — all in one transaction (DEMO Beat 3). If any hold expired before
-   * approval, return 409 {conflicts} and leave everything unchanged (re-plan).
+   * SCHEDULED — all in one transaction (DEMO Beat 3). If a hold expired: a retaken
+   * slot → 409 {conflicts} (re-plan); a merely-lapsed lease → 410 hold_expired
+   * (re-hold). Everything is left unchanged on either error. (ADR-0015)
    */
   async approve(actor: Actor, requestId: string): Promise<ServiceResponse<EventRequest>> {
     // guard both legal edges before mutating
@@ -34,15 +35,15 @@ class ApprovalsService {
       for (const h of holds) {
         if (h.expiresAt && h.expiresAt.getTime() <= now.getTime()) {
           // The lease lapsed. Re-detect against live state: a real clash means the slot
-          // is gone → 409 {conflicts} so the AI can re-plan; an empty result is pure
-          // contention (nobody took it) → 429 retryable, never a degenerate
-          // conflict-with-no-conflicts and never a stale confirm.
+          // was retaken → 409 {conflicts} so the AI can re-plan; an empty result means the
+          // lease merely expired with nobody contending → 410 hold_expired (re-hold), never
+          // a degenerate conflict-with-no-conflicts and never a stale confirm. (ADR-0015)
           const conflicts = await detectConflicts({
             spaceId: h.spaceId, start: h.start, end: h.end,
             requestedAssets: h.assets.map((a) => ({ assetId: a.assetId, quantity: a.quantity })),
             excludeReservationId: h.id, tx,
           });
-          if (conflicts.length === 0) throw APIError.rateLimited();
+          if (conflicts.length === 0) throw APIError.gone("reservation.hold_expired");
           throw APIError.conflict(conflicts, "reservation.expired");
         }
       }

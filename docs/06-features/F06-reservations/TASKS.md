@@ -1,7 +1,7 @@
 ---
 id: F06
 name: Reservations
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F06 — Tasks
@@ -69,3 +69,22 @@ last_updated: 2026-06-19
   - Post-condition: the summed allocation never exceeds `totalQuantity`; no partial/half-written reservation exists for the loser.
   - The same race is asserted for `SPACE_DOUBLE_BOOKED` (two parallel holds for one space window → one wins).
   - Runs in CI; tsc clean.
+
+### F06-T07 — confirm: symmetric 410 hold_expired (ADR-0015)
+- Status: done
+- Depends on: F06-T04
+- Estimate: 0.25d
+- Acceptance:
+  - `reservations.confirm` on an expired hold branches on the re-detected conflict set: empty → `410 reservation.hold_expired`; non-empty → `409 reservation.expired` + `Conflict[]` (was always 409).
+  - `reservations.hold()` post-retry `429` (genuine serialization contention) is UNCHANGED; `reservations.concurrency.test.ts` untouched.
+  - `reservations.test.ts` confirm-expired split into a 410 (uncontested) and a 409 (retaken) case. tsc + vitest green.
+
+### F06-T08 — GET /private/reservations?start&end[&spaceId][&status] → ScheduleEntry[] (ADR-0016)
+- Status: done
+- Depends on: F06-T02 , F05-T02
+- Estimate: 1d
+- Acceptance:
+  - New read route `GET /api/v1/private/reservations` (requireAuth; PARTNER row-scoped by ownership) returns reservations overlapping `[start,end]` as `ScheduleEntry` (id, spaceId, requestId, requestTitle, attendees, status, start, end, setup/teardownBufferMinutes).
+  - `start`+`end` required (ISO, start<end, bounded span); optional `spaceId`, `status` (HELD|CONFIRMED, default both); validated via `ValidationHelpers`+express-validator; overlap via `utils/time.ts`.
+  - `ScheduleEntry` schema (with `example`) + path added to `openapi.yaml`; DTO in `src/types/api/reservations.ts`; mirrored in `frontend/src/api/types/reservations.ts`; contract test green.
+  - Integration test (real Postgres): seeded HELD + CONFIRMED reservations in a window are returned with correct fields; `spaceId`/`status` filters narrow; out-of-window excluded; PARTNER sees only owned rows. tsc + vitest green.

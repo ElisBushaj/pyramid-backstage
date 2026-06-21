@@ -29,3 +29,17 @@ export interface ReservationInput {
   assets?: ReservedAsset[]
   holdMinutes?: number
 }
+
+/** A live reservation window for the schedule timelines (ADR-0016). */
+export interface ScheduleEntry {
+  id: string
+  spaceId: string
+  requestId: string
+  requestTitle: string
+  attendees: number
+  status: 'HELD' | 'CONFIRMED'
+  start: string
+  end: string
+  setupBufferMinutes: number
+  teardownBufferMinutes: number
+}

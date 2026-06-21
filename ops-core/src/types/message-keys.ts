@@ -15,6 +15,7 @@ export const MESSAGE_KEYS = [
   "common.invalid_transition",
   "common.idempotency_mismatch",
   "common.rate_limited",
+  "common.gone",
   "common.internal",
   // ── validation ─────────────────────────────────────────────────────────────
   "validation.failed",
@@ -73,7 +74,9 @@ export const MESSAGE_KEYS = [
   "reservation.released",
   "reservation.conflict",
   "reservation.expired",
+  "reservation.hold_expired",
   "reservation.invalid_transition",
+  "reservation.schedule.success",
   // ── quotes ─────────────────────────────────────────────────────────────────
   "quote.generated",
   "quote.invalid_transition",

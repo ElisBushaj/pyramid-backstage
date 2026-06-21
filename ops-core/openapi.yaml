@@ -275,7 +275,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties: { data: { type: array, items: { $ref: "#/components/schemas/AssetMovement" } } }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -296,7 +296,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties:
                       data:
@@ -424,8 +424,10 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/InvalidTransition" }
-    # NB: if a held reservation expired before approval, approve returns 409 conflict
-    #     with the offending Conflict[] so the AI can re-plan.
+        "410": { $ref: "#/components/responses/Gone" }
+    # NB: if a held reservation expired before approval (ADR-0015): a RETAKEN slot returns
+    #     409 conflict with the offending Conflict[] (re-plan); a merely-lapsed lease with
+    #     no live conflict returns 410 gone reservation.hold_expired (re-hold the space).
 
   /private/requests/{id}/reject:
     parameters: [{ $ref: "#/components/parameters/PathId" }]
@@ -448,6 +450,26 @@ paths:
 
   # ── reservations ───────────────────────────────────────────────────────────
   /private/reservations:
+    get:
+      tags: [reservations]
+      summary: Live reservation windows overlapping [start,end] for the schedule timelines (VIEWER+, ADR-0016)
+      parameters:
+        - { in: query, name: start, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: end, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: spaceId, required: false, schema: { type: string, format: uuid } }
+        - { in: query, name: status, required: false, schema: { type: string, enum: [HELD, CONFIRMED] } }
+      responses:
+        "200":
+          description: Live reservation windows
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: "#/components/schemas/ScheduleEntry" } }
+        "422": { $ref: "#/components/responses/Validation" }
     post:
       tags: [reservations]
       summary: Hold a space + assets for a request (atomic)
@@ -483,7 +505,10 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/ReservationEnvelope" }
         "404": { $ref: "#/components/responses/NotFound" }
+        # 409 covers both an illegal transition (RELEASED→CONFIRMED) and an expired-retaken
+        # hold (reservation.expired + Conflict[]); 410 is a lapsed-uncontested lease (ADR-0015).
         "409": { $ref: "#/components/responses/InvalidTransition" }
+        "410": { $ref: "#/components/responses/Gone" }
 
   /private/reservations/{id}/release:
     parameters: [{ $ref: "#/components/parameters/PathId" }]
@@ -550,20 +575,24 @@ paths:
   /private/audit:
     get:
       tags: [audit]
-      summary: Decision / change history
+      summary: Decision / change history (paginated, oldest-first by default — ADR-0017)
       parameters:
         - { name: requestId, in: query, schema: { type: string } }
         - { name: entityType, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
       responses:
         "200":
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties:
                       data: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ── dashboard (read-model for the command-center KPIs) ───────────────────────
   /private/dashboard/stats:
@@ -584,14 +613,17 @@ paths:
   /admin/users:
     get:
       tags: [admin]
-      summary: List staff users (ADMIN)
+      summary: List staff users (ADMIN, paginated — ADR-0017)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
         "200":
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - $ref: "#/components/schemas/ListEnvelope"
                   - type: object
                     properties: { data: { type: array, items: { $ref: "#/components/schemas/User" } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -711,6 +743,17 @@ components:
         message: { type: string }
         messageKey: { type: string, example: request.created.success }
         data: {}
+    ListEnvelope:
+      description: A ServiceEnvelope plus pagination metadata for list endpoints (ADR-0017).
+      allOf:
+        - $ref: "#/components/schemas/ServiceEnvelope"
+        - type: object
+          required: [total, page, pageSize, totalPages]
+          properties:
+            total: { type: integer, example: 137 }
+            page: { type: integer, example: 1 }
+            pageSize: { type: integer, example: 20 }
+            totalPages: { type: integer, example: 7 }
 
     # ── User / auth ──────────────────────────────────────────────────────────────
     User:
@@ -955,6 +998,21 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ReservedAsset" }
         holdMinutes: { type: integer, default: 30, description: HELD lease length }
+    ScheduleEntry:
+      type: object
+      description: A live reservation window for the schedule timelines (ADR-0016).
+      required: [id, spaceId, requestId, requestTitle, attendees, status, start, end, setupBufferMinutes, teardownBufferMinutes]
+      properties:
+        id: { type: string, example: resv_1 }
+        spaceId: { type: string, example: space_blue }
+        requestId: { type: string, example: req_8x2 }
+        requestTitle: { type: string, example: FinTech Startup Conference }
+        attendees: { type: integer, example: 180 }
+        status: { type: string, enum: [HELD, CONFIRMED], example: CONFIRMED }
+        start: { type: string, format: date-time, example: "2026-07-22T09:00:00.000Z" }
+        end: { type: string, format: date-time, example: "2026-07-22T18:00:00.000Z" }
+        setupBufferMinutes: { type: integer, example: 240 }
+        teardownBufferMinutes: { type: integer, example: 120 }
 
     # ── Quote ──────────────────────────────────────────────────────────────────
     LineItem:
@@ -1128,6 +1186,9 @@ components:
       content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
     RateLimited:
       description: Too many attempts
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Gone:
+      description: A held lease lapsed with no live conflict — re-hold the space (ADR-0015)
       content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
     Validation:
       description: Field validation failed

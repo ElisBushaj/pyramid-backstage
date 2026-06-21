@@ -1,6 +1,6 @@
 import { APIError } from './api-error'
 import { useLocaleStore } from '@/stores/locale'
-import type { ErrorEnvelope, ServiceResponse } from './types/_envelope'
+import type { ErrorEnvelope, ServiceResponse, Paginated } from './types/_envelope'
 
 /** ops-core base, e.g. http://localhost:4000/api/v1. */
 const BASE_URL = import.meta.env.VITE_OPS_CORE_URL ?? '/api/v1'
@@ -100,9 +100,52 @@ async function request<T>(
   return envelope.data
 }
 
+function errorFrom(payload: unknown, status: number, statusText: string): APIError {
+  const envelope = (payload ?? {}) as Partial<ErrorEnvelope>
+  return new APIError({
+    status: envelope.status ?? status,
+    error: envelope.error ?? 'internal',
+    message: envelope.message ?? statusText,
+    messageKey: envelope.messageKey,
+    conflicts: envelope.conflicts,
+    from: envelope.from,
+    to: envelope.to,
+    fields: envelope.fields,
+  })
+}
+
+/**
+ * GET an okList route, preserving the sibling pagination meta the server sends
+ * (total/page/pageSize/totalPages) instead of discarding it like `get` does
+ * (ADR-0017 / XC-3). Returns the full Paginated<T>.
+ */
+async function requestList<T>(path: string, opts: Omit<RequestOptions, 'body'> = {}): Promise<Paginated<T>> {
+  const response = await fetch(buildUrl(path, opts.query), {
+    method: 'GET',
+    credentials: 'include',
+    headers: { 'Accept-Language': localeProvider(), ...(opts.headers ?? {}) },
+    signal: opts.signal,
+  })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) throw errorFrom(payload, response.status, response.statusText)
+  const env = (payload ?? {}) as ServiceResponse<T[]> & Partial<Paginated<T>>
+  const data = (env.data ?? []) as T[]
+  const pageSize = env.pageSize ?? (data.length || 1)
+  const total = env.total ?? data.length
+  return {
+    data,
+    total,
+    page: env.page ?? 1,
+    pageSize,
+    totalPages: env.totalPages ?? Math.max(1, Math.ceil(total / pageSize)),
+  }
+}
+
 export const api = {
   get: <T>(path: string, opts?: Omit<RequestOptions, 'body'>) =>
     request<T>('GET', path, opts),
+  getList: <T>(path: string, opts?: Omit<RequestOptions, 'body'>) =>
+    requestList<T>(path, opts),
   post: <T>(path: string, opts?: RequestOptions) =>
     request<T>('POST', path, opts),
   patch: <T>(path: string, opts?: RequestOptions) =>

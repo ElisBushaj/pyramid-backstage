@@ -3,6 +3,16 @@ import { controlledResponse } from "../../controllers/_core";
 import { reservationsService } from "./service";
 
 export class ReservationsController {
+  @controlledResponse("get")
+  static async schedule(req: Request, _res: Response) {
+    return reservationsService.schedule({
+      start: new Date(req.query.start as string),
+      end: new Date(req.query.end as string),
+      spaceId: req.query.spaceId as string | undefined,
+      status: req.query.status as "HELD" | "CONFIRMED" | undefined,
+    });
+  }
+
   @controlledResponse("post")
   static async hold(req: Request, _res: Response) {
     return reservationsService.hold(req.actor!, req.body);

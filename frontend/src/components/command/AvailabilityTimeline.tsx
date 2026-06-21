@@ -1,5 +1,6 @@
-import { forwardRef, useState } from 'react'
+import { createContext, forwardRef, useContext, useMemo, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { useT } from '@/i18n/useT'
 import { Badge } from '@/components/ui/Badge'
 import {
   Popover,
@@ -23,22 +24,43 @@ import {
  * SAMPLE_TIMELINE_LANES for storybook/preview use.
  */
 
-// Axis constants (the canvas digital twin runs the venue's operating day).
+// The default canvas window is the venue's core operating day (08:00–20:00), but
+// the axis AUTO-FITS to the day's real reservations so an event outside that window
+// (e.g. an evening concert) is never clamped to zero width and silently hidden.
 const START_H = 8
 const END_H = 20
-const SPAN = END_H - START_H // 12
 
-/** % offset along the track for a given decimal hour. */
-function pos(h: number): number {
-  // Clamp to the visible axis so a reservation (or its buffer) outside 08:00–20:00
-  // renders at the edge instead of a negative / >100% offset.
-  return Math.max(0, Math.min(100, ((h - START_H) / SPAN) * 100))
+interface Axis {
+  startH: number
+  endH: number
+}
+const AxisContext = createContext<Axis>({ startH: START_H, endH: END_H })
+
+/** % offset along the track for a decimal hour, within the active axis. */
+function pos(h: number, axis: Axis): number {
+  const span = axis.endH - axis.startH
+  return Math.max(0, Math.min(100, ((h - axis.startH) / span) * 100))
 }
 
-const HOUR_TICKS = Array.from(
-  { length: SPAN / 2 + 1 },
-  (_, i) => START_H + i * 2,
-) // [8,10,12,14,16,18,20]
+/** Even 2-hour ticks spanning the active axis. */
+function axisTicks(axis: Axis): number[] {
+  const ticks: number[] = []
+  for (let h = Math.ceil(axis.startH / 2) * 2; h <= axis.endH; h += 2) ticks.push(h)
+  return ticks
+}
+
+/** Fit the axis to the day's bars (incl. buffers), never shrinking below 08–20, clamped [0,24]. */
+function computeAxis(lanes: TimelineLane[]): Axis {
+  let startH = START_H
+  let endH = END_H
+  for (const lane of lanes) {
+    for (const r of lane.reservations) {
+      startH = Math.min(startH, r.start - (r.setup ?? 0))
+      endH = Math.max(endH, r.end + (r.teardown ?? 0))
+    }
+  }
+  return { startH: Math.max(0, Math.floor(startH)), endH: Math.min(24, Math.ceil(endH)) }
+}
 
 export type TimelineStatus = 'confirmed' | 'held' | 'scheduled' | 'conflict'
 
@@ -156,21 +178,13 @@ function defaultDetail(r: TimelineReservation): string[] {
   return lines
 }
 
-interface LegendItem {
-  status: TimelineStatus
-  label: string
-}
-const LEGEND: LegendItem[] = [
-  { status: 'confirmed', label: 'confirmed' },
-  { status: 'held', label: 'held' },
-  { status: 'scheduled', label: 'scheduled' },
-  { status: 'conflict', label: 'conflict' },
-]
+const LEGEND: TimelineStatus[] = ['confirmed', 'held', 'scheduled', 'conflict']
 
 function Legend() {
+  const t = useT()
   return (
     <div className="mb-[18px] flex flex-wrap items-center gap-[18px]">
-      {LEGEND.map(({ status, label }) => {
+      {LEGEND.map((status) => {
         const c = STATUS[status]
         return (
           <div key={status} className="flex items-center gap-2">
@@ -182,7 +196,7 @@ function Legend() {
               )}
               aria-hidden
             />
-            <span className="text-[12px] text-text-secondary">{label}</span>
+            <span className="text-[12px] text-text-secondary">{t(`timeline.legend.${status}`)}</span>
           </div>
         )
       })}
@@ -193,7 +207,7 @@ function Legend() {
           aria-hidden
         />
         <span className="text-[12px] text-text-secondary">
-          setup / teardown buffer
+          {t('timeline.legend.buffer')}
         </span>
       </div>
     </div>
@@ -202,13 +216,14 @@ function Legend() {
 
 /** Vertical hour-tick lines + their top labels, shared by every lane track. */
 function HourTicks({ withLabels }: { withLabels: boolean }) {
+  const axis = useContext(AxisContext)
   return (
     <>
-      {HOUR_TICKS.map((h) => (
+      {axisTicks(axis).map((h) => (
         <div
           key={h}
           className="absolute top-0 bottom-0 border-l border-surface-sunken"
-          style={{ left: `${pos(h)}%` }}
+          style={{ left: `${pos(h, axis)}%` }}
           aria-hidden
         >
           {withLabels ? (
@@ -224,13 +239,15 @@ function HourTicks({ withLabels }: { withLabels: boolean }) {
 
 function Bar({ r }: { r: TimelineReservation }) {
   const [open, setOpen] = useState(false)
+  const axis = useContext(AxisContext)
   const c = STATUS[r.status]
   const setup = r.setup ?? 0
   const teardown = r.teardown ?? 0
 
-  const outerStart = pos(r.start - setup)
-  const outerEnd = pos(r.end + teardown)
-  const outerWidth = outerEnd - outerStart
+  const outerStart = pos(r.start - setup, axis)
+  const outerEnd = pos(r.end + teardown, axis)
+  // Floor at a sliver so a bar pinned to the axis edge can never render zero-width.
+  const outerWidth = Math.max(outerEnd - outerStart, 0.8)
   // Segment widths as a fraction of the wrapper's OWN width (the wrapper is
   // position-relative, so children size off 100% of it).
   const span = r.end + teardown - (r.start - setup)
@@ -415,22 +432,25 @@ export const AvailabilityTimeline = forwardRef<
   HTMLDivElement,
   AvailabilityTimelineProps
 >(({ lanes = SAMPLE_TIMELINE_LANES, className, ...props }, ref) => {
+  const axis = useMemo(() => computeAxis(lanes), [lanes])
   return (
     <div ref={ref} className={className} {...props}>
       <Legend />
-      <div
-        className="relative overflow-visible rounded-md border border-border-subtle pt-6"
-        role="grid"
-        aria-label="Availability timeline"
-      >
-        {lanes.map((lane, i) => (
-          <Lane
-            key={lane.id ?? lane.name}
-            lane={lane}
-            first={i === 0}
-          />
-        ))}
-      </div>
+      <AxisContext.Provider value={axis}>
+        <div
+          className="relative overflow-visible rounded-md border border-border-subtle pt-6"
+          role="grid"
+          aria-label="Availability timeline"
+        >
+          {lanes.map((lane, i) => (
+            <Lane
+              key={lane.id ?? lane.name}
+              lane={lane}
+              first={i === 0}
+            />
+          ))}
+        </div>
+      </AxisContext.Provider>
     </div>
   )
 })

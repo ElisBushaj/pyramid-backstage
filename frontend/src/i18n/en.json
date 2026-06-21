@@ -1,5 +1,11 @@
 {
   "ui": {
+    "pagination": {
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "prev": "Prev",
+      "next": "Next",
+      "page": "Page {{page}} of {{totalPages}}"
+    },
     "common": {
       "loading": "Loading…",
       "save": "Save",
@@ -53,7 +59,8 @@
     "footerNote": "Staff only · access is audited",
     "invalid": "Wrong email or password.",
     "rateLimited": "Too many attempts. Please wait and try again.",
-    "required": "Email and password are required."
+    "required": "Email and password are required.",
+    "failed": "Couldn't sign you in. Please try again."
   },
   "status": {
     "DRAFT": "Draft",
@@ -80,11 +87,22 @@
     "ACCEPTED": "Accepted",
     "EXPIRED": "Expired"
   },
+  "assetType": {
+    "SEATING": "Seating",
+    "TABLE": "Table",
+    "MICROPHONE": "Microphone",
+    "SCREEN": "Screen",
+    "PROJECTOR": "Projector",
+    "STAGE_UNIT": "Stage unit",
+    "LIGHTING": "Lighting",
+    "OTHER": "Other"
+  },
   "roles": {
     "ADMIN": "Admin",
     "MANAGER": "Manager",
     "OPS": "Ops",
-    "VIEWER": "Viewer"
+    "VIEWER": "Viewer",
+    "PARTNER": "Partner"
   },
   "conflict": {
     "SPACE_DOUBLE_BOOKED": "Space double-booked",
@@ -132,7 +150,9 @@
     "whereIsIt": "Where is it?",
     "whereIsItSub": "Assets currently checked out",
     "nothingOut": "Everything is in its home location.",
-    "unitsOut": "out"
+    "unitsOut": "out",
+    "spacesInUseSub_one": "{{count}} space in use",
+    "lowStockSub": "stock levels"
   },
   "requests": {
     "title": "Requests",
@@ -149,7 +169,7 @@
     "creating": "Creating…",
     "adjust": "Adjust request",
     "createAndPlan": "Create request & plan",
-    "intakeFixField": "Please fix the highlighted field",
+    "intakeFixField": "Please fix the highlighted fields",
     "subtitle": "{{active}} active · {{awaiting}} awaiting approval",
     "noActive": "No active requests",
     "idHeader": "Request",
@@ -211,7 +231,11 @@
     "loadError": "The connection to ops-core timed out.",
     "approvedToast": "Plan approved",
     "approvedToastBody": "Scheduled — reservations are confirmed.",
-    "rejectedToast": "Request rejected"
+    "rejectedToast": "Request rejected",
+    "narrativeFeasibleGeneric": "Yes — we can host this. {{space}} seats {{capacity}} in the requested layout and is free in the requested window, comfortably fitting {{attendees}} attendees. A reservation is held and a quote drafted.",
+    "narrativeDerivedNote": "AI summary unavailable — derived from the plan.",
+    "rejectReasonHint": "At least 3 characters — shared with the organizer.",
+    "alternativeFitsHint": "Fits the requested layout and headcount."
   },
   "quote": {
     "net": "Net",
@@ -239,7 +263,19 @@
     "loadError": "Couldn't load tasks",
     "loadErrorBody": "The connection to ops-core timed out.",
     "emptyTitle": "All caught up",
-    "emptyBody": "No open setup or teardown tasks. New tasks appear here when a plan is approved."
+    "emptyBody": "No open setup or teardown tasks. New tasks appear here when a plan is approved.",
+    "markTodo": "Mark as to do",
+    "markInProgress": "Mark as in progress",
+    "markDone": "Mark as done",
+    "newTitle": "New task",
+    "newEvent": "Event",
+    "newTaskTitle": "Task title",
+    "newPhase": "Phase",
+    "newOwner": "Owner",
+    "newDueOffset": "Due offset",
+    "newDueOffsetHint": "Hours relative to the event — negative before start (setup), positive after end (teardown). Leave empty for no due date.",
+    "newDueOffsetSuffix": "hrs",
+    "newSubmit": "Create task"
   },
   "spaces": {
     "title": "Spaces",
@@ -274,7 +310,10 @@
     "loadErrorList": "Couldn't load spaces",
     "held": "Held",
     "capacityForLayout": "capacity for requested layout",
-    "select": "Select"
+    "select": "Select",
+    "maxCapacity": "max capacity",
+    "featuresPlaceholder": "e.g. Stage, AV rig, Wi-Fi",
+    "featuresHint": "Separate features with commas"
   },
   "inventory": {
     "title": "Inventory",
@@ -305,10 +344,18 @@
     "availableLower": "available",
     "heldLower": "held",
     "movements": "Movement history",
+    "checkoutHistory": "Check-out history",
+    "movementLog": "Movement log",
     "noMovements": "No movements recorded yet.",
     "liveLocation": "Live location",
     "checkedOut": "Checked out",
-    "scan": "Scan"
+    "scan": "Scan",
+    "notFoundTitle": "Asset not found",
+    "notFoundBody": "This asset may have been removed, or the link is out of date.",
+    "backToList": "Back to inventory",
+    "status": "Status",
+    "windowStart": "Window start",
+    "windowEnd": "Window end"
   },
   "audit": {
     "title": "Audit",
@@ -329,7 +376,8 @@
     "emptyTitle": "No activity yet",
     "emptyBody": "Actions taken across the system will appear here as an append-only record.",
     "emptyFilter": "No activity for this filter",
-    "emptyFilterBody": "Try a different request or entity type."
+    "emptyFilterBody": "Try a different request or entity type.",
+    "entityTypeAll": "All types"
   },
   "users": {
     "title": "Staff",
@@ -366,7 +414,11 @@
     "notFound": "Page not found",
     "generic": "We hit an unexpected error.",
     "forbidden": "You don't have permission to view this.",
-    "timedOut": "The connection to ops-core timed out."
+    "timedOut": "The connection to ops-core timed out.",
+    "checkFields": "Please review the highlighted fields.",
+    "rateLimited": "Too many attempts — please wait and try again.",
+    "holdExpired": "This hold expired — re-hold the space to continue.",
+    "alreadyResolved": "This was already updated — please refresh."
   },
   "intake": {
     "tabForm": "Form",
@@ -394,7 +446,9 @@
       "organizerName": "Please enter a valid organizer name.",
       "expectedAttendees": "Please enter a valid attendee count.",
       "start": "Please enter a valid start time.",
-      "end": "Please enter a valid end time."
+      "end": "Please enter a valid end time.",
+      "contactEmail": "Please enter a valid email address.",
+      "contactPhone": "Please enter a valid phone number."
     }
   },
   "eventType": {
@@ -415,11 +469,23 @@
     "BOARDROOM": "Boardroom",
     "CUSTOM": "Custom"
   },
+  "timeline": {
+    "legend": {
+      "confirmed": "confirmed",
+      "held": "held",
+      "scheduled": "scheduled",
+      "conflict": "conflict",
+      "buffer": "setup / teardown buffer"
+    }
+  },
   "calendar": {
     "day": "Day",
     "week": "Week",
     "viewMode": "View mode",
     "today": "Today",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "pickDate": "Pick a date",
     "loadError": "Couldn't load the calendar",
     "loadErrorBody": "The connection to ops-core timed out.",
     "emptyTitle": "Nothing scheduled",
@@ -468,7 +534,8 @@
     "stopCamera": "Stop camera",
     "cameraHint": "Point the camera at an asset QR",
     "history": "Movement history",
-    "emptyHistory": "No movements yet"
+    "emptyHistory": "No movements yet",
+    "readOnlyNotice": "You don't have permission to record movements. Ask an operations team member to check this asset in or out."
   },
   "portal": {
     "title": "Partner Portal",
@@ -492,14 +559,23 @@
     "fStart": "Start",
     "fEnd": "End",
     "fAv": "AV / sound needed",
-    "fAvSub": "Microphones, screens, projectors"
+    "fAvSub": "Microphones, screens, projectors",
+    "backToRequests": "Back to my requests",
+    "notFoundTitle": "Request not found",
+    "notFoundBody": "This request may have been removed, or the link is out of date.",
+    "detailsHeading": "Request details",
+    "preferredDates": "Preferred dates",
+    "quoteTotal": "Proposal total",
+    "quoteTotalSub": "Estimated cost from your proposal",
+    "endAfterStart": "End must be after the start time"
   },
   "approvals": {
     "title": "Pending approvals",
     "subtitle": "Review proposed requests and approve or decline.",
     "emptyTitle": "Nothing pending",
     "emptyBody": "There are no requests awaiting approval.",
-    "aiSlot": "AI recommendation will appear here once the copilot is connected."
+    "aiSlot": "AI recommendation will appear here once the copilot is connected.",
+    "managerOnly": "Manager approval required"
   },
   "floorMap": {
     "title": "Floor map",
@@ -540,5 +616,30 @@
         "terrace": "Terrace"
       }
     }
+  },
+  "search": {
+    "placeholder": "Search requests, spaces, assets…",
+    "empty": "No matches found.",
+    "groupRequests": "Requests",
+    "groupSpaces": "Spaces",
+    "groupAssets": "Assets",
+    "spaceFloor": "Floor {{n}}"
+  },
+  "validation": {
+    "failed": "Some fields need attention.",
+    "required": "This field is required.",
+    "invalid": "This value isn't valid.",
+    "int": "Must be a whole number.",
+    "min": "Value is below the allowed minimum.",
+    "max": "Value is above the allowed maximum.",
+    "object": "Must be an object.",
+    "array": "Must be a non-empty list.",
+    "boolean": "Must be true or false.",
+    "length": "Length is out of the allowed range.",
+    "email": "Enter a valid email address.",
+    "enum": "Choose one of the allowed values.",
+    "datetime": "Enter a valid date and time.",
+    "range": "The start must be before the end.",
+    "uuid": "Must be a valid identifier."
   }
 }

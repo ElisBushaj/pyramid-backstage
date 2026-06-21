@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { AlertTriangle, Plus } from 'lucide-react'
 import {
@@ -5,6 +6,7 @@ import {
   useConflicts,
   useDashboardStats,
   useRequests,
+  useSchedule,
   useSpaces,
 } from '@/api/hooks'
 import type { Conflict } from '@/api/types/_envelope'
@@ -18,12 +20,14 @@ import { AssetLocationBoard } from '@/components/command/AssetLocationBoard'
 import { FloorMapPanel, deriveFloorStatuses } from '@/components/command/FloorMap'
 import { AvailabilityTimeline } from '@/components/command/AvailabilityTimeline'
 import { AuditTimeline } from '@/components/command/AuditTimeline'
+import { scheduleToLanes, venueToday, venueDayWindow } from '@/lib/schedule'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 
-/** "Tuesday, 22 July 2026" in the active locale (no clipping in AL). */
+/** "Tuesday, 22 July 2026" in the active locale, in venue time (no clipping in AL). */
 function formatToday(locale: 'al' | 'en'): string {
   const intl = locale === 'al' ? 'sq-AL' : 'en-GB'
   return new Intl.DateTimeFormat(intl, {
+    timeZone: 'Europe/Tirane',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -39,20 +43,41 @@ export default function Dashboard() {
   const { data: stats, isLoading, isError, refetch } = useDashboardStats()
   const { data: requests } = useRequests({ pageSize: 6 })
   const { data: conflicts } = useConflicts({})
-  const { data: audit } = useAudit({ pageSize: 8 })
+  const { data: audit } = useAudit({ pageSize: 8, order: 'desc' })
   const { data: spaces } = useSpaces({})
-  // F19 — light any clashing spaces red on the venue map (the digital twin at a glance).
+
+  // XC-1 — the live schedule timeline runs on real reservation windows for today
+  // (the venue-local day, DST-aware, so events near venue midnight aren't misfiled).
+  const scheduleWindow = useMemo(() => venueDayWindow(venueToday()), [])
+  const { data: scheduleEntries, isLoading: scheduleLoading } = useSchedule(scheduleWindow)
+
+  const conflictList = conflicts ?? []
+  // Every request id implicated in a live conflict — used to red-light its bar
+  // on the timeline and its space on the venue map (the digital twin at a glance).
+  const conflictRequestIds = conflictList.flatMap((c) => c.conflictingRequestIds ?? [])
+
+  // F19 — light any clashing spaces red on the venue map.
   const floorStatuses = deriveFloorStatuses(spaces ?? [], {
-    conflictSpaceIds: (conflicts ?? []).map((c) => c.spaceId).filter((x): x is string => !!x),
+    conflictSpaceIds: conflictList.map((c) => c.spaceId).filter((x): x is string => !!x),
   })
 
+  const scheduleLanes = useMemo(
+    () => scheduleToLanes(spaces ?? [], scheduleEntries ?? [], conflictRequestIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spaces, scheduleEntries, conflictRequestIds.join(',')],
+  )
+
   const today = formatToday(locale)
-  const subtitle =
+  const spacesInUseSub =
     stats != null
-      ? `${today} · ${t('dashboard.spacesInUseSub', {
-          count: stats.spacesInUse.inUse,
-        })}`
-      : today
+      ? t(
+          stats.spacesInUse.inUse === 1
+            ? 'dashboard.spacesInUseSub_one'
+            : 'dashboard.spacesInUseSub',
+          { count: stats.spacesInUse.inUse },
+        )
+      : null
+  const subtitle = spacesInUseSub != null ? `${today} · ${spacesInUseSub}` : today
 
   const newRequestAction = (
     <Button onClick={() => navigate('/requests/new')}>
@@ -105,7 +130,7 @@ export default function Dashboard() {
   }
 
   // ── empty (no events scheduled) ───────────────────────────────────────────
-  const noEvents = requests != null && requests.length === 0
+  const noEvents = requests != null && requests.data.length === 0
   if (noEvents) {
     return (
       <div className="flex flex-col gap-8">
@@ -129,7 +154,6 @@ export default function Dashboard() {
 
   // ── default ────────────────────────────────────────────────────────────────
   const s = stats
-  const conflictList = conflicts ?? []
 
   return (
     <div className="flex flex-col gap-6">
@@ -145,7 +169,7 @@ export default function Dashboard() {
           value={s?.eventsThisWeek.value ?? 0}
           trend={s?.eventsThisWeek.delta ? Math.abs(s.eventsThisWeek.delta) : undefined}
           trendUp={(s?.eventsThisWeek.delta ?? 0) >= 0}
-          sub={s?.eventsThisWeek.hint ?? t('dashboard.eventsSub')}
+          sub={t('dashboard.eventsSub')}
         />
         <KPIStat
           label={t('dashboard.spacesInUse')}
@@ -156,7 +180,7 @@ export default function Dashboard() {
           label={t('dashboard.lowStock')}
           value={s?.lowStockAssets.value ?? 0}
           alert={(s?.lowStockAssets.value ?? 0) > 0}
-          sub={s?.lowStockAssets.hint}
+          sub={t('dashboard.lowStockSub')}
         />
         <KPIStat
           label={t('dashboard.pendingApprovals')}
@@ -165,7 +189,7 @@ export default function Dashboard() {
             s?.pendingApprovals.delta ? Math.abs(s.pendingApprovals.delta) : undefined
           }
           trendUp={(s?.pendingApprovals.delta ?? 0) >= 0}
-          sub={s?.pendingApprovals.hint ?? t('dashboard.awaitingManager')}
+          sub={t('dashboard.awaitingManager')}
         />
       </div>
 
@@ -191,7 +215,17 @@ export default function Dashboard() {
             {t('dashboard.live')}
           </span>
         </div>
-        <AvailabilityTimeline />
+        {scheduleLoading && scheduleEntries == null ? (
+          <Card>
+            <CardBody className="flex flex-col gap-3.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-[34px] w-full" />
+              ))}
+            </CardBody>
+          </Card>
+        ) : (
+          <AvailabilityTimeline lanes={scheduleLanes} />
+        )}
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
@@ -204,7 +238,7 @@ export default function Dashboard() {
           <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
         </CardHeader>
         <CardBody>
-          <AuditTimeline entries={audit ?? []} />
+          <AuditTimeline entries={audit?.data ?? []} />
         </CardBody>
       </Card>
     </div>

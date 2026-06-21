@@ -1,7 +1,7 @@
 ---
 id: F09
 name: Audit & Ledger
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # F09 — Tasks
@@ -48,3 +48,12 @@ last_updated: 2026-06-19
   - Append-only test: there is no service/endpoint path that updates or deletes an `AuditEntry`; an attempt to mutate one is not exposed by the API.
   - `GET /audit?requestId` reconstructs the full ordered history for a request created and transitioned across the test.
   - tsc clean; runs in CI.
+
+### F09-T05 — paginate GET /private/audit (okList page/pageSize) (ADR-0017)
+- Status: done
+- Depends on: F09-T02
+- Estimate: 0.5d
+- Acceptance:
+  - `audit.service.list` returns `okList` with `take`/`skip` + total; `validators` accept bounded `page`/`pageSize` (default 50, max 100); `controller` parses+passes them.
+  - `openapi.yaml` documents `page`/`pageSize` params on `GET /private/audit` and points the list response at the shared `ListEnvelope`.
+  - Integration test (real Postgres): >pageSize entries paginate with correct `total`/`totalPages`; pageSize clamps to max; existing `requestId`/`entityType` filters still apply. tsc + vitest green.
