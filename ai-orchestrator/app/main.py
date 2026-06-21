@@ -39,6 +39,7 @@ from .schemas import (
     HealthResponse,
     OperationalPlan,
 )
+from .session import create_session_store
 
 
 @asynccontextmanager
@@ -51,6 +52,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     app.state.ops = OpsCoreClient()  # points at settings.OPS_CORE_URL (mock or real)
     app.state.graph = build_planning_graph()
+    # Conversation memory: Redis when reachable, else an in-memory fallback (the call
+    # never raises — it pings once and degrades silently). Shared across requests.
+    app.state.sessions = await create_session_store()
     # Warm the Anthropic connection so the first user request isn't a cold start.
     if settings.ANTHROPIC_API_KEY:
         try:
@@ -66,6 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await app.state.ops.aclose()
+        await app.state.sessions.aclose()
 
 
 app = FastAPI(
@@ -101,11 +106,16 @@ async def health() -> HealthResponse:
 async def chat(req: ChatRequest) -> ChatResponse:
     """Conversational copilot (stateful via ``sessionId``).
 
-    Gathers intake across turns (in-memory session); once it has enough, runs the
-    planning DAG and attaches the ``OperationalPlan`` + ``proposedActions`` gated
-    by ``requiresApproval`` — the AI proposes; a human + ops-core authorize (#3).
+    Gathers intake across turns (Redis-backed session, in-memory fallback); once it
+    has enough, runs the planning DAG and attaches the ``OperationalPlan`` +
+    ``proposedActions`` gated by ``requiresApproval`` — the AI proposes; a human +
+    ops-core authorize (#3). A standing plan is re-served for conversational
+    follow-ups, so a session never spawns duplicate reservation holds.
     """
-    return await handle_chat(req.sessionId, req.message, ops=app.state.ops, graph=app.state.graph)
+    return await handle_chat(
+        req.sessionId, req.message,
+        ops=app.state.ops, graph=app.state.graph, sessions=app.state.sessions,
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════════════

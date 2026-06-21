@@ -20,14 +20,30 @@ from .config import settings
 from .intake import _anthropic
 from .planning import build_operational_plan
 from .schemas import ChatResponse, OperationalPlan, ProposedAction
-from .session import get_sessions
+from .session import SessionStore
 
 _NUM = re.compile(r"\d{2,5}")
+# Date-shaped tokens stripped BEFORE looking for a headcount, so "on 2026-09-15" or
+# "the 22nd" never read as a crowd size (mirrors the intake heuristic). Without this,
+# any ISO date trips the count check and the self-contained-event reset — dropping an
+# earlier count mid-gather.
+_DATEY = re.compile(r"\b\d{4}-\d{2}-\d{2}\b|\b(?:19|20)\d{2}\b|\b\d{1,2}(?:st|nd|rd|th)\b", re.I)
 # Word-quantities ("a dozen", "a couple hundred") so the copilot doesn't re-ask for a
 # count it can already resolve via the intake LLM/heuristic.
 _WORDNUM = re.compile(
     r"\b(?:a\s+)?(?:dozen|hundred|handful|couple|few|several|"
     r"ten|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b",
+    re.I,
+)
+# A message that could MATERIALLY change the plan (count, date, layout, AV, catering,
+# or an explicit edit verb). Conversational follow-ups that match none of these
+# ("what's the total?", "who approves?", "thanks") reuse the standing plan instead of
+# re-running the graph — so a chat session never spawns duplicate holds (#3, #1).
+_CHANGE_HINT = re.compile(
+    r"\b(cater|food|lunch|dinner|coffee|buffet|snack|drinks|refreshment|"
+    r"mic|av|sound|audio|projector|screen|stage|speaker|presentation|"
+    r"theat(?:er|re)|classroom|banquet|reception|cabaret|boardroom|"
+    r"instead|change|swap|make it|actually|rather|prefer|update|move|reschedul|add)\b",
     re.I,
 )
 _DATE = re.compile(
@@ -46,11 +62,17 @@ _AFFIRM = {
 
 
 def _has_num(t: str) -> bool:
-    return bool(_NUM.search(t) or _WORDNUM.search(t))
+    """A HEADCOUNT signal — a number/word-number that isn't part of a date."""
+    return bool(_NUM.search(_DATEY.sub(" ", t)) or _WORDNUM.search(t))
 
 
 def _has_date(t: str) -> bool:
     return bool(_DATE.search(t))
+
+
+def _has_change(t: str) -> bool:
+    """True iff the message carries something that could change the plan."""
+    return _has_num(t) or _has_date(t) or bool(_CHANGE_HINT.search(t))
 
 
 def _is_affirmation(msg: str) -> bool:
@@ -70,6 +92,49 @@ def _approve_action(plan: OperationalPlan) -> list[ProposedAction]:
             payload={"requestId": plan.requestId},
         )
     ]
+
+
+def _plan_response(plan: OperationalPlan) -> ChatResponse:
+    """The standard reply for a freshly assembled OR re-served cached plan."""
+    if plan.feasible:
+        return ChatResponse(
+            reply=f"{plan.narrative} Shall I send it for approval?",
+            plan=plan,
+            proposedActions=_approve_action(plan),
+            requiresApproval=True,
+        )
+    return ChatResponse(
+        reply=f"{plan.narrative} Want me to try one of the alternatives?",
+        plan=plan,
+        proposedActions=[],
+        requiresApproval=False,
+    )
+
+
+async def _release_current(ops, sess: dict) -> None:
+    """Release this session's live HELD lease before a re-plan / new event.
+
+    Each graph run inserts a fresh reservation, and ops-core's hold even self-conflicts
+    against the request's own prior hold on the same space — so without this, holds
+    would stack until the reaper runs (#1). Best-effort: a missing/already-released
+    lease is a no-op, never fatal."""
+    rid = sess.get("reservation_id")
+    if not rid:
+        return
+    try:
+        await ops.release_reservation(rid)
+    except Exception:
+        pass
+    sess["reservation_id"] = None
+
+
+async def _finish(
+    sessions: SessionStore, session_id: str, sess: dict, resp: ChatResponse
+) -> ChatResponse:
+    """Record the assistant's reply in the transcript and persist the session."""
+    sess.setdefault("history", []).append({"role": "assistant", "content": resp.reply})
+    await sessions.save(session_id, sess)
+    return resp
 
 
 async def _phrase_question(brief: str, missing: list[str]) -> str:
@@ -108,31 +173,43 @@ async def _phrase_question(brief: str, missing: list[str]) -> str:
         return template
 
 
-async def handle_chat(session_id: str, message: str, *, ops, graph) -> ChatResponse:
-    store = get_sessions()
-    sess = store.get(session_id)
+async def handle_chat(
+    session_id: str, message: str, *, ops, graph, sessions: SessionStore
+) -> ChatResponse:
+    sess = await sessions.get(session_id)
+    sess.setdefault("history", []).append({"role": "user", "content": message})
 
-    # "yes/approve" on an existing feasible plan -> surface the gated action; never
-    # auto-commit, and don't re-plan (which would create a duplicate hold).
+    # 1. "yes/approve" on a standing feasible plan -> surface the gated action; never
+    #    auto-commit, and never re-plan (that would spawn a duplicate hold).
     if sess.get("plan") and _is_affirmation(message):
         plan = OperationalPlan.model_validate(sess["plan"])
         if plan.feasible:
-            return ChatResponse(
-                reply=(
-                    "Great — an admin can tap Approve to confirm; the hold stays for 30 minutes. "
-                    "(The AI proposes; a person authorizes the commit.)"
+            return await _finish(
+                sessions, session_id, sess,
+                ChatResponse(
+                    reply=(
+                        "Great — an admin can tap Approve to confirm; the hold stays for "
+                        "30 minutes. (The AI proposes; a person authorizes the commit.)"
+                    ),
+                    plan=plan,
+                    proposedActions=_approve_action(plan),
+                    requiresApproval=True,
                 ),
-                plan=plan,
-                proposedActions=_approve_action(plan),
-                requiresApproval=True,
             )
 
-    # A self-contained new request (has a count AND a date) starts a fresh brief —
-    # don't merge it into a prior event's context (the "event A bleeds into event B"
-    # bug). Partial/incremental messages still accumulate across turns to gather one.
-    if _has_num(message) and _has_date(message):
+    # 2. A self-contained NEW event (count AND date in one message, once a plan already
+    #    stands) starts a fresh brief — don't bleed event A into event B. An exact
+    #    re-send of the standing event is NOT new (step 4 re-serves its plan). Before a
+    #    plan exists we only accumulate, so a multi-turn gather never resets mid-way.
+    is_new_event = bool(sess.get("plan")) and _has_num(message) and _has_date(message)
+    if is_new_event and sess.get("brief_planned") != message:
+        await _release_current(ops, sess)  # abandon the prior event's hold
         sess["messages"] = [message]
         sess["plan"] = None
+        sess["brief_planned"] = None
+        sess["request_id"] = None
+    elif is_new_event:
+        sess["messages"] = [message]
     else:
         sess.setdefault("messages", []).append(message)
     brief = "  ".join(sess["messages"])
@@ -143,29 +220,31 @@ async def handle_chat(session_id: str, message: str, *, ops, graph) -> ChatRespo
     if not _has_date(brief):
         missing.append("roughly when (a date or month)")
     if missing:
-        store.save(session_id, sess)
-        return ChatResponse(
-            reply=await _phrase_question(brief, missing),
-            plan=None,
-            proposedActions=[],
-            requiresApproval=False,
+        return await _finish(
+            sessions, session_id, sess,
+            ChatResponse(
+                reply=await _phrase_question(brief, missing),
+                plan=None,
+                proposedActions=[],
+                requiresApproval=False,
+            ),
         )
 
+    # 3. Brief is complete. Re-serve the STANDING plan for conversational follow-ups
+    #    (no count/date/layout/AV/catering signal) or an identical brief — no graph run,
+    #    no new request, no duplicate hold. Only a real change falls through to re-plan.
+    if sess.get("plan") and (not _has_change(message) or sess.get("brief_planned") == brief):
+        return await _finish(
+            sessions, session_id, sess, _plan_response(OperationalPlan.model_validate(sess["plan"]))
+        )
+
+    # 4. First plan, or a genuine change -> release the prior hold (so leases never
+    #    stack), then run the deterministic DAG exactly once.
+    await _release_current(ops, sess)
     result = await graph.ainvoke({"ops": ops, "nl_text": brief})
     plan = build_operational_plan(result, None)
     sess["plan"] = plan.model_dump()
-    store.save(session_id, sess)
-
-    if plan.feasible:
-        return ChatResponse(
-            reply=f"{plan.narrative} Shall I send it for approval?",
-            plan=plan,
-            proposedActions=_approve_action(plan),
-            requiresApproval=True,
-        )
-    return ChatResponse(
-        reply=f"{plan.narrative} Want me to try one of the alternatives?",
-        plan=plan,
-        proposedActions=[],
-        requiresApproval=False,
-    )
+    sess["brief_planned"] = brief
+    sess["request_id"] = plan.requestId
+    sess["reservation_id"] = plan.reservation.id if plan.reservation else None
+    return await _finish(sessions, session_id, sess, _plan_response(plan))
