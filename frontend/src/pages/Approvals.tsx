@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { CheckCircle2, XCircle, Users, CalendarDays, Sparkles } from 'lucide-react'
+import { CheckCircle2, XCircle, Users, CalendarDays, Sparkles, Lock } from 'lucide-react'
 import { useRequests, useApprove, useReject } from '@/api/hooks'
+import { useCan } from '@/lib/abilities'
+import { useMutationToast } from '@/lib/apiError'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -9,11 +11,14 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton, ErrorState, EmptyState } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
+import { Pager } from '@/components/command/Pager'
 import type { EventRequest } from '@/api/types/requests'
 
 export default function Approvals() {
   const t = useT()
-  const { data: requests, isLoading, isError, refetch } = useRequests({ status: 'PROPOSED', pageSize: 50 })
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError, refetch } = useRequests({ status: 'PROPOSED', page })
+  const rows = data?.data ?? []
 
   return (
     <div>
@@ -23,14 +28,24 @@ export default function Approvals() {
           <div className="space-y-3">{[0, 1].map((i) => <Skeleton key={i} className="h-[120px] w-full rounded-lg" />)}</div>
         ) : isError ? (
           <ErrorState title={t('error.generic')} message={t('error.generic')} onRetry={() => refetch()} retryLabel={t('ui.common.retry')} />
-        ) : !requests || requests.length === 0 ? (
+        ) : rows.length === 0 ? (
           <EmptyState title={t('approvals.emptyTitle')} message={t('approvals.emptyBody')} />
         ) : (
           <ul className="flex flex-col gap-3.5">
-            {requests.map((r) => <ApprovalRow key={r.id} r={r} onDone={() => refetch()} />)}
+            {rows.map((r) => <ApprovalRow key={r.id} r={r} onDone={() => refetch()} />)}
           </ul>
         )}
       </div>
+
+      {data && (
+        <Pager
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          totalPages={data.totalPages}
+          onPageChange={(p) => setPage(p)}
+        />
+      )}
     </div>
   )
 }
@@ -38,6 +53,9 @@ export default function Approvals() {
 function ApprovalRow({ r, onDone }: { r: EventRequest; onDone: () => void }) {
   const t = useT()
   const { toast } = useToast()
+  const onMutationError = useMutationToast()
+  const can = useCan()
+  const canApprove = can('approve')
   const locale = useLocaleStore((s) => s.locale)
   const approve = useApprove(r.id)
   const reject = useReject(r.id)
@@ -49,14 +67,14 @@ function ApprovalRow({ r, onDone }: { r: EventRequest; onDone: () => void }) {
   function doApprove() {
     approve.mutate(undefined, {
       onSuccess: () => { toast({ tone: 'success', title: t('plan.approvedToast'), message: r.title }); onDone() },
-      onError: () => toast({ tone: 'danger', title: t('error.generic') }),
+      onError: onMutationError,
     })
   }
   function doReject() {
     if (reason.trim().length < 3) return
     reject.mutate(reason.trim(), {
       onSuccess: () => { toast({ tone: 'info', title: t('plan.rejectedToast') }); setRejecting(false); onDone() },
-      onError: () => toast({ tone: 'danger', title: t('error.generic') }),
+      onError: onMutationError,
     })
   }
 
@@ -72,7 +90,9 @@ function ApprovalRow({ r, onDone }: { r: EventRequest; onDone: () => void }) {
             {first && <span className="flex items-center gap-1"><CalendarDays className="size-3" /> {fmtDate(first.start)}</span>}
           </p>
         </div>
-        {!rejecting && (
+        {!canApprove ? (
+          <span className="flex items-center gap-1.5 text-[12px] text-text-tertiary"><Lock className="size-3.5" /> {t('approvals.managerOnly')}</span>
+        ) : !rejecting && (
           <div className="flex items-center gap-2.5">
             <Button variant="secondary" size="sm" onClick={() => setRejecting(true)}><XCircle className="size-3.5" /> {t('plan.reject')}</Button>
             <Button size="sm" loading={approve.isPending} onClick={doApprove}><CheckCircle2 className="size-3.5" /> {t('plan.approve')}</Button>
@@ -86,7 +106,7 @@ function ApprovalRow({ r, onDone }: { r: EventRequest; onDone: () => void }) {
         <p className="text-[12px] text-text-tertiary">{t('approvals.aiSlot')}</p>
       </div>
 
-      {rejecting && (
+      {canApprove && rejecting && (
         <div className="mt-3 flex flex-wrap items-center gap-2.5">
           <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('plan.rejectReasonPlaceholder')} className="min-w-[240px] flex-1" />
           <Button variant="secondary" size="sm" onClick={() => { setRejecting(false); setReason('') }}>{t('ui.common.cancel')}</Button>
