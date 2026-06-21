@@ -354,7 +354,9 @@
     "notFoundTitle": "Asset not found",
     "notFoundBody": "This asset may have been removed, or the link is out of date.",
     "backToList": "Back to inventory",
-    "status": "Status"
+    "status": "Status",
+    "windowStart": "Window start",
+    "windowEnd": "Window end"
   },
   "audit": {
     "title": "Audit",

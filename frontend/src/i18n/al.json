@@ -354,7 +354,9 @@
     "notFoundTitle": "Aktivi nuk u gjet",
     "notFoundBody": "Ky aktiv mund të jetë hequr, ose lidhja është e vjetëruar.",
     "backToList": "Kthehu te inventari",
-    "status": "Statusi"
+    "status": "Statusi",
+    "windowStart": "Fillimi i dritares",
+    "windowEnd": "Mbarimi i dritares"
   },
   "audit": {
     "title": "Auditimi",
