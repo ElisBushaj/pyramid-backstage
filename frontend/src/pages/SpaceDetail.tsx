@@ -8,6 +8,7 @@ import { useLocaleStore } from '@/stores/locale'
 import { formatMinor } from '@/lib/money'
 import { cn } from '@/lib/cn'
 import { scheduleToBars } from '@/lib/schedule'
+import { useMutationToast } from '@/lib/apiError'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Feedback'
@@ -39,9 +40,12 @@ export default function SpaceDetail() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Partial<SpaceInput>>({})
 
+  const onMutationError = useMutationToast()
   const dayWindow = useMemo(todayWindow, [])
   const schedule = useSchedule({ spaceId: id, start: dayWindow.start, end: dayWindow.end })
-  const bars = useMemo(() => scheduleToBars(schedule.data ?? []), [schedule.data])
+  // Defensive: only this space's bars belong in this lane, regardless of how the
+  // server scopes the windowed read.
+  const bars = useMemo(() => scheduleToBars((schedule.data ?? []).filter((e) => e.spaceId === id)), [schedule.data, id])
 
   const caps = useMemo(() => ({ ...(space?.capacities ?? {}), ...(draft.capacities ?? {}) }), [space, draft])
 
@@ -73,7 +77,10 @@ export default function SpaceDetail() {
 
   function saveEdit() {
     // caps merges space + draft capacities, so it must win over a partial draft.capacities.
-    update.mutate({ ...draft, capacities: caps as Record<string, number> }, { onSuccess: () => setEditing(false) })
+    update.mutate(
+      { ...draft, capacities: caps as Record<string, number> },
+      { onSuccess: () => setEditing(false), onError: onMutationError },
+    )
   }
 
   return (

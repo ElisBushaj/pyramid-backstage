@@ -133,11 +133,14 @@ export default function RequestDetail() {
                     loading={submitting}
                     onClick={() =>
                       approve.mutate(undefined, {
-                        // 409 surfaces via the ConflictBanner (approveErr); every
-                        // other failure (410 hold-expired, 429, 403, 5xx) toasts.
+                        // A REAL conflict (409 carrying conflicts) renders via the
+                        // ConflictBanner; every other failure — a 409 invalid_transition
+                        // (e.g. a peer already approved it), 410 hold-expired, 429, 403,
+                        // 5xx — toasts AND refetches so the stale status updates.
                         onError: (err) => {
-                          if (err instanceof APIError && err.status === 409) return
+                          if (err instanceof APIError && err.status === 409 && (err.conflicts?.length ?? 0) > 0) return
                           onMutationError(err)
+                          void refetch()
                         },
                       })
                     }

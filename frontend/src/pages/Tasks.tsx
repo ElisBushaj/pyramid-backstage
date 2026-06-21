@@ -96,7 +96,9 @@ export default function Tasks() {
 
   const offsetRaw = form.dueOffsetHours.trim()
   const offsetValue = offsetRaw === '' ? undefined : Number(offsetRaw)
-  const offsetValid = offsetValue === undefined || Number.isFinite(offsetValue)
+  // The server requires an INTEGER dueOffsetHours (tasks validator isInt) — a
+  // fractional value would pass the button gate then 422. Enforce it client-side.
+  const offsetValid = offsetValue === undefined || Number.isInteger(offsetValue)
   const createValid = !!targetRequestId && !!form.title.trim() && offsetValid
 
   function submitCreate() {
@@ -213,6 +215,7 @@ export default function Tasks() {
                 <Input
                   type="number"
                   inputMode="numeric"
+                  step="1"
                   value={form.dueOffsetHours}
                   onChange={(e) => setForm((f) => ({ ...f, dueOffsetHours: e.target.value }))}
                   suffix={t('tasks.newDueOffsetSuffix')}

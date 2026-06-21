@@ -1,25 +1,52 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Clock, ListFilter } from 'lucide-react'
 import { useAudit } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
+import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { AuditTimeline } from '@/components/command/AuditTimeline'
+import { Pager } from '@/components/command/Pager'
 import { EmptyState, ErrorState } from '@/components/ui/Feedback'
+
+// Known audit entity types — raw names double as option labels (no per-type i18n).
+const ENTITY_TYPES = ['EventRequest', 'Reservation', 'Asset', 'Quote', 'Task', 'Space', 'User', 'OutboxEvent'] as const
+const ALL_ENTITY_TYPES = '__all__'
 
 export default function Audit() {
   const t = useT()
   const [requestId, setRequestId] = useState('')
   const [entityType, setEntityType] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const debouncedRequestId = useDebouncedValue(requestId, 300)
   const { data, isLoading, isError, refetch } = useAudit({
-    requestId: requestId || undefined,
+    requestId: debouncedRequestId || undefined,
     entityType: entityType || undefined,
+    page,
+    pageSize: 50,
+    order: 'desc',
   })
 
-  const filtered = !!requestId || !!entityType
-  const entries = data ?? []
+  // A narrowed filter can leave us on a now-empty page — snap back to 1.
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedRequestId, entityType])
+
+  // Clamp into range if the ledger shrinks under us.
+  useEffect(() => {
+    if (data && page > data.totalPages) setPage(data.totalPages)
+  }, [data, page])
+
+  const filtered = !!debouncedRequestId || !!entityType
+  const entries = data?.data ?? []
+
+  const entityOptions = [
+    { value: ALL_ENTITY_TYPES, label: t('audit.entityTypeAll') },
+    ...ENTITY_TYPES.map((e) => ({ value: e, label: e })),
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,11 +75,13 @@ export default function Audit() {
                 value={requestId}
                 onChange={(e) => setRequestId(e.target.value)}
               />
-              <Input
-                className="w-48"
+              <Select
+                aria-label={t('audit.filterEntity')}
                 placeholder={t('audit.filterEntity')}
-                value={entityType}
-                onChange={(e) => setEntityType(e.target.value)}
+                triggerClassName="w-48"
+                value={entityType || ALL_ENTITY_TYPES}
+                onValueChange={(v) => setEntityType(v === ALL_ENTITY_TYPES ? '' : v)}
+                options={entityOptions}
               />
             </>
           ) : undefined
@@ -75,7 +104,18 @@ export default function Audit() {
             message={filtered ? t('audit.emptyFilterBody') : t('audit.emptyBody')}
           />
         ) : (
-          <AuditTimeline entries={entries} />
+          <>
+            <AuditTimeline entries={entries} />
+            {data && (
+              <Pager
+                page={data.page}
+                pageSize={data.pageSize}
+                total={data.total}
+                totalPages={data.totalPages}
+                onPageChange={setPage}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

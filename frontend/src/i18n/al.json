@@ -416,7 +416,8 @@
     "timedOut": "Lidhja me ops-core skadoi.",
     "checkFields": "Ju lutemi rishikoni fushat e theksuara.",
     "rateLimited": "Shumë përpjekje — ju lutemi prisni dhe provoni përsëri.",
-    "holdExpired": "Kjo mbajtje skadoi — rimbani hapësirën për të vazhduar."
+    "holdExpired": "Kjo mbajtje skadoi — rimbani hapësirën për të vazhduar.",
+    "alreadyResolved": "Kjo u përditësua tashmë — ju lutemi rifreskoni."
   },
   "intake": {
     "tabForm": "Formulari",
@@ -594,5 +595,22 @@
     "groupSpaces": "Hapësira",
     "groupAssets": "Pajisje",
     "spaceFloor": "Kati {{n}}"
+  },
+  "validation": {
+    "failed": "Disa fusha kanë nevojë për vëmendje.",
+    "required": "Kjo fushë është e detyrueshme.",
+    "invalid": "Kjo vlerë nuk është e vlefshme.",
+    "int": "Duhet të jetë numër i plotë.",
+    "min": "Vlera është nën minimumin e lejuar.",
+    "max": "Vlera është mbi maksimumin e lejuar.",
+    "object": "Duhet të jetë objekt.",
+    "array": "Duhet të jetë listë jo bosh.",
+    "boolean": "Duhet të jetë e vërtetë ose e rreme.",
+    "length": "Gjatësia është jashtë intervalit të lejuar.",
+    "email": "Vendosni një email të vlefshëm.",
+    "enum": "Zgjidhni një nga vlerat e lejuara.",
+    "datetime": "Vendosni një datë dhe orë të vlefshme.",
+    "range": "Fillimi duhet të jetë para mbarimit.",
+    "uuid": "Duhet të jetë identifikues i vlefshëm."
   }
 }

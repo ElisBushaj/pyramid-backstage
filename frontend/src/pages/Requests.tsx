@@ -43,6 +43,11 @@ export default function Requests() {
     setPage(1)
   }, [debouncedSearch, statusParam])
 
+  // After the result set shrinks (e.g. a peer scheduled rows), clamp into range.
+  useEffect(() => {
+    if (data && page > data.totalPages) setPage(data.totalPages)
+  }, [data, page])
+
   const rows = data?.data ?? []
 
   const subtitle = useMemo(() => {

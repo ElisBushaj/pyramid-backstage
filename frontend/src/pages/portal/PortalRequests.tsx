@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Plus, CalendarDays, Users } from 'lucide-react'
 import { useRequests } from '@/api/hooks'
@@ -23,6 +23,10 @@ export default function PortalRequests() {
   const [page, setPage] = useState(1)
   const { data, isLoading, isError, refetch } = useRequests({ page, pageSize: PAGE_SIZE })
   const requests = data?.data ?? []
+
+  useEffect(() => {
+    if (data && page > data.totalPages) setPage(data.totalPages)
+  }, [data, page])
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { Pencil, ArrowRight, MapPin, PackageSearch } from 'lucide-react'
 import { useAssets, useAssetMovements, useMe, useUpdateAsset } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { cn } from '@/lib/cn'
+import { formatDateTime } from '@/lib/format'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -52,6 +53,14 @@ export default function AssetDetail() {
   const movementsQuery = useAssetMovements(id, { page: movePage, pageSize: MOVE_PAGE_SIZE })
   const movements = movementsQuery.data?.data ?? []
   const moveMeta = movementsQuery.data
+  // This component is reused across /inventory/:id param changes (no remount), so
+  // reset the ledger page when the asset changes, and clamp if it shrinks.
+  useEffect(() => {
+    setMovePage(1)
+  }, [id])
+  useEffect(() => {
+    if (moveMeta && movePage > moveMeta.totalPages) setMovePage(moveMeta.totalPages)
+  }, [moveMeta, movePage])
   const update = useUpdateAsset(id ?? '')
 
   const canEdit = me ? ['OPS', 'MANAGER', 'ADMIN'].includes(me.role) : false
@@ -88,7 +97,7 @@ export default function AssetDetail() {
   const available = asset.availableQuantity ?? total
   const held = Math.max(0, total - available)
   const checkedOut = asset.checkedOutQuantity ?? 0
-  const fmtAt = (iso: string) => new Intl.DateTimeFormat(locale === 'al' ? 'sq-AL' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
+  const fmtAt = (iso: string) => formatDateTime(iso, locale)
 
   function saveEdit() {
     update.mutate(draft, { onSuccess: () => setEditing(false) })

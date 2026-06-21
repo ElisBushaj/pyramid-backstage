@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, MoreVertical, Pencil, UserCheck, UserX, Lock } from 'lucide-react'
 import { useMe, useUsers, useCreateUser, useUpdateUser } from '@/api/hooks'
 import { APIError } from '@/api/api-error'
@@ -67,6 +67,9 @@ export default function Users() {
 
   const [page, setPage] = useState(1)
   const { data, isLoading, isError, error } = useUsers({ page, pageSize: PAGE_SIZE })
+  useEffect(() => {
+    if (data && page > data.totalPages) setPage(data.totalPages)
+  }, [data, page])
   const create = useCreateUser()
   const update = useUpdateUser()
 

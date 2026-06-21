@@ -416,7 +416,8 @@
     "timedOut": "The connection to ops-core timed out.",
     "checkFields": "Please review the highlighted fields.",
     "rateLimited": "Too many attempts — please wait and try again.",
-    "holdExpired": "This hold expired — re-hold the space to continue."
+    "holdExpired": "This hold expired — re-hold the space to continue.",
+    "alreadyResolved": "This was already updated — please refresh."
   },
   "intake": {
     "tabForm": "Form",
@@ -594,5 +595,22 @@
     "groupSpaces": "Spaces",
     "groupAssets": "Assets",
     "spaceFloor": "Floor {{n}}"
+  },
+  "validation": {
+    "failed": "Some fields need attention.",
+    "required": "This field is required.",
+    "invalid": "This value isn't valid.",
+    "int": "Must be a whole number.",
+    "min": "Value is below the allowed minimum.",
+    "max": "Value is above the allowed maximum.",
+    "object": "Must be an object.",
+    "array": "Must be a non-empty list.",
+    "boolean": "Must be true or false.",
+    "length": "Length is out of the allowed range.",
+    "email": "Enter a valid email address.",
+    "enum": "Choose one of the allowed values.",
+    "datetime": "Enter a valid date and time.",
+    "range": "The start must be before the end.",
+    "uuid": "Must be a valid identifier."
   }
 }

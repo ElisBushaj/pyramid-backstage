@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { CheckCircle2, XCircle, Users, CalendarDays, Sparkles, Lock } from 'lucide-react'
 import { useRequests, useApprove, useReject } from '@/api/hooks'
 import { useCan } from '@/lib/abilities'
 import { useMutationToast } from '@/lib/apiError'
+import { formatDate } from '@/lib/format'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -19,6 +20,11 @@ export default function Approvals() {
   const [page, setPage] = useState(1)
   const { data, isLoading, isError, refetch } = useRequests({ status: 'PROPOSED', page })
   const rows = data?.data ?? []
+
+  // Approving the last rows on a page empties it — clamp back into range.
+  useEffect(() => {
+    if (data && page > data.totalPages) setPage(data.totalPages)
+  }, [data, page])
 
   return (
     <div>
@@ -62,7 +68,7 @@ function ApprovalRow({ r, onDone }: { r: EventRequest; onDone: () => void }) {
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
   const first = r.preferredDates?.[0]
-  const fmtDate = (iso: string) => new Intl.DateTimeFormat(locale === 'al' ? 'sq-AL' : 'en-GB', { dateStyle: 'medium' }).format(new Date(iso))
+  const fmtDate = (iso: string) => formatDate(iso, locale)
 
   function doApprove() {
     approve.mutate(undefined, {
