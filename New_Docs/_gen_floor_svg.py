@@ -49,24 +49,19 @@ DROP = ["xref", "text", " dim", "hatch", "sign", "furniture", "elevation", "axis
         "titleblock", "area ", "figures"]
 STRUCT = ("exterior framework", "external wall", "walls & columns")
 
-# Per-spaceKind placement: (r_in_frac, r_out_frac, half_width_deg, follow_profile).
-# Radii are fractions of the floor's median ring radius (r_med). follow_profile makes the
-# outer edge hug the real wall silhouette, so halls/annexes bulge to the true outline.
-# Each space is centred on its real map.bearing (0deg = north/top, clockwise) — matching
-# both the architect spec and the frontend FloorMap convention.
-GEO = {
-    "main_hall":          (0.16, 0.96, 27, True),
-    "annex_hall":         (0.42, 0.96, 20, True),
-    "perimeter_hall":     (0.42, 0.90, 16, True),
-    "mid_ring_hall":      (0.50, 0.92, 12, True),
-    "box":                (0.32, 0.50, 9, False),
-    "rim_room":           (0.22, 0.40, 12, False),
-    "entrance_plaza":     (0.52, 0.99, 16, True),
-    "entrance_vestibule": (0.40, 0.78, 12, True),
-    "circulation":        (0.40, 0.62, 10, False),  # localized foyer (non-ring)
-    "wc":                 (0.46, 0.62, 7, False),
-    "technical":          (0.46, 0.62, 7, False),
-    "outdoor_stairs":     (0.36, 0.99, 130, True),   # wide hatched amphitheatre span
+# Outer-band OUTER radius (fraction of the floor's median ring radius r_med) per kind.
+# Angles are TILED per band (see tile_angles), so only the radial reach varies by kind:
+# halls reach the octagon edge (~1.3), WCs/technical are short notches between them.
+RADII = {
+    "main_hall":          (0.64, 1.30),
+    "annex_hall":         (0.64, 1.28),
+    "perimeter_hall":     (0.64, 1.12),
+    "mid_ring_hall":      (0.64, 1.02),
+    "entrance_plaza":     (0.64, 1.24),
+    "entrance_vestibule": (0.64, 0.92),
+    "circulation":        (0.64, 0.92),
+    "wc":                 (0.64, 0.88),
+    "technical":          (0.64, 0.88),
 }
 
 
@@ -224,37 +219,77 @@ def ring_polygon(center, r_in, r_out, steps: int = 72):
     return outer + inner
 
 
-def wedge_polygon(center, prof, r_med, bearing, r_in_f, r_out_f, half, follow, steps: int = 10):
-    """An annular-sector wedge centred on `bearing`; outer edge hugs the real wall when follow."""
-    a0, a1 = bearing - half + 1.2, bearing + half - 1.2  # small gap between neighbours
-    r_in = r_med * r_in_f
-
-    def r_out(deg):
-        return prof[int(deg) % 360] * r_out_f if follow else r_med * r_out_f
-
+def band_wedge(center, a0, a1, r_in, r_out, steps: int = 16):
+    """A clean annular-sector wedge spanning [a0, a1] degrees in band [r_in, r_out]."""
     def at(i):
         return a0 + (a1 - a0) * i / steps
-
-    outer = [_pt(center, r_out(at(i)), at(i)) for i in range(steps + 1)]
+    outer = [_pt(center, r_out, at(i)) for i in range(steps + 1)]
     inner = [_pt(center, r_in, at(steps - i)) for i in range(steps + 1)]
     return outer + inner
 
 
-def space_polygon(space, center, prof, r_med):
-    """Build a hotspot polygon from the space's real map.bearing + spaceKind band."""
-    m = space.get("map") or {}
-    kind = m.get("spaceKind", "mid_ring_hall")
-    bearing = float(m.get("bearing", 0))
-    slug = space.get("slug", "")
+def tile_angles(bearings, *, gap=2.5, max_half=46, lone_half=24):
+    """Partition the circle among spaces in a band so wedges TILE (never overlap):
+    each space spans to the midpoint of the gap to each neighbour (clamped, minus a gap)."""
+    n = len(bearings)
+    if n == 1:
+        return [(bearings[0] - lone_half, bearings[0] + lone_half)]
+    order = sorted(range(n), key=lambda i: bearings[i])
+    out = [None] * n
+    for k, i in enumerate(order):
+        b = bearings[i]
+        prev_b = bearings[order[(k - 1) % n]]
+        next_b = bearings[order[(k + 1) % n]]
+        left = min(((b - prev_b) % 360) / 2, max_half)
+        right = min(((next_b - b) % 360) / 2, max_half)
+        out[i] = (b - left + gap, b + right - gap)
+    return out
 
-    # central features (cores, summit terrace) -> a disc
-    if kind == "circulation_feature" or (kind == "outdoor_terrace" and m.get("ring") == "center"):
-        return disc_polygon(center, r_med * 0.18)
-    # ring concourses -> a full annulus (inner vs outer band)
-    if kind == "circulation" and slug.startswith("ring_"):
-        return (ring_polygon(center, r_med * 0.24, r_med * 0.33) if "inner" in slug
-                else ring_polygon(center, r_med * 0.48, r_med * 0.57))
-    return wedge_polygon(center, prof, r_med, bearing, *GEO.get(kind, GEO["mid_ring_hall"]))
+
+def floor_polygons(floor_spaces, center, r_med):
+    """All hotspot polygons for one floor, laid out in non-overlapping radial bands and
+    angularly TILED within each band. Layering: core boxes < inner ring < box ring <
+    outer ring < outer wedges (halls/WC/technical), with full-ring concourses between."""
+    out = {}
+    bands = {"core": [], "box": [], "rim": [], "outer": []}
+    for s in floor_spaces:
+        m = s.get("map") or {}
+        kind = m.get("spaceKind", "mid_ring_hall")
+        slug = s["slug"]
+        if kind == "circulation" and slug.startswith("ring_"):  # concourse -> full annulus
+            out[slug] = (ring_polygon(center, r_med * 0.36, r_med * 0.43) if "inner" in slug
+                         else ring_polygon(center, r_med * 0.57, r_med * 0.63))
+        elif kind == "outdoor_stairs":  # the monumental stair fan (fixed wide, not tiled)
+            b = m.get("bearing", 180)
+            out[slug] = band_wedge(center, b - 96, b + 96, r_med * 0.50, r_med * 1.28, steps=44)
+        elif kind == "outdoor_terrace":  # summit -> centre disc
+            out[slug] = disc_polygon(center, r_med * 0.22)
+        elif kind == "circulation_feature":
+            bands["core"].append(s)
+        elif kind == "box":
+            bands["box"].append(s)
+        elif kind == "rim_room":
+            bands["rim"].append(s)
+        else:  # halls, WC, technical, entrance_*, foyer circulation
+            bands["outer"].append(s)
+
+    def place(items, r_in_f, r_out_f, **kw):
+        if not items:
+            return
+        angs = tile_angles([s["map"]["bearing"] for s in items], **kw)
+        for s, (a0, a1) in zip(items, angs):
+            ro = RADII.get(s["map"].get("spaceKind"), (r_in_f, r_out_f))[1] if r_out_f is None else r_out_f
+            out[s["slug"]] = band_wedge(center, a0, a1, r_med * r_in_f, r_med * ro)
+
+    core = bands["core"]
+    if len(core) == 1:  # a single central hall -> a disc
+        out[core[0]["slug"]] = disc_polygon(center, r_med * 0.26)
+    else:
+        place(core, 0.06, 0.34, lone_half=40)
+    place(bands["box"], 0.44, 0.56)
+    place(bands["rim"], 0.30, 0.52, lone_half=20)
+    place(bands["outer"], 0.64, None)  # per-kind outer radius via RADII
+    return out
 
 
 def build():
@@ -269,10 +304,8 @@ def build():
             "structural": path_d(draws, tf, True),
             "detail": path_d(draws, tf, False),
         }
-        for s in spaces:
-            if s["floor"] != floor:
-                continue
-            polys_by_slug[s["slug"]] = space_polygon(s, center, prof, r_med)
+        floor_spaces = [s for s in spaces if s["floor"] == floor and s.get("map")]
+        polys_by_slug.update(floor_polygons(floor_spaces, center, r_med))
         print(f"floor {floor}: center=({center[0]:.0f},{center[1]:.0f}) r_med={r_med:.0f} "
               f"struct={len(floors[floor]['structural'])}B detail={len(floors[floor]['detail'])}B")
     return catalog, floors, polys_by_slug

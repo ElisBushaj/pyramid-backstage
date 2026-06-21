@@ -46,6 +46,42 @@ export const useRequests = (params: Query) =>
 export const useRequest = (id?: string) =>
   useQuery({ queryKey: q('request', id), queryFn: () => api.get<RequestAggregate>(`/private/requests/${id}`), enabled: !!id })
 
+// ── live bookings: which event currently holds which space (for the floor map) ──
+// The requests LIST omits the reservation, so we resolve each request's aggregate.
+// Cheap for a venue's worth of events; cached. Keyed by spaceId.
+export interface SpaceBooking {
+  spaceId: string
+  requestId: string
+  title: string
+  status: string
+  start: string
+  end: string
+}
+export const useBookings = () =>
+  useQuery({
+    queryKey: q('bookings'),
+    staleTime: 30_000,
+    queryFn: async (): Promise<Record<string, SpaceBooking>> => {
+      const requests = await api.get<EventRequest[]>('/private/requests', { query: { pageSize: 100 } })
+      const aggs = await Promise.all(
+        requests.map((r) => api.get<RequestAggregate>(`/private/requests/${r.id}`).catch(() => null)),
+      )
+      const out: Record<string, SpaceBooking> = {}
+      requests.forEach((r, i) => {
+        const res = aggs[i]?.reservation
+        if (!res || (res.status !== 'HELD' && res.status !== 'CONFIRMED')) return
+        // a HELD lease past its expiry is effectively free (the reaper just hasn't run)
+        if (res.status === 'HELD' && res.expiresAt && Date.parse(res.expiresAt) < Date.now()) return
+        if (out[res.spaceId]?.status === 'CONFIRMED' && res.status === 'HELD') return // keep firmest
+        out[res.spaceId] = {
+          spaceId: res.spaceId, requestId: r.id, title: r.title,
+          status: res.status, start: res.dateRange.start, end: res.dateRange.end,
+        }
+      })
+      return out
+    },
+  })
+
 // F18 — the AI's deterministic OperationalPlan for a known request. Gated on a configured
 // VITE_AI_URL; on error/unavailability the caller degrades to the ops-core-derived view.
 export const usePlan = (requestId?: string) =>
