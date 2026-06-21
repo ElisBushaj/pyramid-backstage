@@ -76,6 +76,7 @@ export const MESSAGE_KEYS = [
   "reservation.expired",
   "reservation.hold_expired",
   "reservation.invalid_transition",
+  "reservation.schedule.success",
   // ── quotes ─────────────────────────────────────────────────────────────────
   "quote.generated",
   "quote.invalid_transition",

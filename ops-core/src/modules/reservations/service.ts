@@ -3,7 +3,7 @@ import { prisma } from "../../config/prisma";
 import { APIError } from "../../errors";
 import { ok, type ServiceResponse, type Actor } from "../../types";
 import { vars } from "../../config/vars";
-import type { Reservation, ReservationInput } from "../../types/api/reservations";
+import type { Reservation, ReservationInput, ScheduleEntry } from "../../types/api/reservations";
 import type { Conflict } from "../../types/api/conflicts";
 import { effectiveWindow, isValidRange } from "../../utils/time";
 import { isSerializationError } from "../../utils/tx";
@@ -222,6 +222,45 @@ class ReservationsService {
     const r = await prisma.reservation.findUnique({ where: { id }, include: { assets: true } });
     if (!r) throw APIError.notFound();
     return r;
+  }
+
+  /**
+   * ADR-0016: live reservation windows overlapping [start,end], for the schedule
+   * timelines (Dashboard / Calendar / SpaceDetail). Only live holds count:
+   * CONFIRMED, or HELD whose lease has not lapsed. Event-window half-open overlap.
+   */
+  async schedule(params: { start: Date; end: Date; spaceId?: string; status?: "HELD" | "CONFIRMED" }): Promise<ServiceResponse<ScheduleEntry[]>> {
+    const now = new Date();
+    const live: Prisma.ReservationWhereInput =
+      params.status === "CONFIRMED" ? { status: "CONFIRMED" }
+      : params.status === "HELD" ? { status: "HELD", expiresAt: { gt: now } }
+      : { OR: [{ status: "CONFIRMED" }, { status: "HELD", expiresAt: { gt: now } }] };
+    const rows = await prisma.reservation.findMany({
+      where: {
+        ...live,
+        ...(params.spaceId ? { spaceId: params.spaceId } : {}),
+        start: { lt: params.end },
+        end: { gt: params.start },
+      },
+      include: {
+        request: { select: { title: true, expectedAttendees: true } },
+        space: { select: { setupBufferMinutes: true, teardownBufferMinutes: true } },
+      },
+      orderBy: { start: "asc" },
+    });
+    const data: ScheduleEntry[] = rows.map((r) => ({
+      id: r.id,
+      spaceId: r.spaceId,
+      requestId: r.requestId,
+      requestTitle: r.request.title,
+      attendees: r.request.expectedAttendees,
+      status: r.status as "HELD" | "CONFIRMED",
+      start: r.start.toISOString(),
+      end: r.end.toISOString(),
+      setupBufferMinutes: r.space.setupBufferMinutes,
+      teardownBufferMinutes: r.space.teardownBufferMinutes,
+    }));
+    return ok(data, "reservation.schedule.success");
   }
 }
 

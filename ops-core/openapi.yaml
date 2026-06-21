@@ -450,6 +450,26 @@ paths:
 
   # ── reservations ───────────────────────────────────────────────────────────
   /private/reservations:
+    get:
+      tags: [reservations]
+      summary: Live reservation windows overlapping [start,end] for the schedule timelines (VIEWER+, ADR-0016)
+      parameters:
+        - { in: query, name: start, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: end, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: spaceId, required: false, schema: { type: string, format: uuid } }
+        - { in: query, name: status, required: false, schema: { type: string, enum: [HELD, CONFIRMED] } }
+      responses:
+        "200":
+          description: Live reservation windows
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ServiceEnvelope"
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: "#/components/schemas/ScheduleEntry" } }
+        "422": { $ref: "#/components/responses/Validation" }
     post:
       tags: [reservations]
       summary: Hold a space + assets for a request (atomic)
@@ -960,6 +980,21 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ReservedAsset" }
         holdMinutes: { type: integer, default: 30, description: HELD lease length }
+    ScheduleEntry:
+      type: object
+      description: A live reservation window for the schedule timelines (ADR-0016).
+      required: [id, spaceId, requestId, requestTitle, attendees, status, start, end, setupBufferMinutes, teardownBufferMinutes]
+      properties:
+        id: { type: string, example: resv_1 }
+        spaceId: { type: string, example: space_blue }
+        requestId: { type: string, example: req_8x2 }
+        requestTitle: { type: string, example: FinTech Startup Conference }
+        attendees: { type: integer, example: 180 }
+        status: { type: string, enum: [HELD, CONFIRMED], example: CONFIRMED }
+        start: { type: string, format: date-time, example: "2026-07-22T09:00:00.000Z" }
+        end: { type: string, format: date-time, example: "2026-07-22T18:00:00.000Z" }
+        setupBufferMinutes: { type: integer, example: 240 }
+        teardownBufferMinutes: { type: integer, example: 120 }
 
     # ── Quote ──────────────────────────────────────────────────────────────────
     LineItem:

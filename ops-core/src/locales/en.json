@@ -61,6 +61,7 @@
   "reservation.expired": "This hold has expired.",
   "reservation.hold_expired": "This hold has expired — re-hold the space to continue.",
   "reservation.invalid_transition": "That reservation change isn't allowed.",
+  "reservation.schedule.success": "Schedule retrieved.",
   "quote.generated": "Quote generated.",
   "quote.invalid_transition": "That quote change isn't allowed.",
   "quote.expired": "This quote has expired.",

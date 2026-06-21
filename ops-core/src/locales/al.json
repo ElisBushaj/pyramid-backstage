@@ -61,6 +61,7 @@
   "reservation.expired": "Kjo mbajtje ka skaduar.",
   "reservation.hold_expired": "Kjo mbajtje ka skaduar — rimbani hapësirën për të vazhduar.",
   "reservation.invalid_transition": "Ky ndryshim rezervimi nuk lejohet.",
+  "reservation.schedule.success": "Orari u mor.",
   "quote.generated": "Oferta u gjenerua.",
   "quote.invalid_transition": "Ky ndryshim oferte nuk lejohet.",
   "quote.expired": "Kjo ofertë ka skaduar.",
