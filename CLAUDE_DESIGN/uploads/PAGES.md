@@ -12,12 +12,12 @@ States legend: `default · loading · empty · error · submitting · conflict �
 ## Shell
 | § | — | Purpose | States | Consumes |
 |---|---|---------|--------|----------|
-| 2.1 | AppShell | Sidebar + top bar + live status pill + copilot toggle + user/role menu | default, sidebar-collapsed, mobile-drawer, NATS-connected / -degraded | `GET /private/auth/me`, NATS stream |
+| 2.1 | AppShell | Sidebar + top bar + freshness pill + copilot toggle + user/role menu | default, sidebar-collapsed, mobile-drawer, fresh / stale | `GET /private/auth/me` |
 
 ## Overview
 | § | Route | Purpose | States | Consumes |
 |---|-------|---------|--------|----------|
-| 3.1 | `/` Dashboard | KPIs (events this week, spaces in use, low-stock, pending approvals) + live schedule strip + conflict alerts + recent activity | default, loading(skeleton KPIs+table), empty(no events), error | `GET /private/requests?status=`, `GET /private/spaces?start&end`, `GET /private/assets?start&end`, `GET /private/conflicts`, NATS `inventory.low`/`conflict.detected` |
+| 3.1 | `/` Dashboard | KPIs (events this week, spaces in use, low-stock, pending approvals) + schedule strip + conflict alerts + recent activity. Freshness via polling the REST contract. | default, loading(skeleton KPIs+table), empty(no events), error | `GET /private/requests?status=`, `GET /private/spaces?start&end`, `GET /private/assets?start&end`, `GET /private/conflicts` |
 
 ## Pipeline
 | § | Route | Purpose | States | Consumes |
@@ -50,7 +50,7 @@ States legend: `default · loading · empty · error · submitting · conflict �
 ## Copilot (overlay, every page)
 | § | — | Purpose | States | Consumes |
 |---|---|---------|--------|----------|
-| 8.1 | `CopilotPanel` | "Can we make this happen?" → plan; `ProposedActionCard` (requiresApproval); **unprompted conflict heads-up** | idle, user-typing, assistant-thinking, plan-preview, proposed-action(confirm), conflict-heads-up, error | `POST /chat`, NATS `conflict.detected` |
+| 8.1 | `CopilotPanel` | "Can we make this happen?" → plan; `ProposedActionCard` (requiresApproval); **conflict heads-up** | idle, user-typing, assistant-thinking, plan-preview, proposed-action(confirm), conflict-heads-up, error | `POST /chat`, `GET /private/conflicts` (polled) |
 
 ## Admin (ADMIN role)
 | § | Route | Purpose | States | Consumes |
@@ -58,4 +58,4 @@ States legend: `default · loading · empty · error · submitting · conflict �
 | 9.1 | `/settings/users` | Staff `DataTable`: create/edit user, role (ADMIN/MANAGER/OPS/VIEWER), active toggle | default, loading, submitting, forbidden | `GET/POST /admin/users`, `PATCH /admin/users/:id` |
 
 ## Demo path (maps 1:1 to "what success looks like")
-The pages above support the full demo, in order: **4.2 intake (chat)** → **4.3 plan (feasible)** → submit a colliding request → **8.1 conflict heads-up / 6.2 conflict + alternatives** → **4.3 approve (MANAGER)** → **3.1 dashboard updates live** → **7.1 audit shows the decision**. See [`docs/07-operations/DEMO_SCRIPT.md`](../07-operations/DEMO_SCRIPT.md).
+The pages above support the full demo, in order: **4.2 intake (chat)** → **4.3 plan (feasible)** → submit a colliding request → **8.1 conflict heads-up / 6.2 conflict + alternatives** → **4.3 approve (MANAGER)** → **3.1 dashboard refreshes (polling)** → **7.1 audit shows the decision**. See [`docs/07-operations/DEMO_SCRIPT.md`](../07-operations/DEMO_SCRIPT.md).

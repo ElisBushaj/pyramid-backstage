@@ -2,7 +2,7 @@
 # Pyramid Backstage — full-system dev stack.
 #
 #   docker compose up
-#       Brings up the whole system: db, nats, redis, chromadb, ops-core,
+#       Brings up the whole system: db, redis, chromadb, ops-core,
 #       ai-orchestrator, frontend. ai-orchestrator points at the REAL ops-core.
 #       This is the everyday "run everything" command.
 #
@@ -34,29 +34,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    networks:
-      - pyramid_net
-    restart: unless-stopped
-
-  # ── NATS (JetStream) — event backbone for the transactional outbox ──────────
-  nats:
-    # alpine variant, not bare `nats:2`: the default image is FROM scratch (no
-    # shell, no wget) so a CMD/CMD-SHELL healthcheck can never run — leaving the
-    # container perpetually unhealthy and blocking ops-core's `service_healthy` wait.
-    image: nats:2-alpine
-    container_name: pyramid-nats
-    command: ["-js", "-m", "8222"]
-    ports:
-      - "${NATS_PORT:-4222}:4222"
-      - "${NATS_MONITOR_PORT:-8222}:8222"
-    volumes:
-      - pyramid_nats_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8222/healthz || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     networks:
       - pyramid_net
     restart: unless-stopped
@@ -108,8 +85,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      nats:
-        condition: service_healthy
       redis:
         condition: service_healthy
     ports:
@@ -125,7 +100,6 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER:-pyramid}:${POSTGRES_PASSWORD:-pyramid}@db:5432/${POSTGRES_DB:-pyramid}
       REDIS_URL: redis://redis:6379
-      NATS_URL: nats://nats:4222
       SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       # F17: shared service token the AI presents (same default on ai-orchestrator).
@@ -220,8 +194,6 @@ services:
 
 volumes:
   pyramid_db_data:
-    driver: local
-  pyramid_nats_data:
     driver: local
   pyramid_redis_data:
     driver: local

@@ -39,7 +39,7 @@ Every success response is wrapped:
 | `POST /quotes` | Generate a quote (VAT, server total) | `Quote` |
 | `GET /conflicts?spaceId&start&end` | Proactive conflict check | `Conflict[]` |
 | `POST /requests/:id/tasks` | Persist a setup/teardown task list | `Task[]` |
-| `POST /requests/:id/approve` | Approve → confirm reservations → emit → audit (MANAGER+) | `EventRequest` |
+| `POST /requests/:id/approve` | Approve → confirm reservations → audit (MANAGER+) | `EventRequest` |
 | `POST /requests/:id/reject` | Reject + reason (MANAGER+) | `EventRequest` |
 | `GET /audit?requestId` | Decision / change history | `AuditEntry[]` |
 

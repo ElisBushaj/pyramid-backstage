@@ -25,11 +25,11 @@ The hardening posture is **production-shaped + full auth/RBAC**: real sessions, 
 
 ### 1.1 What's done (Bootstrap)
 
-The repo skeleton, the **contract** ([`ops-core/openapi.yaml`](../../ops-core/openapi.yaml), locked Hour 0), the full docs set (`00`–`10`), the [`infrastructure/`](../../infrastructure/) docker-compose stack (Postgres, NATS, Redis, ChromaDB + the three apps + the `mock` profile), the design-system brief for Claude Design, and the feature backlog (`F00`–`F13` + `A00`) — all written. `STATUS.md` is the generated dashboard over it.
+The repo skeleton, the **contract** ([`ops-core/openapi.yaml`](../../ops-core/openapi.yaml), locked Hour 0), the full docs set (`00`–`10`), the [`infrastructure/`](../../infrastructure/) docker-compose stack (Postgres, Redis, ChromaDB + the three apps + the `mock` profile), the design-system brief for Claude Design, and the feature backlog (`F00`–`F13` + `A00`) — all written. `STATUS.md` is the generated dashboard over it.
 
 ### 1.2 What this build ships (ops-core `F00`–`F13`)
 
-Auth + RBAC, spaces, assets, event requests, the availability/conflict engine, reservations (atomic + leased), quotes (server-computed VAT), tasks, audit, approvals, events/outbox, the seed, and the contract test. The headline is the **request→plan→approve** loop with a correct conflict engine and a live signal.
+Auth + RBAC, spaces, assets, event requests, the availability/conflict engine, reservations (atomic + leased), quotes (server-computed VAT), tasks, audit, approvals, the seed, and the contract test. The headline is the **request→plan→approve** loop with a correct conflict engine.
 
 ### 1.3 What's out of scope here
 
@@ -39,7 +39,7 @@ Auth + RBAC, spaces, assets, event requests, the availability/conflict engine, r
 
 ### 1.4 What's locked
 
-The decisions in [`docs/08-decisions/`](../08-decisions/) and `CLAUDE.md` stand: two services / one contract, NATS-via-outbox (degradable), session auth + RBAC in ops-core, integer-minor money + server VAT, idempotency on all mutations, SPA / no SSR, Tailwind+Radix, hand-mirrored types, buffer-aware conflicts. Supersede only via a new ADR.
+The decisions in [`docs/08-decisions/`](../08-decisions/) and `CLAUDE.md` stand: two services / one contract, session auth + RBAC in ops-core, integer-minor money + server VAT, idempotency on all mutations, SPA / no SSR, Tailwind+Radix, hand-mirrored types, buffer-aware conflicts. Supersede only via a new ADR.
 
 ## 2. Phased plan
 
@@ -49,16 +49,15 @@ Bootstrap is done. The build runs Foundation → Domain → Core → Integration
 
 Contract, docs, infra, design brief, backlog. The baseline every other phase starts from.
 
-### Phase 1 — Foundation (`F00`, `F01`, `F09`, `F11`)
+### Phase 1 — Foundation (`F00`, `F01`, `F09`)
 
-**Goal:** stand up the spine every feature hangs off — the app skeleton + DB, auth + actor, the audit writer, and the events/outbox plumbing. After this phase, a mutation can authenticate, identify its actor, write an `AuditEntry` + `OutboxEvent` in one transaction, and have the relay publish it.
+**Goal:** stand up the spine every feature hangs off — the app skeleton + DB, auth + actor, and the audit writer. After this phase, a mutation can authenticate, identify its actor, and write an `AuditEntry` in the same transaction as its state change.
 
 - **`F00` Bootstrap** — Express 5 app, Prisma schema + migrations, `config/prisma`, `utils/{money,time,validation}`, the `@controlledResponse` core, `APIError`, `ServiceResponse`, locales scaffold, health/ready probes.
 - **`F01` Auth & RBAC** — argon2id login, `pb_session` cookie, server sessions, `requireAuth` → `req.actor`, `requireRole`/`requirePermission`, login rate-limit + CSRF, admin user CRUD. ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md))
 - **`F09` Audit** — the `AuditEntry` writer invoked by every mutation, `GET /audit`. ([docs/02-domain/AUDIT.md](../02-domain/AUDIT.md))
-- **`F11` Events/Outbox** — `OutboxEvent` table, the transactional-write helper, the NATS relay, `NATS_ENABLED` degrade switch. ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md))
 
-`F00` is the hard prerequisite for everything. `F01`, `F09`, `F11` can largely parallelize once `F00`'s schema + core are in (they touch different modules; the schema work is sequenced first).
+`F00` is the hard prerequisite for everything. `F01` and `F09` can largely parallelize once `F00`'s schema + core are in (they touch different modules; the schema work is sequenced first).
 
 ### Phase 2 — Domain (`F02`, `F03`, `F04`)
 
@@ -78,7 +77,7 @@ These three are disjoint modules and parallelize cleanly after Phase 1.
 - **`F06` Reservations** — the serializable, row-locked hold/confirm/release, leases + reaper, idempotent. ([docs/02-domain/RESERVATIONS.md](../02-domain/RESERVATIONS.md))
 - **`F07` Quotes** — server-computed line items + VAT, versioning. ([docs/02-domain/QUOTES.md](../02-domain/QUOTES.md))
 - **`F08` Tasks** — persist AI-generated setup/teardown lists, compute `dueAt`. ([docs/02-domain/TASKS.md](../02-domain/TASKS.md))
-- **`F10` Approvals** — `approve`/`reject` (MANAGER+) → confirm/release reservations → audit → emit; the lifecycle transitions.
+- **`F10` Approvals** — `approve`/`reject` (MANAGER+) → confirm/release reservations → audit; the lifecycle transitions.
 
 `F05` is the linchpin (`F06` depends on it for the in-transaction conflict check; `F02`/`F03` availability annotations consume it). `F06`→`F07`/`F08`/`F10` follow. `F07`, `F08` parallelize once `F06` lands.
 
@@ -116,9 +115,9 @@ The build is time-boxed to three days. The mapping (the ops-core agent executes 
 
 | Day | Focus | Features | Exit signal |
 |-----|-------|----------|-------------|
-| **Day 1** | Foundation + Domain | `F00`, `F01`, `F09`, `F11`, then `F02`, `F03`, `F04` | A staff user can log in; spaces, assets, requests CRUD with audit + outbox; health/ready green. |
+| **Day 1** | Foundation + Domain | `F00`, `F01`, `F09`, then `F02`, `F03`, `F04` | A staff user can log in; spaces, assets, requests CRUD with audit; health/ready green. |
 | **Day 2** | Core engines | `F05` (with property tests), `F06`, `F07` | A space can be matched, held atomically (two parallel holds → exactly one `409`), and quoted with correct VAT. The conflict engine is property-green. |
-| **Day 3** | Workflow + events + seed + e2e | `F08`, `F10`, then `F12`, `F13` | The full **request → plan → approve → SCHEDULED** loop runs end-to-end against the seed; a planted conflict surfaces and the approval path confirms reservations + writes audit; contract test green; `conflict.detected` emits. |
+| **Day 3** | Workflow + seed + e2e | `F08`, `F10`, then `F12`, `F13` | The full **request → plan → approve → SCHEDULED** loop runs end-to-end against the seed; a planted conflict surfaces and the approval path confirms reservations + writes audit; contract test green. |
 
 Day boundaries are targets, not contracts — eligibility (deps done, no blocking question) drives task order. If a phase slips, the **cut-line** (§5) protects the demo.
 
@@ -139,16 +138,15 @@ Concrete ownership is in [`ASSIGNMENTS.md`](./ASSIGNMENTS.md). The shape of the 
 
 If the three days run short, cut in this order — and **never** cross the floor:
 
-1. **Degrade NATS → polling.** `NATS_ENABLED=false`; the dashboard polls. The core loop is unaffected ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)). *First to go.*
-2. **Trim seed richness.** Fewer assets, one planted conflict instead of several. The demo path still runs.
-3. **Defer non-critical reads/filters.** A list filter or a secondary read endpoint can wait.
+1. **Trim seed richness.** Fewer assets, one planted conflict instead of several. The demo path still runs. *First to go.*
+2. **Defer non-critical reads/filters.** A list filter or a secondary read endpoint can wait.
 
 **Never cut:**
 - **Auth + RBAC.** The audit trail is worthless without a real decider; approvals must be gated. ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md))
 - **Correctness.** The conflict engine, the serializable reservation transaction, idempotency, and server-computed money are the product. A double-booked room or an over-allocated asset is a failed demo and a broken promise.
 - **Audit-with-actor.** Every mutation writes an `AuditEntry` with `req.actor`, in the same transaction. ([docs/02-domain/AUDIT.md](../02-domain/AUDIT.md))
 
-> The principle: **degrade liveness, never correctness or accountability.**
+> The principle: **degrade richness, never correctness or accountability.**
 
 ## 6. Definition of Done — program level
 
@@ -157,12 +155,11 @@ The 3-day ops-core build is **demo-ready** when all of the following hold:
 1. Every `F00`–`F13` task is `Status: done` in its `TASKS.md` (`A00` excluded — Alvin's lane).
 2. `pnpm tsc --noEmit` clean and `pnpm test --run` green in `ops-core/`, including `F05`'s **property tests**.
 3. Every endpoint in [`ops-core/openapi.yaml`](../../ops-core/openapi.yaml) is implemented and conforms to [`docs/04-api/CORE_PATTERNS.md`](../04-api/CORE_PATTERNS.md) (controlled responses, `APIError`, `ServiceResponse`, idempotency on mutations).
-4. **Every mutation writes an `AuditEntry` with `req.actor` + an `OutboxEvent` in the same transaction.** No anonymous mutation; no dual write.
+4. **Every mutation writes an `AuditEntry` with `req.actor` in the same transaction as its state change.** No anonymous mutation.
 5. **Locale parity**: `MESSAGE_KEYS` present in both `locales/al.json` and `en.json`; key counts match (CI gate).
 6. The contract test (`F13`) is green — the hand-mirrored types are aligned.
 7. `docker compose up` + `pnpm db:seed` yields the demo dataset; the **full demo path** ([`DEMO_SCRIPT.md`](../07-operations/DEMO_SCRIPT.md)) runs end-to-end, including a surfaced conflict and a MANAGER approval that confirms reservations and writes audit.
-8. The **degrade mode** (`NATS_ENABLED=false`) runs the core loop REST-only — verified, not assumed.
-9. `GET /health` + `GET /ready` return correctly (ready reflects DB + NATS reachability).
+8. `GET /health` + `GET /ready` return correctly (ready reflects DB reachability).
 
 The **frontend** has its own program-level DoD (every page in [`docs/05-frontend/PAGES.md`](../05-frontend/PAGES.md) implemented, both locales, design parity per [`DESIGN-PARITY.md`](../10-qa/DESIGN-PARITY.md)); it begins after the design export and is tracked separately.
 

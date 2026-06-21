@@ -22,9 +22,10 @@ Decisions made — the audit trail of *why* the project is shaped the way it is.
 
 ### R-02 — Do we adopt a real-time event bus?
 - Resolved: 2026-06-18
-- Resolution: **Yes — NATS (JetStream), written via a transactional outbox, and degradable.** `NATS_ENABLED=false` runs `ops-core` REST-only with a polling dashboard fallback.
-- Rationale: The live command center and the unprompted `conflict.detected` AI heads-up are core wow moments and need a live fan-out — so we diverge from the marketplace's BullMQ-no-NATS choice. The outbox kills the dual-write hazard (no lost/phantom events). Degradability keeps correctness independent of the bus: the whole loop works without it.
-- See: [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)
+- **Superseded: 2026-06-21 — the async event subsystem was removed entirely ([ADR-0018]).** NATS/JetStream, the transactional outbox, the relay, and the published domain subjects are gone. Mutations now write state + an `AuditEntry` only, and the dashboard gets freshness by **polling the REST contract**. The text below is retained as historical record.
+- Resolution (historical): **Yes — NATS (JetStream), written via a transactional outbox, and degradable.** Ran `ops-core` REST-only with a polling dashboard fallback.
+- Rationale (historical): The live command center and the unprompted AI heads-up were treated as wow moments needing a live fan-out. The outbox killed the dual-write hazard. Degradability kept correctness independent of the bus: the whole loop worked without it — which is why removing the bus left the core loop intact.
+- See: [ADR-0018]
 
 ### R-03 — How is money represented, and what is the VAT posture?
 - Resolved: 2026-06-18

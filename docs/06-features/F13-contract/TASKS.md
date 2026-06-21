@@ -31,8 +31,8 @@ last_updated: 2026-06-21
 - Depends on: F10-T01, F12-T04
 - Estimate: 0.75d
 - Acceptance:
-  - An e2e integration test (real Postgres, NATS available) against the F12 seed drives the full happy path: `POST /requests` → `GET /spaces?minCapacity&layout&start&end` (match) → `POST /reservations` (hold) → `POST /quotes` → `POST /requests/:id/tasks` → `POST /requests/:id/approve`, asserting each response's contract shape and the final `GET /requests/:id` `RequestAggregate`.
-  - It asserts the cross-cutting invariants along the way: a `request.create`/`reservation.hold`/`quote.generate`/`request.approve` audit trail exists, the corresponding outbox events are written, and the quote total is the server recomputation.
+  - An e2e integration test (real Postgres) against the F12 seed drives the full happy path: `POST /requests` → `GET /spaces?minCapacity&layout&start&end` (match) → `POST /reservations` (hold) → `POST /quotes` → `POST /requests/:id/tasks` → `POST /requests/:id/approve`, asserting each response's contract shape and the final `GET /requests/:id` `RequestAggregate`.
+  - It asserts the cross-cutting invariants along the way: a `request.create`/`reservation.hold`/`quote.generate`/`request.approve` audit trail exists, and the quote total is the server recomputation.
   - The conflict path: a hold that collides with the planted seed conflict (F12-T04) returns `409 conflict` with `Conflict[]`, and re-holding against an alternative window/space succeeds — proving conflict→alternatives end to end (per `docs/02-domain/CONFLICTS.md`).
   - The test is deterministic against the reset seed and runs in CI; tsc clean.
 

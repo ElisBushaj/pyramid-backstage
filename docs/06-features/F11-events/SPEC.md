@@ -9,6 +9,8 @@ last_updated: 2026-06-18
 
 # F11 — Events / NATS
 
+> **REMOVED — feature withdrawn as of 2026-06-21.** The entire event subsystem this feature describes — NATS (JetStream), the transactional `OutboxEvent` table, the outbox relay, and the published domain subjects — has been deleted from the project. See [ADR-0018](../../08-decisions/0018-remove-nats-event-subsystem.md) (which supersedes ADR-0002). Mutations now write state plus an `AuditEntry` only; there is no async event/messaging layer. The SPEC below (and the tasks in `TASKS.md`) is retained **only as historical record**; task IDs are stable and not renumbered. Do not implement it.
+
 ## Summary
 
 The real-time signal layer: domain events published to NATS (JetStream) via a **transactional outbox**, so the dashboard feels alive and the proactive AI can react to `conflict.detected`. Events are written to an `OutboxEvent` row **in the same transaction** as the state change (no dual-write), then a relay polls unpublished rows and publishes them, marking `publishedAt`. Delivery is at-least-once; consumers are idempotent.

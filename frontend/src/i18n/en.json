@@ -120,13 +120,6 @@
     "requestedShort": "requested",
     "availableShort": "available"
   },
-  "live": {
-    "connected": "Live",
-    "degraded": "Polling",
-    "connectedNats": "NATS connected",
-    "degradedNats": "NATS degraded",
-    "lastEvent": "Last event"
-  },
   "dashboard": {
     "title": "Dashboard",
     "eventsThisWeek": "Events this week",

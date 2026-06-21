@@ -11,7 +11,7 @@ Visual verification — does each built page match the **Claude Design export**,
 - **tsc -b + vite build: clean** (1791 modules; CSS carries every new token utility).
 - **Geist + Geist Mono loaded** (same Google-Fonts link the canvas uses) — typography matches.
 - **i18n EN+AL at full key-parity** (369 = 369 keys); Albanian threaded through every page **and** the command components (which were initially built with EN literals).
-- All §2 primitives, §3 command components (incl. the signature ConflictBanner, AvailabilityTimeline with hatched buffers, CopilotPanel, OperationalPlanView composition), AppShell (default · sidebar-collapsed · mobile-drawer · NATS-connected · NATS-degraded) and AuthShell, and every page + the §5.2/§5.4 detail pages are implemented with their full state matrices.
+- All §2 primitives, §3 command components (incl. the signature ConflictBanner, AvailabilityTimeline with hatched buffers, CopilotPanel, OperationalPlanView composition), AppShell (default · sidebar-collapsed · mobile-drawer) and AuthShell, and every page + the §5.2/§5.4 detail pages are implemented with their full state matrices.
 
 **Why rows are `in_progress`, not `pass`:** a row is `pass` only when the **live side-by-side screenshot diff** (desktop+mobile × EN+AL × every state) has been done and matches. In this environment the **browser automation (claude-in-chrome) is unusable** — the MCP tab is torn down between every tool call, so navigation/screenshots cannot complete. The build is therefore verified at the **code/spec level** (exact extracted values + green build), but the visual side-by-side could not be executed here. Rows are `in_progress`: built + code-verified, awaiting the screenshot sweep.
 
@@ -25,7 +25,7 @@ Visual verification — does each built page match the **Claude Design export**,
 Per the "log any deliberate divergence" rule — these are intentional and honest, not parity misses:
 
 1. **AppShell nav-badge counts are live, not the canvas mock (24 / 2 / 1 / 5).** They read real data (conflicts, low-stock, pending-approvals queries). Faking the mock numbers would violate "don't fake a backend." Structure/tones/positions match the canvas.
-2. **LiveStatusPill event-meta (`inventory.low · 2s`) is omitted** and connected/degraded is driven by API reachability — there is no NATS/SSE client in the frontend, so a specific live event would be fabricated. Both pill variants render exactly otherwise.
+2. **The LiveStatusPill is dropped from the top bar entirely.** The async event subsystem was removed ([ADR-0018]); the dashboard gets freshness by polling the REST contract, so there is no connection state to surface. The canvas's pill artboard has no implemented counterpart.
 3. **CopilotPanel + intake "Chat" tab are visual-only** (POST `/chat`, `/plan` are Alvin's lane and not running here). They render every state with clearly-mock content and degrade gracefully; the structured form is the working path. (Matches the brief.)
 4. **AvailabilityTimeline on Dashboard/SpaceDetail uses the canvas sample lanes / an empty "free" lane** where rich per-space reservation bars aren't derivable from the available hooks (the availability endpoint returns availability+conflict ids, not the reservation bar set). The Calendar adapter maps real data where present.
 5. **AssetDetail omits the "Maintenance" stat tile and fabricated "where-reserved" rows** — the asset DTO carries `totalQuantity`/`availableQuantity`/`status` only (no per-unit maintenance count, no asset→reservation map). Total/Available/Held(derived) are shown; the rest would invent contract fields.
@@ -43,7 +43,7 @@ Per the "log any deliberate divergence" rule — these are intentional and hones
 4. **Verify the seven properties** for each section: **spacing** (±2px), **color** (exact via tokens — never an eyeballed hex), **border-radius** (token scale), **typography** (family + weight + size + line-height + tracking), **elevation** (token scale — a 1px border + soft shadow, never a glow), **motion** (120–280ms ease-out, no bounce), **states** (every declared state renders and matches).
 5. For any mismatch: **fix it**, or log a deliberate divergence with a rationale, **before** marking the row `pass`.
 
-A row is `pass` only when desktop + mobile × EN + AL × all its states all match. `na` is legitimate for a state that can't occur in the environment (e.g. a NATS-degraded variant when realtime is off).
+A row is `pass` only when desktop + mobile × EN + AL × all its states all match. `na` is legitimate for a state that can't occur in the environment (e.g. an edit state for a role that isn't provisioned).
 
 ## Per-page parity table
 
@@ -54,7 +54,7 @@ Keyed to [`docs/05-frontend/PAGES.md`](../05-frontend/PAGES.md). Each row covers
 | ID | § | Page | States to verify | Status |
 |---|---|---|---|---|
 | QA-DSGN-1.1 | 1.1 | `/login` (AuthShell) | default · submitting · invalid-credentials · rate-limited | in_progress |
-| QA-DSGN-2.1 | 2.1 | AppShell (sidebar + top bar + live pill + copilot toggle + role menu) | default · sidebar-collapsed · mobile-drawer · NATS-connected · NATS-degraded | in_progress |
+| QA-DSGN-2.1 | 2.1 | AppShell (sidebar + top bar + copilot toggle + role menu) | default · sidebar-collapsed · mobile-drawer | in_progress |
 
 ### Overview
 

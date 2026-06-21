@@ -66,7 +66,7 @@ Security here also means *the data can't be corrupted*, which the correctness ma
 
 ## Audit with actor — accountability as a security property
 
-Every mutation writes an **`AuditEntry`** with the **real `req.actor`** (id + name), the action, the before/after diff, and a reason where required (rejects) — in the **same transaction** as the change ([docs/02-domain/AUDIT.md](../02-domain/AUDIT.md)). The ledger is append-only; it is the answer to *"who did this, and when?"*. This is *why* auth is in scope: a decision log without a decider is worthless. `GET /audit?requestId` reconstructs an entity's full history. A copilot mutation carries the **forwarded human actor**, not the AI and not the null system actor — so "the AI did it on Anila's behalf" is recoverable from the ledger (see the service-token model above). An `asset.moved` scan ([F16](../06-features/F16-asset-tracking/)) audits the same way: who scanned, from where to where.
+Every mutation writes an **`AuditEntry`** with the **real `req.actor`** (id + name), the action, the before/after diff, and a reason where required (rejects) — in the **same transaction** as the change ([docs/02-domain/AUDIT.md](../02-domain/AUDIT.md)). The ledger is append-only; it is the answer to *"who did this, and when?"*. This is *why* auth is in scope: a decision log without a decider is worthless. `GET /audit?requestId` reconstructs an entity's full history. A copilot mutation carries the **forwarded human actor**, not the AI and not the null system actor — so "the AI did it on Anila's behalf" is recoverable from the ledger (see the service-token model above). An asset scan ([F16](../06-features/F16-asset-tracking/)) audits the same way: who scanned, from where to where.
 
 ## Input validation
 

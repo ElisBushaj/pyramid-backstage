@@ -24,7 +24,7 @@ The existing F10 approval ([docs/06-features/F10-approvals](../06-features/F10-a
 
 - **The portal is purely additive.** PARTNER below VIEWER means no existing route widens its audience; staff-tier reads are unaffected because PARTNER fails every `requireRole(VIEWER+)` gate. The only new surface is the partner-scoped intake.
 - **Ownership is the authorization boundary.** Because reads filter on `createdById`, a partner is structurally incapable of seeing another partner's event — enforced in the query, not in a view template. 404-on-unowned keeps the row set non-enumerable.
-- **No new approval machinery to get wrong in three days.** Reusing F10 means the audited `approve`/`reject` path, its outbox event, and its state transitions are already tested. The demo gains an external submitter without a second state machine.
+- **No new approval machinery to get wrong in three days.** Reusing F10 means the audited `approve`/`reject` path and its state transitions are already tested. The demo gains an external submitter without a second state machine.
 - **Multi-stage approval is deferred, not denied.** A real venue may eventually want finance + ops + safety sign-offs. That is logged as an open question, not built — see `docs/09-questions/OPEN.md` under F15.
 
 ## Alternatives considered

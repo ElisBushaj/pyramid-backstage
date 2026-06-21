@@ -7,7 +7,6 @@ import {
   resetDb,
   prisma,
   auditEntriesFor,
-  outboxFor,
   type Client,
 } from "./helpers/integration";
 import { seedSpace, seedRequest, seedReservation } from "./helpers/fixtures";
@@ -45,10 +44,10 @@ async function proposeWithHolds(client: Client, n: number) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// APPROVE — happy path (PROPOSED → SCHEDULED, confirm holds, audit + outbox)
+// APPROVE — happy path (PROPOSED → SCHEDULED, confirm holds, audit)
 // ───────────────────────────────────────────────────────────────────────────
 describe("POST /requests/:id/approve — happy path (F10-T01)", () => {
-  it("MANAGER approve → reservation CONFIRMED (expiresAt cleared), request SCHEDULED, request.approve audit + request.approved outbox in one tx", async () => {
+  it("MANAGER approve → reservation CONFIRMED (expiresAt cleared), request SCHEDULED, request.approve audit in one tx", async () => {
     const mgr = await loginAs("MANAGER");
     const { reqId, reservationId } = await proposeWithHold(mgr);
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: reqId } })).status).toBe("PROPOSED");
@@ -73,14 +72,8 @@ describe("POST /requests/:id/approve — happy path (F10-T01)", () => {
       after: { status: "SCHEDULED" },
     });
 
-    // request.approved outbox carries the confirmed reservation ids
-    const approved = await outboxFor("request.approved");
-    expect(approved).toHaveLength(1);
-    expect(approved[0]!.payload).toMatchObject({ requestId: reqId, confirmedReservations: [reservationId] });
-
-    // the hold was confirmed through the F06 path: one reservation.confirm audit + one outbox
+    // the hold was confirmed through the F06 path: one reservation.confirm audit
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: reservationId } })).toBe(1);
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(1);
   });
 
   it("ADMIN may approve (clears the MANAGER+ floor)", async () => {
@@ -92,18 +85,15 @@ describe("POST /requests/:id/approve — happy path (F10-T01)", () => {
     expect(res.body.data.status).toBe("SCHEDULED");
   });
 
-  it("a PROPOSED request with NO holds still approves → SCHEDULED, audit + outbox, no reservation events", async () => {
+  it("a PROPOSED request with NO holds still approves → SCHEDULED, audit, no reservation confirms", async () => {
     const mgr = await loginAs("MANAGER");
     const req = await seedRequest({ status: "PROPOSED" });
 
     const res = await mgr.post(approveUrl(req.id));
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("SCHEDULED");
-    expect(await outboxFor("request.approved")).toHaveLength(1);
-    expect((await outboxFor("request.approved"))[0]!.payload).toMatchObject({ confirmedReservations: [] });
-    // nothing to confirm → no reservation confirm audit/outbox
+    // nothing to confirm → no reservation confirm audit
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm" } })).toBe(0);
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(0);
   });
 
   it("MULTI-HOLD: every HELD reservation is confirmed atomically and the request reaches SCHEDULED", async () => {
@@ -117,11 +107,8 @@ describe("POST /requests/:id/approve — happy path (F10-T01)", () => {
     for (const id of reservationIds) {
       expect((await prisma.reservation.findUniqueOrThrow({ where: { id } })).status).toBe("CONFIRMED");
     }
-    // one confirm event per hold; the approved outbox lists them all
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(3);
-    const approved = await outboxFor("request.approved");
-    expect(approved).toHaveLength(1);
-    expect((approved[0]!.payload as { confirmedReservations: string[] }).confirmedReservations.sort()).toEqual([...reservationIds].sort());
+    // one confirm audit per hold
+    expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm" } })).toBe(3);
   });
 });
 
@@ -139,12 +126,11 @@ describe("POST /requests/:id/approve — expired hold re-detection (F10-T01, F10
     expect(res.body.error).toBe("gone");
     expect(res.body.messageKey).toBe("reservation.hold_expired");
 
-    // nothing committed: request still PROPOSED, hold still HELD, no approve audit/outbox
+    // nothing committed: request still PROPOSED, hold still HELD, no approve audit
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: reqId } })).status).toBe("PROPOSED");
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })).status).toBe("HELD");
     expect(await prisma.auditEntry.count({ where: { action: "request.approve", entityId: reqId } })).toBe(0);
-    expect(await outboxFor("request.approved")).toHaveLength(0);
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(0);
+    expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: reservationId } })).toBe(0);
   });
 
   it("expired hold whose slot was RETAKEN → 409 conflict carrying the live conflicts[], state unchanged", async () => {
@@ -169,7 +155,6 @@ describe("POST /requests/:id/approve — expired hold re-detection (F10-T01, F10
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: req.id } })).status).toBe("PROPOSED");
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: mine.id } })).status).toBe("HELD");
     expect(await prisma.auditEntry.count({ where: { action: "request.approve", entityId: req.id } })).toBe(0);
-    expect(await outboxFor("request.approved")).toHaveLength(0);
   });
 
   it("ATOMICITY: a multi-hold request where ONE hold expired confirms NOTHING (all-or-none); valid holds stay HELD", async () => {
@@ -193,8 +178,8 @@ describe("POST /requests/:id/approve — expired hold re-detection (F10-T01, F10
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: req.id } })).status).toBe("PROPOSED");
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: live.id } })).status).toBe("HELD");
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: expired.id } })).status).toBe("HELD");
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(0);
-    expect(await outboxFor("request.approved")).toHaveLength(0);
+    expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm" } })).toBe(0);
+    expect(await prisma.auditEntry.count({ where: { action: "request.approve", entityId: req.id } })).toBe(0);
   });
 });
 
@@ -220,7 +205,7 @@ describe("POST /requests/:id/approve — RBAC (F10-T03)", () => {
 
     // still untouched after every denied attempt
     expect((await prisma.eventRequest.findUniqueOrThrow({ where: { id: reqId } })).status).toBe("PROPOSED");
-    expect(await outboxFor("request.approved")).toHaveLength(0);
+    expect(await prisma.auditEntry.count({ where: { action: "request.approve", entityId: reqId } })).toBe(0);
   });
 });
 
@@ -264,9 +249,8 @@ describe("POST /requests/:id/approve — idempotency (F10-T01)", () => {
     expect(replay.body.data.status).toBe("SCHEDULED");
     expect(replay.body.data.id).toBe(first.body.data.id);
 
-    // exactly one mutation: one approve audit, one approved outbox, one confirm
+    // exactly one mutation: one approve audit, one confirm audit
     expect(await prisma.auditEntry.count({ where: { action: "request.approve", entityId: reqId } })).toBe(1);
-    expect(await outboxFor("request.approved")).toHaveLength(1);
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: reservationId } })).toBe(1);
   });
 
@@ -318,7 +302,6 @@ describe("POST /requests/:id/approve — idempotency (F10-T01)", () => {
     expect(again.body.to).toBe("APPROVED");
     // still exactly one confirm — the second attempt never re-confirmed
     expect(await prisma.auditEntry.count({ where: { action: "reservation.confirm", entityId: reservationId } })).toBe(1);
-    expect(await outboxFor("reservation.confirmed")).toHaveLength(1);
   });
 });
 
@@ -346,9 +329,8 @@ describe("POST /requests/:id/reject — happy path (F10-T02)", () => {
       before: { status: "PROPOSED" },
       after: { status: "REJECTED" },
     });
-    // the release went through the F06 path: one release audit + one outbox
+    // the release went through the F06 path: one release audit
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: reservationId } })).toBe(1);
-    expect(await outboxFor("reservation.released")).toHaveLength(1);
   });
 
   it("ADMIN may reject", async () => {
@@ -370,7 +352,7 @@ describe("POST /requests/:id/reject — happy path (F10-T02)", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("REJECTED");
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: confirmed.id } })).status).toBe("RELEASED");
-    expect(await outboxFor("reservation.released")).toHaveLength(1);
+    expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: confirmed.id } })).toBe(1);
   });
 
   it("MULTI-HOLD: every HELD reservation is released and the request reaches REJECTED", async () => {
@@ -383,7 +365,7 @@ describe("POST /requests/:id/reject — happy path (F10-T02)", () => {
     for (const id of reservationIds) {
       expect((await prisma.reservation.findUniqueOrThrow({ where: { id } })).status).toBe("RELEASED");
     }
-    expect(await outboxFor("reservation.released")).toHaveLength(3);
+    expect(await prisma.auditEntry.count({ where: { action: "reservation.release" } })).toBe(3);
   });
 
   it("a PROPOSED request with NO reservations still rejects → REJECTED, audited, no release events", async () => {
@@ -393,7 +375,6 @@ describe("POST /requests/:id/reject — happy path (F10-T02)", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("REJECTED");
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release" } })).toBe(0);
-    expect(await outboxFor("reservation.released")).toHaveLength(0);
   });
 
   it("reject is allowed from every non-terminal state (DRAFT, PROPOSED, APPROVED, SCHEDULED)", async () => {
@@ -537,7 +518,6 @@ describe("POST /requests/:id/reject — idempotency (F10-T02)", () => {
 
     expect(await prisma.auditEntry.count({ where: { action: "request.reject", entityId: reqId } })).toBe(1);
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: reservationId } })).toBe(1);
-    expect(await outboxFor("reservation.released")).toHaveLength(1);
   });
 
   it("the same key with a different reason → 409 idempotency_key_mismatch", async () => {
@@ -575,7 +555,6 @@ describe("POST /requests/:id/reject — idempotency (F10-T02)", () => {
     expect(again.body.to).toBe("REJECTED");
     // the release ran exactly once across both attempts
     expect(await prisma.auditEntry.count({ where: { action: "reservation.release", entityId: reservationId } })).toBe(1);
-    expect(await outboxFor("reservation.released")).toHaveLength(1);
   });
 });
 
@@ -613,9 +592,8 @@ describe("approve/reject resilience: serializable aborts retry, never escape as 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("SCHEDULED");
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })).status).toBe("CONFIRMED");
-    // the retried body is idempotent: exactly one approve audit + one approved outbox.
+    // the retried body is idempotent: exactly one approve audit.
     expect(await prisma.auditEntry.count({ where: { action: "request.approve", entityId: reqId } })).toBe(1);
-    expect(await outboxFor("request.approved")).toHaveLength(1);
   });
 
   it("reject retries past a transient serialization abort and still lands REJECTED", async () => {

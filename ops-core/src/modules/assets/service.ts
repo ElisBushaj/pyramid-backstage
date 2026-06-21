@@ -7,7 +7,6 @@ import type {
   AssetMovement, AssetScanInput, AssetScanResult,
 } from "../../types/api/assets";
 import { writeAudit } from "../audit/audit.writer";
-import { writeOutbox } from "../events/outbox.writer";
 import { assetAvailability, assetHeldQuantities } from "../../services/availability";
 
 const SCAN_ATTEMPTS = 5;
@@ -154,10 +153,6 @@ class AssetsService {
               actor, action: "asset.scan", entityType: "Asset", entityId: assetId,
               before: { location: asset.location }, after: { location: input.toLocation },
               reason: `${input.action} ${input.quantity} → ${input.toLocation}`,
-            });
-            await writeOutbox(tx, "asset.moved", {
-              assetId, action: input.action, quantity: input.quantity,
-              fromLocation: asset.location, toLocation: input.toLocation, reservationId: input.reservationId ?? null,
             });
             const newNet = input.action === "CHECK_OUT" ? net + input.quantity : input.action === "CHECK_IN" ? net - input.quantity : net;
             return { updated, movement, newNet };

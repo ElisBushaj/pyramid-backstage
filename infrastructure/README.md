@@ -1,7 +1,7 @@
 # Infrastructure
 
 The full Pyramid Backstage stack runs from one `docker compose` file. Postgres,
-NATS (JetStream), Redis, and ChromaDB are the backing services; `ops-core`,
+Redis, and ChromaDB are the backing services; `ops-core`,
 `ai-orchestrator`, and the `frontend` are the apps. A stateful `mock-ops-core`
 is available behind an opt-in profile for isolated development.
 
@@ -41,8 +41,6 @@ Without the flag, the mock never runs and the AI service talks to the real
 | Service           | In-container | Host (default)      | Override env          |
 |-------------------|--------------|---------------------|-----------------------|
 | `db` (Postgres)   | 5432         | 5432                | `DB_PORT`             |
-| `nats` (client)   | 4222         | 4222                | `NATS_PORT`           |
-| `nats` (monitor)  | 8222         | 8222                | `NATS_MONITOR_PORT`   |
 | `redis`           | 6379         | 6379                | `REDIS_PORT`          |
 | `chromadb`        | 8000         | 8001                | `CHROMA_PORT`         |
 | `ops-core`        | 4000         | 4000                | `OPS_CORE_PORT`       |
@@ -71,14 +69,14 @@ dev only.
 | `VITE_AI_URL`        | `http://localhost:8000`                  | frontend          |
 
 Service-internal wiring (`REDIS_URL=redis://redis:6379`,
-`NATS_URL=nats://nats:4222`, `CHROMA_URL=http://chromadb:8000`,
+`CHROMA_URL=http://chromadb:8000`,
 `DATABASE_URL=...@db:5432/...`) is fixed to the Compose network and not meant to
 be overridden for local dev.
 
 ## Health & dependencies
 
-Every backing service has a healthcheck; `ops-core` waits for `db`, `nats`, and
-`redis` to be **healthy** before starting, and exposes `GET /ready` (DB + NATS
+Every backing service has a healthcheck; `ops-core` waits for `db` and
+`redis` to be **healthy** before starting, and exposes `GET /ready` (DB
 reachable) as its own probe. `ai-orchestrator` exposes `GET /health`, the
 frontend serves the Vite dev server on `:5173`.
 

@@ -6,7 +6,7 @@ Append-only log of session-level events (round boundaries, cross-cutting artifac
 ```
 ## YYYY-MM-DD — <session label>
 - <what shipped / what changed at the program level>
-- <new cross-cutting artifact: a new MESSAGE_KEY namespace, a new migration, a new outbox subject…>
+- <new cross-cutting artifact: a new MESSAGE_KEY namespace, a new migration, a new audit action…>
 - <next session should start with…>
 ```
 
@@ -29,3 +29,8 @@ Append-only log of session-level events (round boundaries, cross-cutting artifac
 - **Verified**: ops-core **230/230 vitest** green; ops-core + frontend **tsc clean**; frontend **vite build** green; seed deterministic (19 spaces, planted Blue@W1 conflict, demo PARTNER). 4 prisma migrations applied to dev + test DBs.
 - New cross-cutting surfaces now live: Role `PARTNER`; `AssetMovement` + `asset.moved` outbox + `asset.scan` audit; Space extension fields; service-token + `X-Acting-User-*` auth; envs `VITE_AI_URL`, `OPS_CORE_SERVICE_TOKEN`; FE deps `qrcode`. STATUS.md: 110/111 ops-core done.
 - **Next session**: live end-to-end verification with the stack up (`docker compose up`, run the ai-orchestrator for live `/plan`); visual QA of the new UI on host Vite :5173; then open a PR for `feat/beyond-booking`. Optional: F19-T05 v2 FloorMap.
+
+## 2026-06-21 — Async event subsystem removed (ADR-0018)
+- **ADR-0018** removes the entire NATS/JetStream event subsystem: the event bus, the transactional outbox / `OutboxEvent` table + relay, all published domain subjects (`reservation.held`, `conflict.detected`, `inventory.low`, `asset.moved`), `publishEvent`/`runRelayPass`/`writeOutbox`, and the `NATS_URL`/`NATS_ENABLED` envs. The two earlier entries above that record landing the `asset.moved` outbox subject are **superseded**: mutations now write state + an `AuditEntry` only (no outbox, never a dual-write).
+- The Postgres+Prisma system of record, the `AuditEntry` audit log, and the REST API all remain unchanged.
+- Frontend freshness is now via **polling the REST contract** — no live NATS/WebSocket push. The shell "live" pill becomes a freshness pill ("Up to date"/"Stale") driven by time since the last successful poll. Planning specs and the design export under `.planning/` + `CLAUDE_DESIGN/` were updated to match.

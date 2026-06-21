@@ -26,7 +26,7 @@
         <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#8A8F98; letter-spacing:0.04em;">§2</span>
         <h1 style="font-size:24px; line-height:30px; font-weight:600; letter-spacing:-0.01em; margin:0;">Shells</h1>
       </div>
-      <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:620px;">AppShell (sidebar groups + top bar + live NATS pill + copilot toggle + role badge) and the zero-distraction AuthShell. Mobile: sidebar collapses to a bottom-anchored drawer.</p>
+      <p style="font-size:14px; line-height:21px; color:#51555E; margin:8px 0 0; max-width:620px;">AppShell (sidebar groups + top bar + freshness pill + copilot toggle + role badge) and the zero-distraction AuthShell. Mobile: sidebar collapses to a bottom-anchored drawer.</p>
       <div style="margin-top:18px;"><a href="index.dc.html" style="font-size:13px; color:#2F6FED; text-decoration:none;">← Canvas index</a></div>
     </div>
 
@@ -88,14 +88,14 @@ class Component extends DCLogic {
     groups.forEach(g=>g.items.forEach(it=>{ if(it.label===activeLabel) it.active=true; }));
     return groups;
   }
-  natsPill(state) {
+  freshnessPill(state) {
     const ok = state!=='degraded';
     return React.createElement('div',{style:{display:'inline-flex', alignItems:'center', gap:'8px', height:'30px', padding:'0 12px', borderRadius:'999px', background: ok?'#E9F6EF':'#FBF3E0', border:`1px solid ${ok?'rgba(26,127,75,.2)':'rgba(154,107,0,.25)'}`}},
       React.createElement('span',{style:{width:'7px', height:'7px', borderRadius:'999px', background: ok?'#1A7F4B':'#9A6B00', animation: ok?'pulseDot 1.8s ease-in-out infinite':'none'}}),
-      React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color: ok?'#15613A':'#7A5500'}}, ok?'NATS connected':'NATS degraded'),
-      ok? React.createElement('span',{style:{fontSize:'11px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, 'inventory.low · 2s'):null);
+      React.createElement('span',{style:{fontSize:'12px', fontWeight:600, color: ok?'#15613A':'#7A5500'}}, ok?'Up to date':'Stale'),
+      ok? React.createElement('span',{style:{fontSize:'11px', color:'#8A8F98', fontFamily:"'Geist Mono',monospace"}}, 'updated 2s ago'):null);
   }
-  topBar(natsState, collapsed) {
+  topBar(freshState, collapsed) {
     return React.createElement('div',{style:{height:'56px', borderBottom:'1px solid #ECEEF1', background:'#fff', display:'flex', alignItems:'center', padding:'0 20px', gap:'14px'}},
       // request-intake launcher / search
       React.createElement('div',{style:{display:'flex', alignItems:'center', gap:'8px', flex:1, maxWidth:'420px', height:'34px', padding:'0 12px', borderRadius:'8px', background:'#F7F8FA', border:'1px solid #ECEEF1', color:'#8A8F98'}},
@@ -103,7 +103,7 @@ class Component extends DCLogic {
         React.createElement('span',{style:{fontSize:'13px'}}, 'Search or start a request…'),
         React.createElement('span',{style:{marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:'11px', background:'#fff', border:'1px solid #D7DBE0', borderRadius:'5px', padding:'1px 6px'}}, '⌘K')),
       React.createElement('div',{style:{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}},
-        this.natsPill(natsState),
+        this.freshnessPill(freshState),
         // copilot toggle
         React.createElement('button',{style:{height:'34px', display:'inline-flex', alignItems:'center', gap:'7px', padding:'0 12px', borderRadius:'8px', background:'#EEF3FE', border:'1px solid #DCE6FB', color:'#2F6FED', fontSize:'13px', fontWeight:550, cursor:'pointer'}}, this.icon('M8 2.5 9.2 6l3.3 .2-2.6 2 1 3.3L8 9.7 5.1 11.5l1-3.3L3.5 6.2 6.8 6 8 2.5Z',14,'#2F6FED'), 'Copilot'),
         // user menu + role
@@ -121,7 +121,7 @@ class Component extends DCLogic {
       React.createElement('div',{style:{flex:1, overflow:'auto', padding:'16px 10px'}}, this.navData(opts.active||'Dashboard').map(g=>this.navGroup(g.title, g.items, collapsed))),
       React.createElement('div',{style:{padding:'12px 10px', borderTop:'1px solid #ECEEF1'}}, this.navItem({label:'Collapse', icon: collapsed?'M6 3.5 10.5 8 6 12.5':'M10 3.5 5.5 8 10 12.5'}, collapsed)));
     const content = React.createElement('div',{style:{flex:1, display:'flex', flexDirection:'column', minWidth:0}},
-      this.topBar(opts.nats),
+      this.topBar(opts.fresh),
       React.createElement('div',{style:{flex:1, background:'#fff', padding:'28px 32px', overflow:'hidden'}},
         React.createElement('h1',{style:{fontSize:'24px', fontWeight:600, margin:'0 0 4px', letterSpacing:'-0.01em'}}, 'Dashboard'),
         React.createElement('p',{style:{fontSize:'14px', color:'#51555E', margin:'0 0 20px'}}, 'Tuesday, 22 July 2026 · 4 spaces in use'),
@@ -165,13 +165,13 @@ class Component extends DCLogic {
   renderVals() {
     const sec = [];
     // 2.1 AppShell default
-    sec.push(React.createElement('div',{key:'a', style:{marginBottom:'44px'}}, this.frameLabel('§2.1','AppShell — default','sidebar groups · top bar · live NATS pill · copilot toggle · role badge'),
+    sec.push(React.createElement('div',{key:'a', style:{marginBottom:'44px'}}, this.frameLabel('§2.1','AppShell — default','sidebar groups · top bar · freshness pill · copilot toggle · role badge'),
       React.createElement('div',{style:{overflowX:'auto'}}, React.createElement('div',{style:{display:'flex', gap:'40px', alignItems:'flex-start', width:'max-content', paddingBottom:'8px'}},
-        this.artboard(1280, this.appShell({active:'Dashboard', nats:'ok'}), 'Desktop · 1280 · NATS connected')))));
-    // collapsed + degraded
-    sec.push(React.createElement('div',{key:'b', style:{marginBottom:'44px'}}, this.frameLabel('§2.1','AppShell — sidebar collapsed · NATS degraded',''),
+        this.artboard(1280, this.appShell({active:'Dashboard', fresh:'ok'}), 'Desktop · 1280 · up to date')))));
+    // collapsed + stale
+    sec.push(React.createElement('div',{key:'b', style:{marginBottom:'44px'}}, this.frameLabel('§2.1','AppShell — sidebar collapsed · data stale',''),
       React.createElement('div',{style:{overflowX:'auto'}}, React.createElement('div',{style:{display:'flex', gap:'40px', alignItems:'flex-start', width:'max-content', paddingBottom:'8px'}},
-        this.artboard(1120, this.appShell({active:'Requests', collapsed:true, nats:'degraded'}), 'Desktop · collapsed rail · NATS degraded')))));
+        this.artboard(1120, this.appShell({active:'Requests', collapsed:true, fresh:'degraded'}), 'Desktop · collapsed rail · data stale')))));
     // mobile drawer + auth
     sec.push(React.createElement('div',{key:'c', style:{marginBottom:'44px'}}, this.frameLabel('§2.1 / §1.1','Mobile drawer · AuthShell','390px · bottom-anchored drawer · centered login'),
       React.createElement('div',{style:{display:'flex', gap:'40px', flexWrap:'wrap', alignItems:'flex-start'}},

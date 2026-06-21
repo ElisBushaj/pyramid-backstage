@@ -69,8 +69,6 @@ describe("F13-T03 e2e: intake → match → hold → quote → tasks → approve
     for (const a of ["request.create", "reservation.hold", "quote.generate", "request.tasks.persist", "reservation.confirm", "request.approve"]) {
       expect(actions, `missing audit ${a}`).toContain(a);
     }
-    const subjects = (await prisma.outboxEvent.findMany()).map((o) => o.subject);
-    for (const s of ["request.created", "reservation.held", "reservation.confirmed", "request.approved"]) expect(subjects).toContain(s);
   });
 
   it("conflict → alternatives: holding the planted Blue@W1 returns 409, an alternative succeeds", async () => {

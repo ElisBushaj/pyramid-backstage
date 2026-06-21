@@ -19,7 +19,7 @@ The naive flow — `GET /assets` (check) then `POST /reservations` (act) — is 
 1. Lock the relevant rows (`SELECT … FOR UPDATE` on the space's overlapping reservations and the asset rows in play).
 2. Re-run `detectConflicts(space, effectiveWindow, requestedAssets)` against the locked state.
 3. If any conflict → **abort the whole transaction**, return `409 { conflicts }`. Nothing is half-written.
-4. Else insert the `Reservation` (`HELD`, `expiresAt = now + holdMinutes`) + its `ReservationAsset` rows, write the `AuditEntry` + `OutboxEvent`, commit.
+4. Else insert the `Reservation` (`HELD`, `expiresAt = now + holdMinutes`) + its `ReservationAsset` rows, write the `AuditEntry`, commit.
 
 Because the conflict check and the insert share one serializable transaction with row locks, two concurrent holds for the same scarce asset cannot both succeed — exactly one wins, the other gets `409`. This is verified by a concurrency integration test (two parallel `POST /reservations`).
 
@@ -33,4 +33,4 @@ A `HELD` reservation decrements availability immediately (a hold you can't see i
 `POST /reservations`, `/confirm`, `/release` all require `Idempotency-Key`. A retried hold (network blip, double-click) returns the **original** reservation, never a duplicate. The key + request hash + response are cached 24h.
 
 ## Confirm
-`POST /reservations/:id/confirm` (used by the approval flow) transitions `HELD → CONFIRMED`, clears `expiresAt`, writes audit + outbox. Idempotent. If the hold already expired, confirm returns `409 conflict` with the re-detected `Conflict[]` so the AI can re-plan rather than confirm a stale hold.
+`POST /reservations/:id/confirm` (used by the approval flow) transitions `HELD → CONFIRMED`, clears `expiresAt`, writes audit. Idempotent. If the hold already expired, confirm returns `409 conflict` with the re-detected `Conflict[]` so the AI can re-plan rather than confirm a stale hold.

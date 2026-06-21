@@ -57,8 +57,8 @@ Defined as CSS custom properties on `:root` in `frontend/src/styles/tokens.css`,
 | Operational state | Token | Used by |
 |---|---|---|
 | Available / Confirmed / Done / Feasible | `success` | space free, reservation CONFIRMED, task DONE, plan feasible |
-| Held (lease ticking) / Low inventory / Proposed | `warning` | reservation HELD + `expiresAt`, `inventory.low`, request PROPOSED |
-| Conflict / Rejected / Overdue | `danger` | `conflict.detected`, request REJECTED, task overdue |
+| Held (lease ticking) / Low inventory / Proposed | `warning` | reservation HELD + `expiresAt`, low inventory, request PROPOSED |
+| Conflict / Rejected / Overdue | `danger` | conflict detected, request REJECTED, task overdue |
 | Scheduled / Informational | `info` | request SCHEDULED, neutral banners |
 | Draft / Released / Inactive | neutral (`text-tertiary`) | request DRAFT, reservation RELEASED |
 
@@ -128,13 +128,13 @@ The heart of the product. Generate each with its full state set. Each maps to co
 - **`StatusBadge`** — the universal status pill. Variants per the status→token table (DRAFT, PROPOSED, APPROVED, SCHEDULED, COMPLETED, REJECTED · HELD, CONFIRMED, RELEASED · TODO/IN_PROGRESS/DONE/BLOCKED · conflict). Dot + label; `mono` for the related ID.
 - **`ConflictBanner`** — the signature moment. A `danger`-tinted inset that renders a `Conflict[]`: type, the human `detail`, the colliding window, the `conflictingRequestIds`, and — for `ASSET_OVERALLOCATED` — a `requested / available` meter. Primary action "See alternatives", secondary "Adjust". This is what the AI's "Blue is taken — Orange seats 180, shall I hold it?" renders into.
 - **`AvailabilityTimeline` / `ScheduleCalendar`** — horizontal time axis per space (day/week). Bars = reservations colored by status; the lighter **buffer zone** (setup/teardown) is shown as a hatched extension so setup overlaps are visible. Hover → popover with the request. Empty lanes read "free". This is the "digital twin" surface.
-- **`InventoryMeter`** — for an asset: a horizontal bar `available / total` with the held portion in `warning`. Crosses to `danger` past a threshold (`inventory.low`). Tabular numbers.
+- **`InventoryMeter`** — for an asset: a horizontal bar `available / total` with the held portion in `warning`. Crosses to `danger` past the low-stock threshold. Tabular numbers.
 - **`SpaceCard`** — name, floor, capacity for the requested layout (big tabular number), feature chips, day rate, and an availability dot for the active window.
 - **`ReservationCard`** — space, window, asset list, `StatusBadge`; for HELD shows a **lease countdown** to `expiresAt` (turns `warning` as it nears).
 - **`QuoteTable`** — line items (label, kind chip, qty, unit, subtotal), then NET / VAT (20%) / **TOTAL** emphasized. Currency `ALL`, tabular, grouped thousands.
 - **`TaskBoard`** — two lanes **SETUP** and **TEARDOWN**; cards show title, owner/assignee avatar, `dueAt` (relative + absolute), status. Overdue → `danger`.
 - **`OperationalPlanView`** — the headline artifact: a single scroll composing SpaceCard + ReservationCard + QuoteTable + TaskBoard + (ConflictBanner if any) + the AI **narrative** at top. Feasible vs not-feasible variants. This is the `GET /requests/:id` aggregate / `POST /plan` output rendered.
-- **`CopilotPanel`** — right-side or full chat. `ChatMessage` (user / assistant), an **assistant "thinking" state**, `ProposedActionCard` (e.g. "Hold Blue Hall" with a confirm button → `requiresApproval`), and inline plan previews. The copilot surface uses `accent-muted`. Includes the **unprompted conflict heads-up** state (a pushed message on `conflict.detected`).
+- **`CopilotPanel`** — right-side or full chat. `ChatMessage` (user / assistant), an **assistant "thinking" state**, `ProposedActionCard` (e.g. "Hold Blue Hall" with a confirm button → `requiresApproval`), and inline plan previews. The copilot surface uses `accent-muted`. Includes the **conflict heads-up** state (surfaced when polling `GET /private/conflicts` returns a new conflict).
 - **`KPIStat`** — dashboard tiles (events this week, spaces in use, low-stock assets, pending approvals): big tabular number + label + tiny trend/▲▼.
 - **`AuditTimeline`** — vertical, append-only: actor avatar + name, action verb, entity, timestamp (mono), expandable before/after diff, reason. The "complete record".
 - **`DataTable`** — sortable, paginated, empty/loading/error states, row hover, optional row-selection; used for requests, assets, audit, users.
@@ -143,7 +143,7 @@ The heart of the product. Generate each with its full state set. Each maps to co
 
 ## 5. Shells & navigation
 
-- **`AppShell`** — left sidebar (collapsible) + top bar. Sidebar groups: **Overview** (Dashboard), **Pipeline** (Requests, Calendar), **Resources** (Spaces, Inventory), **Operations** (Tasks, Conflicts, Approvals), **Record** (Audit), and (ADMIN) **Settings** (Users). Top bar: global search / request-intake launcher, a **live status pill** (NATS-connected, shows last event), the copilot toggle, the user menu + role badge.
+- **`AppShell`** — left sidebar (collapsible) + top bar. Sidebar groups: **Overview** (Dashboard), **Pipeline** (Requests, Calendar), **Resources** (Spaces, Inventory), **Operations** (Tasks, Conflicts, Approvals), **Record** (Audit), and (ADMIN) **Settings** (Users). Top bar: global search / request-intake launcher, a **freshness pill** (shows whether polled data is fresh or stale, with the last-refreshed time), the copilot toggle, the user menu + role badge.
 - **`AuthShell`** — centered, zero-distraction staff login.
 - **Mobile**: sidebar → bottom-anchored drawer; the copilot → full-screen sheet; tables → stacked cards. Designed at 390px.
 

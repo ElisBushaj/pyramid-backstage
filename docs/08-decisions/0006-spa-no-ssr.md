@@ -14,7 +14,7 @@ The question is whether to invest in server-side rendering / prerendering (SSR) 
 **A pure client-rendered SPA: Vite + React 19, no SSR, no prerender.**
 
 - Vite dev server and static build; React 19; React Router 7 for client routing; TanStack Query for server state; Zustand for the little local UI state that needs it.
-- The app boots, authenticates against `ops-core` (`GET /private/auth/me`), and renders entirely on the client. Data is fetched via the contract; the live signal arrives over NATS (or polling when degraded).
+- The app boots, authenticates against `ops-core` (`GET /private/auth/me`), and renders entirely on the client. Data is fetched via the contract; freshness comes from polling the contract.
 - No Node render server, no streaming HTML, no hydration step.
 
 See [docs/05-frontend/OVERVIEW.md](../05-frontend/OVERVIEW.md) and [docs/01-architecture/STACK.md](../01-architecture/STACK.md).
@@ -23,7 +23,7 @@ See [docs/05-frontend/OVERVIEW.md](../05-frontend/OVERVIEW.md) and [docs/01-arch
 
 - **No SEO need is wasted effort.** Every screen is behind auth; there is nothing to index. SSR would add a render tier and a hydration class of bugs for zero benefit here.
 - **Simpler deploy and ops.** The frontend is static assets behind a CDN/static host — no Node process to run, scale, or monitor for the UI. One fewer moving part in the stack.
-- **Live-first fits the client model.** A live, stateful dashboard with WebSocket/NATS updates is a client-side concern anyway; there is no "first meaningful paint from the server" story that SSR would improve for an authenticated, real-time tool.
+- **Live-first fits the client model.** A live, stateful dashboard kept fresh by client-side polling is a client-side concern anyway; there is no "first meaningful paint from the server" story that SSR would improve for an authenticated, real-time tool.
 - **Trade-off accepted**: slightly slower cold first paint than SSR for the very first load, and no server-rendered fallback for no-JS clients. Neither matters for an internal staff tool on modern browsers.
 - **Bundle discipline still applies**: route-level code splitting keeps the initial payload small; this is a frontend task concern, not an architecture one.
 

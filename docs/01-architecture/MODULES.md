@@ -1,6 +1,6 @@
 # Architecture — ops-core Module Map
 
-> How `ops-core` is organized: feature **modules** (the CRUD + workflow surface), cross-module **engines** (the shared correctness logic), and the **events/outbox** plumbing. The per-task build of these lives in [`docs/06-features/`](../06-features/); the conventions they hold are [`docs/04-api/CORE_PATTERNS.md`](../04-api/CORE_PATTERNS.md).
+> How `ops-core` is organized: feature **modules** (the CRUD + workflow surface) and cross-module **engines** (the shared correctness logic). The per-task build of these lives in [`docs/06-features/`](../06-features/); the conventions they hold are [`docs/04-api/CORE_PATTERNS.md`](../04-api/CORE_PATTERNS.md).
 
 ## The module file pattern
 
@@ -33,13 +33,13 @@ Controllers never hand-roll a status code or an error shape; services never reac
 | **tasks** | Persist setup/teardown lists, compute `dueAt`; read | `private`, **OPS+** to write | `GET/POST /private/requests/:id/tasks` |
 | **conflicts** | The proactive conflict read (over the engine) | `private` | `GET /private/conflicts` |
 | **audit** | The append-only ledger read | `private` | `GET /private/audit` |
-| **approvals** | `approve`/`reject` lifecycle transitions → confirm/release + emit | `private`, **MANAGER+** | `POST /private/requests/:id/{approve,reject}` |
+| **approvals** | `approve`/`reject` lifecycle transitions → confirm/release | `private`, **MANAGER+** | `POST /private/requests/:id/{approve,reject}` |
 
 (Approvals and conflicts are thin surfaces over the requests/reservations services + the engines; they're called out separately because they have their own routes and role gates.)
 
 ### The asset-movement subsystem (F16)
 
-Scanning lives **inside the assets module** — no new module. `POST /assets/:id/scan` (QR/NFC encodes only `assetId`) writes an `AssetMovement` row **and** updates the live `Asset.location` in **one transaction** alongside the audit + outbox entries — the same mutation discipline as every other write. `GET /assets/:id/movements` reads the ledger. This is **aggregate-with-movement**, not per-unit serialized identity: the ledger tracks *where the count is*, not which individual chair moved ([ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md), [docs/02-domain/ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md)). The scan emits `asset.moved` to the outbox, which drives the "where is it" dashboard widget live.
+Scanning lives **inside the assets module** — no new module. `POST /assets/:id/scan` (QR/NFC encodes only `assetId`) writes an `AssetMovement` row **and** updates the live `Asset.location` in **one transaction** alongside the audit entry — the same mutation discipline as every other write. `GET /assets/:id/movements` reads the ledger. This is **aggregate-with-movement**, not per-unit serialized identity: the ledger tracks *where the count is*, not which individual chair moved ([ADR-0011](../08-decisions/0011-qr-nfc-asset-tracking.md), [docs/02-domain/ASSET_TRACKING.md](../02-domain/ASSET_TRACKING.md)). The movement ledger drives the "where is it" dashboard widget.
 
 ### Partner row-scoping (F15)
 
@@ -62,17 +62,6 @@ The shared correctness logic that more than one module depends on. Kept out of a
 
 The **availability** and **conflict** engines are the correctness core ([`F05`](../06-features/F05-availability-conflict/)) — **unit + property tested**. They share `utils/time.ts` (half-open overlap, effective windows) so interval math is never hand-rolled.
 
-## Events / outbox
-
-Not a feature in the user sense, but a cross-cutting mechanism every mutation touches:
-
-- **`OutboxEvent`** table — domain events written **in the same transaction** as the state change + `AuditEntry`.
-- **The relay** — polls unpublished `OutboxEvent` rows, publishes to NATS, stamps `publishedAt`. At-least-once; consumers idempotent.
-- **Subjects:** `request.created`, `reservation.held`, `reservation.confirmed`, `conflict.detected`, `request.approved`, `inventory.low`, `asset.moved`.
-- **Degrade switch:** `NATS_ENABLED=false` runs REST-only.
-
-See [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md) and [docs/02-domain/AUDIT.md](../02-domain/AUDIT.md).
-
 ## Shared foundation (`src/`)
 
 | Location | What |
@@ -89,13 +78,13 @@ See [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md) and [docs/02-do
 ## Dependency shape
 
 ```
-auth ──► (req.actor) ──► every mutating module ──► audit + outbox (same txn)
+auth ──► (req.actor) ──► every mutating module ──► audit (same txn)
                                    │
 spaces ─┐                          ▼
 assets ─┼──► availability engine ──► conflict engine ──► reservation engine
 requests┘                                   ▲                  │
                                             └── (authoritative check inside the txn)
-quotes ◄── pricing engine            approvals ──► reservation confirm/release + emit
+quotes ◄── pricing engine            approvals ──► reservation confirm/release
 tasks  ◄── (dueAt from the reserved window)
 ```
 
@@ -109,7 +98,7 @@ tasks  ◄── (dueAt from the reserved window)
 |---|---|---|
 | **FloorMap** (F19) | A v1 radial floor map (status per space: `free`/`main`/`bundle`/`conflict`/`circulation`) behind `<FloorMap floor spaces={[{slug,status}]} />` | `Space.map` (catalog) + `/plan` output. v2 (real-plan SVG hotspots) is post-demo. [docs/05-frontend/FLOOR_MAP.md](../05-frontend/FLOOR_MAP.md) |
 | **Partner portal** (F15) | Partner-scoped intake form + "my requests" list | row-scoped `/private/requests` |
-| **Scanner** (F16) | Mobile scan UI + a "where is it" dashboard widget | `POST /assets/:id/scan`, `GET /assets/:id/movements`, `asset.moved` live |
+| **Scanner** (F16) | Mobile scan UI + a "where is it" dashboard widget | `POST /assets/:id/scan`, `GET /assets/:id/movements` |
 | **CopilotPanel** (F18) | The now-live chat surface (degrades to a canned response if AI is down) | `POST /chat`, `POST /plan` via `VITE_AI_URL` |
 
 `bundleTemplates` and `circulationRules` ship as a **frontend constant**, not a contract endpoint ([docs/05-frontend/FLOOR_MAP.md](../05-frontend/FLOOR_MAP.md), [ADR-0014](../08-decisions/0014-floor-map-ownership-and-fidelity-tiers.md)).

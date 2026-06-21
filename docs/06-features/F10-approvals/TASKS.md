@@ -11,7 +11,7 @@ last_updated: 2026-06-21
 - Depends on: F06-T04, F09-T02
 - Estimate: 0.75d
 - Acceptance:
-  - `POST /private/requests/:id/approve` is gated by `requireRole('MANAGER')`; it confirms the request's `HELD` reservation(s) through the F06 confirm path, advances the request via the F04 transition guard (`PROPOSED → APPROVED`), and writes a `request.approve` `AuditEntry` + `request.approved` `OutboxEvent` — all inside one transaction.
+  - `POST /private/requests/:id/approve` is gated by `requireRole('MANAGER')`; it confirms the request's `HELD` reservation(s) through the F06 confirm path, advances the request via the F04 transition guard (`PROPOSED → APPROVED`), and writes a `request.approve` `AuditEntry` — all inside one transaction.
   - If any held reservation expired before approval, the endpoint returns `APIError` `409 conflict` with the re-detected `Conflict[]` (per the `openapi.yaml` approvals note + `docs/02-domain/RESERVATIONS.md`) — it does NOT confirm a stale hold and leaves state unchanged.
   - An approve on a request not in an approvable state → `409 invalid_transition` with `from`/`to`.
   - Requires `Idempotency-Key`; a replay returns the original outcome (no double-confirm); an unknown id → `404`. Returns `ServiceResponse<EventRequest>`.
@@ -38,12 +38,12 @@ last_updated: 2026-06-21
   - Test asserts the full matrix: VIEWER → 403, OPS → 403, MANAGER → allowed, ADMIN → allowed, anonymous → 401, on both endpoints.
   - tsc clean.
 
-### F10-T04 — approval/reject tests + audit + outbox assertions
+### F10-T04 — approval/reject tests + audit assertions
 - Status: done
 - Depends on: F10-T01, F10-T02
 - Estimate: 0.5d
 - Acceptance:
-  - Integration test (real Postgres): approve a request with a valid `HELD` reservation → reservation becomes `CONFIRMED`, request `APPROVED`, a `request.approve` audit row + a `request.approved` outbox row exist.
+  - Integration test (real Postgres): approve a request with a valid `HELD` reservation → reservation becomes `CONFIRMED`, request `APPROVED`, a `request.approve` audit row exists.
   - Expired-hold test: with a hold past `expiresAt`, approve returns `409 conflict` with the `Conflict[]` and leaves the request/reservation unchanged.
   - Reject test: reject with a reason → reservations `RELEASED`, request `REJECTED`, `rejectionReason` persisted, a `request.reject` audit row carrying the reason exists; reject without a reason → `422`.
   - Role-gate assertions from F10-T03 are exercised; idempotent-replay assertions confirm no double effect.

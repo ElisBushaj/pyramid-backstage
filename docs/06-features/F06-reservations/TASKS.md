@@ -16,7 +16,7 @@ last_updated: 2026-06-21
   - `ReservationStatus` enum matches `openapi.yaml` (`HELD|CONFIRMED|RELEASED`).
   - If F00-T06 already shipped these complete this is a verification no-op; otherwise a gap-fill migration applies cleanly via `prisma migrate deploy`.
 
-### F06-T02 — atomic hold: serializable tx + row locks, re-validate via detectConflicts, 409 {conflicts}, audit + outbox
+### F06-T02 — atomic hold: serializable tx + row locks, re-validate via detectConflicts, 409 {conflicts}, audit
 - Status: done
 - Depends on: F05-T04, F06-T01, F09-T02
 - Estimate: 1d
@@ -24,7 +24,7 @@ last_updated: 2026-06-21
   - `POST /private/reservations` validates `ReservationInput` (`requestId`, `spaceId`, `dateRange` with `start < end`, optional `assets[]` each `quantity ≥ 1`, `holdMinutes` default 30) then runs the hold inside a **serializable** `prisma.$transaction` (`src/services/reservation`).
   - Inside the transaction: lock the relevant rows (`SELECT … FOR UPDATE` on the space's overlapping reservations + the asset rows, or a conditional `UPDATE … WHERE available ≥ qty`), re-run `detectConflicts(spaceId, effectiveWindow, requestedAssets)` against the locked state (the availability check and the write are never two separate statements, per `docs/04-api/CORE_PATTERNS.md`).
   - On any conflict: abort the whole transaction and return `APIError` `409 conflict` with `conflicts: Conflict[]` (per `docs/04-api/ERROR_CONTRACT.md`) — nothing half-written.
-  - On success: insert the `Reservation` (`HELD`, `expiresAt = now + holdMinutes`, computed `effectiveStart/End` from the space buffers) + `ReservationAsset` rows, and write the `AuditEntry` (`reservation.hold`) + `OutboxEvent` (`reservation.held`, and `conflict.detected` on the failure path) in the same transaction.
+  - On success: insert the `Reservation` (`HELD`, `expiresAt = now + holdMinutes`, computed `effectiveStart/End` from the space buffers) + `ReservationAsset` rows, and write the `AuditEntry` (`reservation.hold`) in the same transaction.
   - Returns `ServiceResponse<Reservation>` (201); tsc clean; unit + integration tests pass.
 
 ### F06-T03 — idempotency middleware (Redis, 24h, key-mismatch 409) on all mutations
@@ -43,7 +43,7 @@ last_updated: 2026-06-21
 - Depends on: F06-T02
 - Estimate: 0.5d
 - Acceptance:
-  - `POST /private/reservations/:id/confirm` transitions `HELD → CONFIRMED`, clears `expiresAt`, and writes `AuditEntry` (`reservation.confirm`) + `OutboxEvent` (`reservation.confirmed`) in one transaction; it is **idempotent** (re-confirming a CONFIRMED reservation returns it, no error/duplicate).
+  - `POST /private/reservations/:id/confirm` transitions `HELD → CONFIRMED`, clears `expiresAt`, and writes `AuditEntry` (`reservation.confirm`) in one transaction; it is **idempotent** (re-confirming a CONFIRMED reservation returns it, no error/duplicate).
   - If the hold already expired before confirm, confirm returns `409 conflict` with the re-detected `Conflict[]` so the AI can re-plan (per `docs/02-domain/RESERVATIONS.md`), rather than confirming a stale hold.
   - `POST /private/reservations/:id/release` transitions to `RELEASED`, returning inventory, idempotent, audited (`reservation.release`).
   - Any illegal move (confirm a `RELEASED`, etc.) → `APIError` `409 invalid_transition` with `from`/`to`.

@@ -30,7 +30,6 @@ This is infrastructure, not product surface. No business endpoint ships here bey
 ### Out of scope
 - Any domain logic (spaces/assets/requests/reservations/quotes/tasks/conflicts) — those are F02–F10.
 - Auth/session/RBAC behaviour — F01 (this feature only ships the `User`/`Session` *models* via the all-models schema in T06).
-- NATS connectivity and the outbox relay — F11 (the `OutboxEvent` model ships here in T06; nothing publishes yet).
 - Frontend — out of this repo's 3-day ops-core scope.
 
 ## Acceptance criteria
@@ -46,12 +45,12 @@ This is infrastructure, not product surface. No business endpoint ships here bey
 
 ## Data model
 
-All models, defined once here in `ops-core/prisma/schema.prisma` (T06), per `docs/03-data/SCHEMA.md`: `User`, `Session`, `Space`, `Asset`, `EventRequest`, `Reservation`, `ReservationAsset`, `Quote`, `Task`, `AuditEntry`, `OutboxEvent`, `IdempotencyKey`. Enums are `UPPER_SNAKE` and mirror `openapi.yaml` (`Layout`, `SpaceKind`, `AssetType`, `AssetStatus`, `EventType`, `RequestStatus`, `ReservationStatus`, `QuoteStatus`, `TaskPhase`, `TaskStatus`, `LineItemKind`, `ConflictType`, `Role`). Indexes per the SCHEMA "Indexes that matter" block. Later features add migrations; they do not redefine models.
+All models, defined once here in `ops-core/prisma/schema.prisma` (T06), per `docs/03-data/SCHEMA.md`: `User`, `Session`, `Space`, `Asset`, `EventRequest`, `Reservation`, `ReservationAsset`, `Quote`, `Task`, `AuditEntry`, `IdempotencyKey`. Enums are `UPPER_SNAKE` and mirror `openapi.yaml` (`Layout`, `SpaceKind`, `AssetType`, `AssetStatus`, `EventType`, `RequestStatus`, `ReservationStatus`, `QuoteStatus`, `TaskPhase`, `TaskStatus`, `LineItemKind`, `ConflictType`, `Role`). Indexes per the SCHEMA "Indexes that matter" block. Later features add migrations; they do not redefine models.
 
 ## API surface
 
 - `GET /health` — liveness probe (no auth).
-- `GET /ready` — readiness probe; 200 when DB (and NATS, once F11 wires it) reachable, else 503 (no auth).
+- `GET /ready` — readiness probe; 200 when DB reachable, else 503 (no auth).
 
 The full domain endpoint surface is defined in `openapi.yaml` and implemented by F01–F10. F00 only locks the contract and ships the health/readiness probes.
 

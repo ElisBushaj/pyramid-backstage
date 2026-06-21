@@ -31,9 +31,6 @@ The backend has deliberate conventions. Conform; don't fork. If a pattern is wro
 ## Reservations are transactional
 - Holds/confirms run inside a **serializable** Prisma transaction with row locking (`SELECT … FOR UPDATE`) or a conditional `UPDATE … WHERE available ≥ qty`. The availability check and the decrement are never two separate statements. See [docs/02-domain/RESERVATIONS.md](../02-domain/RESERVATIONS.md).
 
-## Events
-- Domain events are written to an **outbox table in the same transaction** as the state change, then published to NATS by a relay. No dual-write. See [docs/02-domain/AUDIT.md](../02-domain/AUDIT.md) and [ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md).
-
 ## Routes
 - Mount under `/api/v1/{public,private,admin}`. Pick the tier by access level. Register feature routers in `routes/v1/<tier>/index.ts`.
 
@@ -41,4 +38,4 @@ The backend has deliberate conventions. Conform; don't fork. If a pattern is wro
 - Every user-facing string is a `messageKey` present in **both** `locales/al.json` and `locales/en.json`. Key counts must match across locales (CI checks parity).
 
 ## Tests
-- Vitest, `*.test.ts` next to the implementation. Unit tests stub Prisma (`vi.hoisted`). Integration tests (`src/__tests__`) run against real Postgres + NATS in CI. The availability/conflict engine additionally has **property tests**.
+- Vitest, `*.test.ts` next to the implementation. Unit tests stub Prisma (`vi.hoisted`). Integration tests (`src/__tests__`) run against real Postgres in CI. The availability/conflict engine additionally has **property tests**.

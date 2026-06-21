@@ -11,7 +11,6 @@
 | **TypeScript** | — | Compile-time safety on the record that authorizes inventory + money; the hand-mirrored DTOs ([ADR-0008](../08-decisions/0008-hand-mirrored-api-types.md)) are typed. |
 | **Prisma** | 7 | Typed data access + migrations; the schema is owned here. Supports the serializable transactions + row locks the reservation path needs ([docs/02-domain/RESERVATIONS.md](../02-domain/RESERVATIONS.md)). |
 | **Postgres** | 17 | The single source of truth. Relational integrity, serializable isolation, grouped aggregates for the sum-of-holds availability query, `pgcrypto` + `citext`. |
-| **NATS (JetStream)** | 2 | The live event backbone, fed by the transactional outbox; degradable ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)). |
 | **Redis** | 7 | Idempotency-key cache (24h TTL) + the session store substrate. |
 | **argon2id** (`@node-rs/argon2`) | — | Password hashing for the native session auth ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md)). |
 | **Vitest** | — | Tests next to the implementation; the engine adds property tests; integration tests run on real Postgres. |
@@ -51,7 +50,6 @@ The frontend hand-mirrors the contract DTOs in `frontend/src/api/types/` ([ADR-0
 | Service | Image | Role |
 |---|---|---|
 | **Postgres** | `postgres:17` | ops-core's source of truth. |
-| **NATS** | `nats:2` (JetStream, `-js`) | Event backbone. |
 | **Redis** | `redis:7-alpine` | Idempotency + sessions (ops-core); conversation memory (AI). |
 | **ChromaDB** | `chromadb/chroma:latest` | AI RAG vectors (Alvin's lane). |
 
@@ -61,7 +59,7 @@ All run from one `docker compose` ([`infrastructure/`](../../infrastructure/), [
 
 - **No SSR / Next.js** ([ADR-0006](../08-decisions/0006-spa-no-ssr.md)).
 - **No Zod** — validation is `express-validator` + `ValidationHelpers` ([docs/04-api/CORE_PATTERNS.md](../04-api/CORE_PATTERNS.md)).
-- **No BullMQ** — the async need here is a *live* fan-out (NATS), not a job queue ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md)).
+- **No BullMQ / job queue** — ops-core's work is synchronous request/response over REST; there is no background-job need.
 - **No managed identity provider** (e.g. SuperTokens) — native sessions ([ADR-0003](../08-decisions/0003-session-auth-rbac-in-ops-core.md)).
 - **No shared types package / codegen mandate** — hand-mirrored DTOs ([ADR-0008](../08-decisions/0008-hand-mirrored-api-types.md)).
 - **No floats on money; no hand-rolled interval math** — `utils/money.ts`, `utils/time.ts`.

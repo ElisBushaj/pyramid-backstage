@@ -6,6 +6,8 @@ last_updated: 2026-06-21
 
 # F11 — Tasks
 
+> **REMOVED — feature withdrawn as of 2026-06-21.** The NATS event bus, the `OutboxEvent` table, and the outbox relay were deleted from the project. See [ADR-0018](../../08-decisions/0018-remove-nats-event-subsystem.md). Tasks F11-T01 through F11-T06 (the events/outbox/NATS work) are retained **only as historical record** and must not be implemented; their IDs are stable and not renumbered. F11-T07 (calendar/live-timeline UI) is unrelated to the event subsystem and is unaffected.
+
 ### F11-T01 — OutboxEvent model + migration
 - Status: done
 - Depends on: F00-T06

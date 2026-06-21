@@ -56,8 +56,6 @@ A `409 { conflicts }` carries the full `Conflict[]` so the AI can explain *why* 
 
 ## Mechanisms
 
-**Outbox** — The `OutboxEvent` table. Domain events are written to it **in the same transaction** as the state change (no dual write); a **relay** polls unpublished rows, publishes to NATS, and stamps `publishedAt`. At-least-once delivery; consumers are idempotent. ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md), [docs/02-domain/AUDIT.md](../02-domain/AUDIT.md))
-
 **Idempotency / `Idempotency-Key`** — A UUID v4 header required on every mutation. The first arrival processes and caches `(key, request-hash, response)` (Redis, 24h TTL); a replay returns the original bit-identically; a same-key-different-body replay → `409 idempotency_key_mismatch`. ([ADR-0005](../08-decisions/0005-idempotency-keys.md))
 
 **Serializable transaction** — The isolation level the reservation hold/confirm runs at, with row locks, so the availability check and the decrement are one atomic step — killing the TOCTOU race where two holds grab the same scarce inventory. ([docs/02-domain/RESERVATIONS.md](../02-domain/RESERVATIONS.md))
@@ -80,15 +78,13 @@ The ladder `ADMIN > MANAGER > OPS > VIEWER > PARTNER` ([ADR-0003](../08-decision
 
 ## Services & infra
 
-**ops-core** — The deterministic system of record (Elis · Node 20 · Express 5 · Prisma 7 · Postgres 17 · NATS). Knows what is true and enforces it; **no AI**. The 3-day build ships it in full. ([ADR-0001](../08-decisions/0001-two-services-one-contract.md))
+**ops-core** — The deterministic system of record (Elis · Node 20 · Express 5 · Prisma 7 · Postgres 17). Knows what is true and enforces it; **no AI**. The 3-day build ships it in full. ([ADR-0001](../08-decisions/0001-two-services-one-contract.md))
 
 **ai-orchestrator** — The reasoning layer (Alvin · Python · FastAPI · LangGraph · Claude · ChromaDB · Redis). Holds **no domain state**; everything true comes from ops-core. Scaffold + mock here; Alvin's lane. ([docs/02-domain/AI_ORCHESTRATION.md](../02-domain/AI_ORCHESTRATION.md))
 
 **mock-ops-core** — A **stateful** contract-accurate stand-in for ops-core (runs under the compose `mock` profile, on `:4010`). Honors the reservation `409` path so the AI's conflict branch is genuinely testable. Integrate the real service by flipping `OPS_CORE_URL`.
 
 **The contract** — [`ops-core/openapi.yaml`](../../ops-core/openapi.yaml). The single source of truth and the **only** coupling between the two services. Locked Hour 0, additive-only after; a breaking change is a new ADR. `ai-orchestrator` treats each endpoint as a LangGraph tool. ([docs/04-api/CONTRACT.md](../04-api/CONTRACT.md))
-
-**NATS (JetStream)** — The event backbone for the live dashboard + proactive AI; fed by the outbox. **Degradable** (`NATS_ENABLED=false` → REST-only). ([ADR-0002](../08-decisions/0002-nats-jetstream-event-bus.md))
 
 **`req.actor`** — The authenticated staff identity (`{ id, name, role }`) `requireAuth` attaches to a request; the audit actor on every mutation.
 
