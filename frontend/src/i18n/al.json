@@ -589,7 +589,35 @@
       "conflict": "Konflikt",
       "circulation": "Qasja e prekur"
     },
-    "venueTitle": "Piramida — me një shikim"
+    "venueTitle": "Piramida — me një shikim",
+    "venue": {
+      "eyebrow": "Modeli i ambienteve",
+      "floor": "Piramida e Tiranës — kati {{floor}}",
+      "meta": "niveli {{level}} m · {{count}} ambiente · {{bookable}} të rezervueshme · prek një ambient",
+      "seats": "vende",
+      "notBookable": "jo e rezervueshme",
+      "booked": "E rezervuar",
+      "bookedBy": "Rezervuar: {{title}}",
+      "held": "mbajtur",
+      "confirmed": "konfirmuar",
+      "filters": {
+        "all": "Të gjitha",
+        "halls": "Sallat",
+        "boxes": "Dhomat",
+        "wc": "WC",
+        "technical": "Teknike",
+        "circulation": "Qarkullim"
+      },
+      "kind": {
+        "event_hall": "Sallë eventi",
+        "box": "Dhomë / kuti",
+        "wc": "WC",
+        "technical": "Teknike",
+        "circulation": "Qarkullim",
+        "core": "Bërthamë / shkallë",
+        "terrace": "Tarracë"
+      }
+    }
   },
   "search": {
     "placeholder": "Kërko kërkesa, hapësira, pajisje…",

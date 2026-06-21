@@ -58,3 +58,5 @@ Thumbs.db
 
 # Analysis byproduct — rendered floor-plan crops (regenerate via New_Docs/_gen_catalog.py / PyMuPDF)
 New_Docs/crops/
+# Scratch render previews from New_Docs/_gen_floor_svg.py (--preview) + calibration
+New_Docs/_overview/

@@ -20,6 +20,7 @@ Run locally::
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -32,6 +33,7 @@ from .config import settings
 from .graph import build_planning_graph
 from .ops_core_client import OpsCoreClient
 from .planning import build_operational_plan
+from .rag.chroma import connect_knowledge_base, seed_knowledge
 from .schemas import (
     ChatRequest,
     ChatResponse,
@@ -39,6 +41,7 @@ from .schemas import (
     HealthResponse,
     OperationalPlan,
 )
+from .session import create_session_store
 
 
 @asynccontextmanager
@@ -51,20 +54,42 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     app.state.ops = OpsCoreClient()  # points at settings.OPS_CORE_URL (mock or real)
     app.state.graph = build_planning_graph()
+    # Conversation memory: Redis when reachable, else an in-memory fallback (the call
+    # never raises — it pings once and degrades silently). Shared across requests.
+    app.state.sessions = await create_session_store()
+    # Venue knowledge (RAG): connect to ChromaDB if present, else a no-op KB. Seeding
+    # runs in the BACKGROUND so a first-time embedding-model download can't block
+    # readiness; early queries just fall back until it finishes.
+    app.state.kb = connect_knowledge_base()
+    seed_task: asyncio.Task | None = None
+    if app.state.kb.available:
+        async def _seed() -> None:
+            try:
+                from .venue import get_venue
+
+                await asyncio.to_thread(seed_knowledge, app.state.kb, get_venue())
+            except Exception:
+                pass
+
+        seed_task = asyncio.create_task(_seed())
     # Warm the Anthropic connection so the first user request isn't a cold start.
     if settings.ANTHROPIC_API_KEY:
         try:
             from .intake import _anthropic
 
             await _anthropic().messages.create(
-                model=settings.FAST_MODEL, max_tokens=1, messages=[{"role": "user", "content": "hi"}]
+                model=settings.FAST_MODEL, max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
             )
         except Exception:
             pass
     try:
         yield
     finally:
+        if seed_task is not None:
+            seed_task.cancel()
         await app.state.ops.aclose()
+        await app.state.sessions.aclose()
 
 
 app = FastAPI(
@@ -100,11 +125,17 @@ async def health() -> HealthResponse:
 async def chat(req: ChatRequest) -> ChatResponse:
     """Conversational copilot (stateful via ``sessionId``).
 
-    Gathers intake across turns (in-memory session); once it has enough, runs the
-    planning DAG and attaches the ``OperationalPlan`` + ``proposedActions`` gated
-    by ``requiresApproval`` — the AI proposes; a human + ops-core authorize (#3).
+    Gathers intake across turns (Redis-backed session, in-memory fallback); once it
+    has enough, runs the planning DAG and attaches the ``OperationalPlan`` +
+    ``proposedActions`` gated by ``requiresApproval`` — the AI proposes; a human +
+    ops-core authorize (#3). A standing plan is re-served for conversational
+    follow-ups, so a session never spawns duplicate reservation holds.
     """
-    return await handle_chat(req.sessionId, req.message, ops=app.state.ops, graph=app.state.graph)
+    return await handle_chat(
+        req.sessionId, req.message,
+        ops=app.state.ops, graph=app.state.graph,
+        sessions=app.state.sessions, kb=app.state.kb,
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════════════

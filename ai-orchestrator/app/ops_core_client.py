@@ -267,6 +267,21 @@ class OpsCoreClient:
         )
         return Reservation.model_validate(self._unwrap(resp))
 
+    async def release_reservation(self, reservation_id: str) -> Reservation:
+        """POST /private/reservations/:id/release → Reservation (idempotent).
+
+        Frees a HELD lease back to inventory. The chat copilot calls this BEFORE a
+        re-plan so a superseded hold never lingers — ops-core's ``hold`` always
+        inserts a NEW reservation row and re-checks availability against the locked
+        state, so without a release the request's own prior hold would surface as a
+        self-conflict (and abandoned leases would stack until the reaper runs). One
+        live lease per chat session. A missing/already-released id is a no-op here."""
+        resp = await self._client.post(
+            f"/private/reservations/{reservation_id}/release",
+            headers=_idempotency_headers(),
+        )
+        return Reservation.model_validate(self._unwrap(resp))
+
     # ── quotes ────────────────────────────────────────────────────────────────
     async def generate_quote(
         self,

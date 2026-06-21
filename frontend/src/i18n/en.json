@@ -589,7 +589,35 @@
       "conflict": "Conflict",
       "circulation": "Access affected"
     },
-    "venueTitle": "The Pyramid — at a glance"
+    "venueTitle": "The Pyramid — at a glance",
+    "venue": {
+      "eyebrow": "Venue model",
+      "floor": "Pyramid of Tirana — floor {{floor}}",
+      "meta": "level {{level}} m · {{count}} spaces · {{bookable}} bookable · tap a space",
+      "seats": "seats",
+      "notBookable": "not bookable",
+      "booked": "Booked",
+      "bookedBy": "Booked: {{title}}",
+      "held": "held",
+      "confirmed": "confirmed",
+      "filters": {
+        "all": "All",
+        "halls": "Event halls",
+        "boxes": "Boxes",
+        "wc": "WC",
+        "technical": "Technical",
+        "circulation": "Circulation"
+      },
+      "kind": {
+        "event_hall": "Event hall",
+        "box": "Box / room",
+        "wc": "WC",
+        "technical": "Technical",
+        "circulation": "Circulation",
+        "core": "Core / stairs",
+        "terrace": "Terrace"
+      }
+    }
   },
   "search": {
     "placeholder": "Search requests, spaces, assets…",
