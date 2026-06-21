@@ -5,10 +5,15 @@
  * conflict: Blue Hall is occupied at window W1, so a hold there returns 409 and
  * the conflict→alternatives demo/e2e works.
  *
- *   pnpm db:seed            — upsert spaces/assets/users; create events if none
- *   pnpm db:seed -- --reset — wipe domain data first, then reseed deterministically
+ *   pnpm db:seed                  — upsert spaces/assets/users; create events if none
+ *   pnpm db:seed -- --reset       — wipe domain data first, then reseed deterministically
+ *   pnpm db:seed:spaces           — reconcile ONLY the space catalog (idempotent,
+ *                                   prod-safe: no users/events). Run on every deploy
+ *                                   so catalog changes (new floors/halls) reach a
+ *                                   live DB; see syncSpaces() for the prune contract.
  *
- * Refuses to create users / reset against NODE_ENV=production.
+ * Refuses to create users / reset against NODE_ENV=production. The --spaces-only
+ * path is the exception: it only upserts/prunes Space rows, so it is safe in prod.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -27,8 +32,10 @@ const id = (n: number, kind: string) => {
   return `${tag}0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 };
 
-// The 19-space catalog is the single shared source (ops-core seed + AI venue_facts + FloorMap).
-// Rows 1-6 are byte-authoritative vs the original seed; 7-19 add transitional/upper spaces.
+// The space catalog is the single shared source (ops-core seed + AI venue_facts + FloorMap).
+// Rows 1-6 stay byte-authoritative vs the original seed; the rest model the real Pyramid
+// floors (PR#7). The seed loads whatever the catalog holds, so adding spaces there is the
+// ONLY edit needed to grow the venue — syncSpaces() reconciles a live DB to match.
 // See docs/03-data/spaces.catalog.json + docs/08-decisions/0013-space-catalog-extension-fields.md.
 type CatalogSpace = {
   id: string; slug: string; name: string; floor: number; kind: "MAIN" | "TRANSITIONAL";
@@ -82,8 +89,33 @@ async function resetDomain() {
   await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"public"."${t}"`).join(", ")} RESTART IDENTITY CASCADE`);
 }
 
-async function seedSpaces() {
+// Reconcile the Space table to the catalog: upsert every catalog row, then prune
+// rows the catalog dropped (e.g. the old F14 ids 7-19 the real-floor model replaced)
+// so the DB matches the catalog exactly instead of accumulating orphans on re-seed.
+// A catalog-absent space that still has reservations is NEVER deleted — that would
+// orphan bookings/audit — it is kept and flagged. Pure upsert + guarded delete, so
+// this is idempotent and safe to run on a live prod DB on every deploy.
+export async function syncSpaces(): Promise<{ upserted: number; pruned: number; keptStale: number }> {
+  const catalogIds = SPACES.map((s) => s.id);
   for (const s of SPACES) await prisma.space.upsert({ where: { id: s.id }, update: s, create: s });
+
+  const stale = await prisma.space.findMany({
+    where: { id: { notIn: catalogIds } },
+    select: { id: true, name: true, _count: { select: { reservations: true } } },
+  });
+  let pruned = 0;
+  let keptStale = 0;
+  for (const sp of stale) {
+    if (sp._count.reservations > 0) {
+      console.warn(`[seed] keeping catalog-absent space ${sp.id} (${sp.name}) — has ${sp._count.reservations} reservation(s)`);
+      keptStale++;
+      continue;
+    }
+    await prisma.space.delete({ where: { id: sp.id } });
+    pruned++;
+  }
+  if (pruned > 0 || keptStale > 0) console.log(`[seed] spaces reconciled — ${catalogIds.length} upserted, ${pruned} pruned, ${keptStale} kept (have reservations)`);
+  return { upserted: catalogIds.length, pruned, keptStale };
 }
 async function seedAssets() {
   for (const a of ASSETS) await prisma.asset.upsert({ where: { id: a.id }, update: a, create: { ...a, status: "ACTIVE" } });
@@ -138,12 +170,18 @@ async function seedEvents(actor: Actor) {
   console.log("[seed] created 3 events (E1 SCHEDULED in Blue@W1 = planted conflict, E2 PROPOSED in Green@W2, E3 PROPOSED by PARTNER)");
 }
 
-export async function runSeed(opts: { reset?: boolean } = {}): Promise<void> {
+export async function runSeed(opts: { reset?: boolean; spacesOnly?: boolean } = {}): Promise<void> {
+  // --spaces-only: reconcile the catalog and nothing else. Prod-safe (no users/events),
+  // so deploy.sh runs it on every deploy to keep a live DB in step with the catalog.
+  if (opts.spacesOnly) {
+    await syncSpaces();
+    return;
+  }
   if (opts.reset) {
     if (vars.isProd) throw new Error("refusing to --reset against NODE_ENV=production");
     await resetDomain();
   }
-  await seedSpaces();
+  await syncSpaces();
   await seedAssets();
   await seedUsers();
   const admin = USERS[0]!;
@@ -151,9 +189,11 @@ export async function runSeed(opts: { reset?: boolean } = {}): Promise<void> {
 }
 
 if (require.main === module) {
-  void runSeed({ reset: process.argv.includes("--reset") })
+  const spacesOnly = process.argv.includes("--spaces-only");
+  void runSeed({ reset: process.argv.includes("--reset"), spacesOnly })
     .then(async () => {
-      console.log(`[seed] done — ${SPACES.length} spaces, ${ASSETS.length} assets, ${vars.isProd ? 0 : USERS.length} users.`);
+      if (spacesOnly) console.log(`[seed] spaces-only sync done — ${SPACES.length} catalog spaces reconciled.`);
+      else console.log(`[seed] done — ${SPACES.length} spaces, ${ASSETS.length} assets, ${vars.isProd ? 0 : USERS.length} users.`);
       await prisma.$disconnect();
     })
     .catch(async (e) => {

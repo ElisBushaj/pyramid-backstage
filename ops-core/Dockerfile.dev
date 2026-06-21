@@ -23,4 +23,8 @@ EXPOSE 4000
 # so generating here always matches the live schema.
 # `migrate deploy` is idempotent (no-ops when current) and is what makes a fresh DB
 # volume (or `docker compose down -v`) boot with the schema actually applied.
-CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run dev:watch"]
+# `db:seed:spaces` then reconciles the space catalog (idempotent, catalog-only) so a
+# fresh local stack always carries all spaces — the catalog reads from the mounted
+# /docs. Guarded with `|| echo` so a sync hiccup never blocks the dev server; run the
+# full `npm run db:seed` once for demo users/events + the planted conflict.
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && (npm run db:seed:spaces || echo '[seed] spaces sync skipped') && npm run dev:watch"]

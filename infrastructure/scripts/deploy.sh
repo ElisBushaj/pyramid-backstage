@@ -51,6 +51,16 @@ echo "[3/8] Running Prisma migrations..."
 $COMPOSE run --rm ops-core sh -c "npx prisma migrate deploy" || {
     echo "ERROR: migration failed"; exit 1; }
 
+# Reconcile the space catalog on EVERY deploy — NOT gated by the seed marker.
+# Idempotent (upsert + prune of reservation-free, catalog-absent rows) and prod-safe
+# (touches only Space rows, never users/events). This is what propagates catalog
+# growth (new floors/halls) to an already-seeded prod; the one-time demo seed below
+# is marker-gated and would otherwise skip every space added after the first deploy.
+echo "[3b/8] Syncing space catalog (idempotent)..."
+$COMPOSE run --rm ops-core sh -c "npm run db:seed:spaces" || {
+    echo "  WARNING: space catalog sync failed — new spaces may be missing. Re-run:"
+    echo "    cd $APP_DIR && $COMPOSE run --rm ops-core sh -c 'npm run db:seed:spaces'"; }
+
 # Seed ONCE (first deploy). The seed refuses to create users under
 # NODE_ENV=production, so this one-off overrides it; the live service stays prod.
 if [ ! -f "$SEED_MARKER" ]; then
