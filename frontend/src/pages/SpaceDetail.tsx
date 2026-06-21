@@ -1,17 +1,28 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { Pencil } from 'lucide-react'
-import { useSpaces, useMe, useUpdateSpace } from '@/api/hooks'
+import { useSpaces, useMe, useUpdateSpace, useSchedule } from '@/api/hooks'
 import { useT } from '@/i18n/useT'
 import { useLocaleStore } from '@/stores/locale'
 import { formatMinor } from '@/lib/money'
 import { cn } from '@/lib/cn'
+import { scheduleToBars } from '@/lib/schedule'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Feedback'
 import { ErrorState } from '@/components/ui/Feedback'
 import { AvailabilityTimeline } from '@/components/command/AvailabilityTimeline'
 import type { SpaceInput } from '@/api/types/spaces'
+
+/** Today's [00:00, +1d) window in venue-anchored ISO instants for the schedule query. */
+function todayWindow(): { start: string; end: string } {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 1)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
 
 const LAYOUT_ORDER = ['THEATER', 'CLASSROOM', 'BANQUET', 'RECEPTION', 'CABARET', 'BOARDROOM', 'CUSTOM']
 
@@ -27,6 +38,10 @@ export default function SpaceDetail() {
   const canEdit = me ? ['OPS', 'MANAGER', 'ADMIN'].includes(me.role) : false
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Partial<SpaceInput>>({})
+
+  const dayWindow = useMemo(todayWindow, [])
+  const schedule = useSchedule({ spaceId: id, start: dayWindow.start, end: dayWindow.end })
+  const bars = useMemo(() => scheduleToBars(schedule.data ?? []), [schedule.data])
 
   const caps = useMemo(() => ({ ...(space?.capacities ?? {}), ...(draft.capacities ?? {}) }), [space, draft])
 
@@ -50,8 +65,15 @@ export default function SpaceDetail() {
 
   const layouts = LAYOUT_ORDER.filter((l) => l in caps).map((l) => [l, caps[l]] as const)
 
+  // Resolved current values for the editable Details fields (draft overrides space).
+  const dayRateMinor = draft.dayRateMinor ?? space.dayRateMinor
+  const setupBufferMinutes = draft.setupBufferMinutes ?? space.setupBufferMinutes
+  const teardownBufferMinutes = draft.teardownBufferMinutes ?? space.teardownBufferMinutes
+  const features = draft.features ?? space.features
+
   function saveEdit() {
-    update.mutate({ capacities: caps as Record<string, number>, ...draft }, { onSuccess: () => setEditing(false) })
+    // caps merges space + draft capacities, so it must win over a partial draft.capacities.
+    update.mutate({ ...draft, capacities: caps as Record<string, number> }, { onSuccess: () => setEditing(false) })
   }
 
   return (
@@ -110,16 +132,73 @@ export default function SpaceDetail() {
         {/* Details */}
         <section className="min-w-[300px] flex-1 rounded-lg border border-border-subtle p-5">
           <h2 className="mb-3.5 text-[15px] font-[600] text-text-primary">{t('spaces.details')}</h2>
-          <DetailRow label={t('spaces.dayRate')} value={formatMinor(space.dayRateMinor, locale)} />
-          <DetailRow label={t('spaces.setupBuffer')} value={`${space.setupBufferMinutes} ${t('spaces.minutes')}`} />
-          <DetailRow label={t('spaces.teardownBuffer')} value={`${space.teardownBufferMinutes} ${t('spaces.minutes')}`} />
+          {editing ? (
+            <EditRow label={t('spaces.dayRate')} suffix="ALL">
+              <input
+                type="number"
+                min={0}
+                value={dayRateMinor}
+                onChange={(e) => setDraft((d) => ({ ...d, dayRateMinor: Number(e.target.value) }))}
+                className={EDIT_INPUT}
+              />
+            </EditRow>
+          ) : (
+            <DetailRow label={t('spaces.dayRate')} value={formatMinor(space.dayRateMinor, locale)} />
+          )}
+          {editing ? (
+            <EditRow label={t('spaces.setupBuffer')} suffix={t('spaces.minutes')}>
+              <input
+                type="number"
+                min={0}
+                value={setupBufferMinutes}
+                onChange={(e) => setDraft((d) => ({ ...d, setupBufferMinutes: Number(e.target.value) }))}
+                className={EDIT_INPUT}
+              />
+            </EditRow>
+          ) : (
+            <DetailRow label={t('spaces.setupBuffer')} value={`${space.setupBufferMinutes} ${t('spaces.minutes')}`} />
+          )}
+          {editing ? (
+            <EditRow label={t('spaces.teardownBuffer')} suffix={t('spaces.minutes')}>
+              <input
+                type="number"
+                min={0}
+                value={teardownBufferMinutes}
+                onChange={(e) => setDraft((d) => ({ ...d, teardownBufferMinutes: Number(e.target.value) }))}
+                className={EDIT_INPUT}
+              />
+            </EditRow>
+          ) : (
+            <DetailRow label={t('spaces.teardownBuffer')} value={`${space.teardownBufferMinutes} ${t('spaces.minutes')}`} />
+          )}
           <div className="pt-3.5">
             <p className="mb-2 text-[13px] text-text-secondary">{t('spaces.features')}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {space.features.map((f) => (
-                <span key={f} className="rounded-pill bg-surface-sunken px-[9px] py-[3px] text-[12px] text-text-secondary">{f}</span>
-              ))}
-            </div>
+            {editing ? (
+              <>
+                <input
+                  type="text"
+                  value={features.join(', ')}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      features: e.target.value
+                        .split(',')
+                        .map((f) => f.trim())
+                        .filter(Boolean),
+                    }))
+                  }
+                  placeholder={t('spaces.featuresPlaceholder')}
+                  className="h-9 w-full rounded-[7px] border border-border-focus bg-[#F7F9FE] px-2.5 text-[13px] outline-none"
+                />
+                <p className="mt-1.5 text-[12px] text-text-tertiary">{t('spaces.featuresHint')}</p>
+              </>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {space.features.map((f) => (
+                  <span key={f} className="rounded-pill bg-surface-sunken px-[9px] py-[3px] text-[12px] text-text-secondary">{f}</span>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>
@@ -127,7 +206,7 @@ export default function SpaceDetail() {
       {/* Today's schedule */}
       <section className="mt-5 rounded-lg border border-border-subtle px-5 pb-4 pt-6">
         <h2 className="mb-6 text-[15px] font-[600] text-text-primary">{t('spaces.todaySchedule')}</h2>
-        <AvailabilityTimeline lanes={[{ id: space.id, name: space.name, cap: caps['THEATER'] ?? 0, reservations: [] }]} />
+        <AvailabilityTimeline lanes={[{ id: space.id, name: space.name, cap: caps['THEATER'] ?? 0, reservations: bars }]} />
       </section>
     </div>
   )
@@ -138,6 +217,21 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between border-b border-border-subtle py-[11px] last:border-0">
       <span className="text-[14px] text-text-secondary">{label}</span>
       <span className={cn('font-mono text-[14px] font-[600] tabular-nums text-text-primary')}>{value}</span>
+    </div>
+  )
+}
+
+const EDIT_INPUT =
+  'h-8 w-[110px] rounded-[7px] border border-border-focus bg-[#F7F9FE] px-2.5 text-right font-mono text-[14px] font-[600] tabular-nums outline-none'
+
+function EditRow({ label, suffix, children }: { label: string; suffix?: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border-subtle py-[11px] last:border-0">
+      <span className="text-[14px] text-text-secondary">{label}</span>
+      <div className="flex items-center gap-1.5">
+        {children}
+        {suffix && <span className="text-[12px] text-text-tertiary">{suffix}</span>}
+      </div>
     </div>
   )
 }

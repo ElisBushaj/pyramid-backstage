@@ -11,6 +11,8 @@ export interface SpaceCardProps {
   floor: string
   capacity: number | string
   layout: string
+  /** Whether a layout filter is driving `layout`. When false, the card shows neutral "max capacity" copy. */
+  layoutActive?: boolean
   features: string[]
   rate: string
   availability: 'free' | 'held'
@@ -22,6 +24,7 @@ export function SpaceCard({
   floor,
   capacity,
   layout,
+  layoutActive = false,
   features,
   rate,
   availability,
@@ -70,9 +73,11 @@ export function SpaceCard({
           <span className="font-mono text-[30px] font-[600] leading-none tabular-nums tracking-[-0.02em] text-text-primary">
             {capacity}
           </span>
-          <span className="text-[13px] text-text-tertiary">{layout}</span>
+          {layoutActive && <span className="text-[13px] text-text-tertiary">{layout}</span>}
         </div>
-        <p className="mt-0.5 text-[12px] text-text-tertiary">{t('spaces.capacityForLayout')}</p>
+        <p className="mt-0.5 text-[12px] text-text-tertiary">
+          {layoutActive ? t('spaces.capacityForLayout') : t('spaces.maxCapacity')}
+        </p>
       </div>
 
       {features.length ? (
